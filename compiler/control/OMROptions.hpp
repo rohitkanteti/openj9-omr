@@ -436,11 +436,11 @@ enum TR_CompilationOptions
    TR_DisableHighWordRA                       = 0x00800000 + 11, // zGryphon
    TR_DisableZImplicitNullChecks              = 0x01000000 + 11,
    TR_DisablePrexistenceDuringGracePeriod     = 0x02000000 + 11,
-   // Available                               = 0x04000000 + 11,
+   TR_RunMyAnalysis                           = 0x04000000 + 11, // Added by Rohit
    TR_DisableInlineWriteBarriersRT            = 0x08000000 + 11, // RTJ
-   // Available                               = 0x10000000 + 11,
+   TR_PrintCFG                               = 0x10000000 + 11, // Added by Rohit
    TR_DisableNewInliningInfrastructure        = 0x20000000 + 11,
-   // Available                               = 0x40000000 + 11,
+   TR_DumpPAG                               = 0x40000000 + 11,// Added by Rohit
    // Available                               = 0x80000000 + 11,
 
    // Option word 12

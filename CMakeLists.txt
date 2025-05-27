@@ -81,6 +81,8 @@ omr_add_library(omr_base INTERFACE)
 target_include_directories(omr_base
 	INTERFACE
 		$<BUILD_INTERFACE:${omr_SOURCE_DIR}/include_core>
+		$<BUILD_INTERFACE:${omr_SOURCE_DIR}/gc/base>
+		$<BUILD_INTERFACE:${omr_SOURCE_DIR}/gc/structs>
 		$<BUILD_INTERFACE:${omr_BINARY_DIR}>
 		$<INSTALL_INTERFACE:${OMR_INSTALL_INC_DIR}>
 )

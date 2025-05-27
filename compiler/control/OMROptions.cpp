@@ -670,6 +670,7 @@ TR::OptionTable OMR::Options::_jitOptions[] = {
    {"dumpFinalMethodNamesAndCounts",      "O\tPrinting of Method Names and Final Counts", SET_OPTION_BIT(TR_DumpFinalMethodNamesAndCounts), "F"},
    {"dumpInitialMethodNamesAndCounts",    "O\tDebug Printing of Method Names and Initial Counts.", SET_OPTION_BIT(TR_DumpInitialMethodNamesAndCounts), "F"},
    {"dumpIprofilerMethodNamesAndCounts",  "O\tDebug Printing of Method Names and Persisted Counts.", SET_OPTION_BIT(TR_DumpPersistedIProfilerMethodNamesAndCounts), "F"},
+   {"dumpPAG",        "M\tDump the PAG(in Rohit's Analysis)", SET_OPTION_BIT(TR_DumpPAG), "F"},
    {"dynamicThreadPriority",              "M\tenable dynamic changing of compilation thread priority", SET_OPTION_BIT(TR_DynamicThreadPriority), "F", NOT_IN_SUBSET},
    {"earlyLPQ",                           "M\tAllow compilations from low priority queue to happen early, during startup", SET_OPTION_BIT(TR_EarlyLPQ), "F", NOT_IN_SUBSET },
    {"edoRecompSizeThreshold=",            "R<nnn>\tThe sample counter will not be decremented in a catch block "
@@ -766,6 +767,7 @@ TR::OptionTable OMR::Options::_jitOptions[] = {
    {"enableMonitorCacheLookup",          "O\tenable  monitor cache lookup under lock nursery ",                       SET_OPTION_BIT(TR_EnableMonitorCacheLookup), "F"},
    {"enableMultipleGCRPeriods",          "M\tallow JIT to get in and out of GCR", SET_OPTION_BIT(TR_EnableMultipleGCRPeriods), "F", NOT_IN_SUBSET},
    {"enableMutableCallSiteGuards",       "O\tenable virtual guards for calls to java.lang.invoke.MutableCallSite.getTarget().invokeExact(...) (including invokedynamic)",   RESET_OPTION_BIT(TR_DisableMutableCallSiteGuards), "F"},
+   {"enableMyAnalysis",       "O\tenable my(Rohit's) analysis pass",   SET_OPTION_BIT(TR_RunMyAnalysis), "F"},
    {"enableNewAllocationProfiling",      "O\tenable profiling of new allocations", SET_OPTION_BIT(TR_EnableNewAllocationProfiling), "F"},
    {"enableNewCheckCastInstanceOf",      "O\tenable new Checkcast/InstanceOf evaluator", SET_OPTION_BIT(TR_EnableNewCheckCastInstanceOf), "F"},
    {"enableNodeGC",                      "M\tenable node recycling", SET_OPTION_BIT(TR_EnableNodeGC), "F"},
@@ -1074,6 +1076,7 @@ TR::OptionTable OMR::Options::_jitOptions[] = {
    {"poisonDeadSlots",    "O\tpaints all dead slots with deadf00d", SET_OPTION_BIT(TR_PoisonDeadSlots), "F"},
    {"prepareForOSREvenIfThatDoesNothing",   "O\temit the call to prepareForOSR even if there is no slot sharing", SET_OPTION_BIT(TR_EnablePrepareForOSREvenIfThatDoesNothing), "F"},
    {"printAbsoluteTimestampInVerboseLog", "O\tPrint Absolute Timestamp in vlog", SET_OPTION_BIT(TR_PrintAbsoluteTimestampInVerboseLog), "F", NOT_IN_SUBSET},
+   {"printCFG",        "M\tPrint the CFG(in Rohit's Analysis)", SET_OPTION_BIT(TR_PrintCFG), "F"},
    {"printCodeCacheUsage",        "M\tPrint code cache usage at shutdown", SET_OPTION_BIT(TR_PrintCodeCacheUsage), "F", NOT_IN_SUBSET},
    {"printErrorInfoOnCompFailure",        "O\tPrint compilation error info to stderr", SET_OPTION_BIT(TR_PrintErrorInfoOnCompFailure), "F", NOT_IN_SUBSET},
    {"privatizeOverlaps",  "O\tif BCD storageRefs are going to overlap then do the move through a temp", SET_OPTION_BIT(TR_PrivatizeOverlaps), "F"},
