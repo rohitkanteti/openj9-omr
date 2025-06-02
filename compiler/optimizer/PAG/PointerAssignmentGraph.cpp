@@ -1,6 +1,7 @@
 #include "PAG_Components.cpp"
 #include "il/ResolvedMethodSymbol.hpp"
 #include "CallGraph.cpp"
+#include "optimizer/PAG/regularPT.cpp"
 #define METHOD_INDEX int
 #define CALLSITE_BCI int
 #define INVALID_BCI -9999
@@ -23,10 +24,15 @@ public:
     unordered_set<PAGNode*> static_field_nodes;
     std::unordered_map<int, PAGNode*> nodeIndexToNode;
     std::unordered_map<std::string, int> _methodIndices;
+
+    std::unordered_set<std::string> staticFields; // class_name.field_name
+    std::unordered_set<std::string> threadAccessibleFields;// class_name.field_name
     
     std::unordered_map<int,int> callsite_to_storeNodeIndex;
     unordered_map<int,vector<PAGNode*>> methods_to_formalNodes;
     unordered_map<int,vector<PAGNode*>> methods_to_allMethodNodes;
+    std::unordered_set<PAGNode*> allEscpaingObjects;
+    int number_of_escapingObjs = -8;
 
     unordered_map<int,PAGNode*> methods_to_returnNode;
 
@@ -38,7 +44,7 @@ public:
     unordered_map<std::string,vector<PAGEdge*>> field_to_putFieldEdges;
 
     /*methods on PAG*/
-    vector<PAGNode*> getEscapingObjects(int method);
+     std::unordered_set<PAGNode*> getEscapingObjects(int method);
     unordered_set<PAGNode*> getLeakyNodes();
     PAGNode* getReturnNode(METHOD_INDEX method);
 
@@ -56,9 +62,9 @@ public:
     vector<PAGEdge*> getStoreEdges(int method); // for the given method
     vector<PAGEdge*> getLoadEdges(); // for entire PAG
     vector<PAGEdge*> getLoadEdges(int method);// for the given method
-    
+    std::unordered_set<PAGNode*> points_to(PAGNode* src);
     vector<PAGEdge*> getIntraproceduralAssignEdges(int method);
-    vector<PAGEdge*> getAllocEdges(int method);
+    unordered_set<PAGEdge*> getAllocEdges(int method);
     std::unordered_set<PAGNode*> flowsTo(PAGNode* object);
     std::unordered_set<PAGNode*> FlowsToReg(PAGNode* object);
 
@@ -353,4 +359,50 @@ std::unordered_set<PAGNode*> PointerAssignmentGraph::FlowsToReg(PAGNode* object)
     }
     
     return result;
+}
+
+ std::unordered_set<PAGNode*> PointerAssignmentGraph::getEscapingObjects(int method)
+{
+     std::unordered_set<PAGNode*> escaping;
+    if(allEscpaingObjects.size()>0 )
+    {
+        for(auto * obj:allEscpaingObjects)
+        {
+            if(obj->methodIndex==method) escaping.insert(obj);
+        }
+    }
+    else if(number_of_escapingObjs >= 0)
+    {
+        for(auto* leaky : LeakyNodes)
+        {
+           std::unordered_set<PAGNode*> esc = points_to(leaky);
+           number_of_escapingObjs += esc.size();
+           for(auto * obj:esc)
+            {
+                if(obj->methodIndex==method) escaping.insert(obj);
+            }
+            allEscpaingObjects.insert(esc.begin(),esc.end());
+        }
+    }
+
+    return escaping;
+}
+
+std::unordered_set<PAGNode*> PointerAssignmentGraph::points_to(PAGNode* src)
+{
+    return regularPT(src);
+}
+std::unordered_set<PAGEdge*> PointerAssignmentGraph::getAllocEdges(int method) {
+    std::unordered_set<PAGEdge*> allocEdges;
+    auto it = methodIndex_to_allMethodNodes.find(method);
+    if (it != methodIndex_to_allMethodNodes.end()) {
+        for (PAGNode* node : it->second) {
+            for (PAGEdge* edge : node->outgoing) {
+                if (edge->type == EdgeType::NEW) {
+                    allocEdges.insert(edge);
+                }
+            }
+        }
+    }
+    return allocEdges;
 }

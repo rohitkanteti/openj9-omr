@@ -18,7 +18,7 @@
 
 class LoadPAG {
     public:
-        LoadPAG(const std::string& nodeFile, const std::string& edgeFile,const std::string& methodNodeMappingFile,const std::string& callgraphfile);
+        LoadPAG(const std::string& nodeFile, const std::string& edgeFile,const std::string& methodNodeMappingFile,const std::string& callgraphfile,std::string& threadfieldFile,std::string& staticfieldFile);
     
         PointerAssignmentGraph* getPAG();  
     
@@ -27,6 +27,8 @@ class LoadPAG {
         std::string edgeFile;
         std::string methodNodeMappingFile;
         std::string callgraphfile;
+        std::string& threadfieldFile;
+        std::string& staticfieldFile;
         bool loaded = false;
     
         PointerAssignmentGraph* pag = new PointerAssignmentGraph();
@@ -37,13 +39,14 @@ class LoadPAG {
         void loadMethodNodeMappings(const std::string& filename);
         void addMatchEdges(); 
         void loadCG(const std::string& filename);
+        void getImportantFieldNames(const std::string& file,int static_or_thread);
     
         NodeType parseNodeType(int typeVal);
         EdgeType parseEdgeType(int typeVal);
     };
 
-LoadPAG::LoadPAG(const std::string& nodeFile, const std::string& edgeFile,const std::string& methodNodeMappingFile,const std::string& callgraphfile)
-    : nodeFile(nodeFile), edgeFile(edgeFile), methodNodeMappingFile(methodNodeMappingFile),callgraphfile(callgraphfile) {}
+LoadPAG::LoadPAG(const std::string& nodeFile, const std::string& edgeFile,const std::string& methodNodeMappingFile,const std::string& callgraphfile,std::string& threadfieldFile,std::string& staticfieldFile)
+    : nodeFile(nodeFile), edgeFile(edgeFile), methodNodeMappingFile(methodNodeMappingFile),callgraphfile(callgraphfile),threadfieldFile(threadfieldFile),staticfieldFile(staticfieldFile) {}
 
 PointerAssignmentGraph* LoadPAG::getPAG() {
     if (!loaded) {
@@ -52,6 +55,8 @@ PointerAssignmentGraph* LoadPAG::getPAG() {
         loadMethodNodeMappings(methodNodeMappingFile);
         addMatchEdges();
         loadCG(callgraphfile);
+        getImportantFieldNames(threadfieldFile,0);
+        getImportantFieldNames(staticfieldFile,1);
         loaded = true;
     }
     
@@ -105,14 +110,18 @@ void LoadPAG::loadNodes(const std::string& filename) {
         std::getline(ss, token, ',');
         int typeInt = std::stoi(token);
 
-        std::getline(ss, token);
+        std::getline(ss, token,',');
         int name = std::stoi(token);
+
+        std::getline(ss, token);
+        int isLeaky = std::stoi(token);
 
         NodeType type = parseNodeType(typeInt);
 
         PAGNode* node = new PAGNode(type, name, nullptr, nullptr, bci, methodIndex);
         pag->PAG_nodes.insert(node);
         pag->nodeIndexToNode[index++] = node;
+        if(isLeaky) pag->LeakyNodes.insert(node);
     }
 }
 
@@ -326,4 +335,23 @@ void LoadPAG::loadCG(const std::string& filename) {
             }
         }
     }
+}
+
+void LoadPAG::getImportantFieldNames(const std::string& threadfieldFile,int static_or_thread) {
+    std::ifstream file(threadfieldFile);
+    
+    if (!file.is_open()) {
+        std::cerr << "Error: Could not open file " << threadfieldFile << std::endl;
+        return;
+    }
+
+    std::string line;
+    while (std::getline(file, line)) {
+        // std::cout << line << std::endl;
+        if(static_or_thread == 0)
+            pag->threadAccessibleFields.insert(line);
+        else pag->staticFields.insert(line);
+    }
+
+    file.close();
 }
