@@ -120,18 +120,17 @@
 #include "il/ParameterSymbol.hpp"
 #ifndef PAG_POINTER_ASSIGNMENT_GRAPH_CPP
 #define PAG_POINTER_ASSIGNMENT_GRAPH_CPP
-#include "optimizer/PAG/PointerAssignmentGraph.cpp"
+#include "optimizer/PAG/PointerAssignmentGraph.hpp"
 #endif
 
 #ifndef PAG_COMPONENTS_CPP
 #define PAG_COMPONENTS_CPP
-#include "optimizer/PAG/PAG_Components.cpp"
+#include "optimizer/PAG/PAG_Components.hpp"
 #endif
 
 #include "env/VMAccessCriticalSection.hpp"
 #include "../../gc/structs/PoolIterator.hpp"
 #include "../../gc/structs/PoolIterator.cpp"
-#include "optimizer/loadingPAG/LoadPAG.cpp"
 
 #include "methodSet.cpp"
 namespace TR
@@ -161,7 +160,9 @@ public:
 
 //
 
-static PointerAssignmentGraph pag;
+static PointerAssignmentGraph* pag;
+extern PointerAssignmentGraph* pag_to_use;
+
 //(method name, symbol ref, PAGNode*)
 static unordered_map<TR_OpaqueMethodBlock *, unordered_map<int32_t, PAGNode *>> symRefNumToPAGNode;
 static unordered_map<int32_t, TR::Node *> symRefNumToNode;
@@ -205,6 +206,7 @@ MethodSet computeMSetForMethod(TR::Compilation *comp, TR::ResolvedMethodSymbol *
 bool isLibraryMethod(std::string methodName);
 void writeNodesToFile(TR::Compilation *);
 void printExhaustive();
+void getAlreadyAnalyzedMethodNames();
 // std::set<Entry> processNode(TR::Node *node, int methodIndex, TR_OpaqueMethodBlock *currentMethod, TR::Compilation *comp,
 //                               Counter &counter, std::unordered_map<TR_OpaqueMethodBlock*,
 //                                  std::set<int>> &reanalyzeStmt, std::unordered_map<TR_OpaqueMethodBlock*, std::set<int>> &parentVisited,
@@ -264,6 +266,9 @@ static std::unordered_map<TR_OpaqueMethodBlock *, std::unordered_map<TR_OpaqueMe
 
 // used to recognize thread type
 TR_OpaqueMethodBlock *_threadStartPersistentId;
+
+//methods analyzed 
+std::unordered_set<std::string> alreadyAnalyzedMethods;
 
 // (method, int)
 static std::unordered_map<TR_OpaqueMethodBlock *, int> _methodIndicesPtr;
@@ -1454,6 +1459,21 @@ void OMR::Optimizer::optimize()
 
       writeNodesToFile(comp());
 
+      std::ofstream outFile("analyzedMethods.txt");
+
+      for (auto *omb : _methodsAnalyzed) {
+        if (omb == nullptr) continue;
+
+        TR_ResolvedMethod *Method = getCachedResolvedMethodFromPtr(comp(), omb);
+      TR::ResolvedMethodSymbol *ResolvedMethodSymbol = Method->findOrCreateJittedMethodSymbol(comp());
+
+        std::string methodName = getMethodName(ResolvedMethodSymbol);
+        outFile << methodName << std::endl;
+    }
+
+    outFile.close();
+     
+
       // std::string nodeFile = "nodes.txt";
       // std::string edgeFile = "PAGEdges.txt";
       // std::string methodNodeMappingFile = "methods_to_PAGNodes.txt";
@@ -1511,14 +1531,14 @@ void writeNodesToFile(TR::Compilation *comp)
    }
    int index = 1;
    std::unordered_map<string, int> nodeIndices;
-   for (const auto &node : pag.PAG_nodes)
+   for (const auto &node : pag->PAG_nodes)
    {
       outfile << "["
               << node->bci << ","
               << node->methodIndex << ","
               << node->type << ","
               << node->name;
-      if (pag.LeakyNodes.find(node) != pag.LeakyNodes.end())
+      if (pag->LeakyNodes.find(node) != pag->LeakyNodes.end())
          outfile << "1,";
       else
          outfile << "1,";
@@ -1527,7 +1547,7 @@ void writeNodesToFile(TR::Compilation *comp)
       nodeIndices[nodeKey] = index++;
    }
 
-   for (const auto &node : pag.PAG_nodes)
+   for (const auto &node : pag->PAG_nodes)
    {
       int srcNodeIndex = getNodeIndex(node, nodeIndices);
       edgesfile << srcNodeIndex << ":";
@@ -1548,7 +1568,7 @@ void writeNodesToFile(TR::Compilation *comp)
    edgesfile.close();
    outfile.close();
    // sort the node mappings
-   std::vector<pair<int, vector<PAGNode *>>> sortedMappings = sortMethodsByIndex(pag.methods_to_allMethodNodes, comp);
+   std::vector<pair<int, vector<PAGNode *>>> sortedMappings = sortMethodsByIndex(pag->methods_to_allMethodNodes, comp);
 
    // dump, method to node maps
    std::ofstream mToNodesfile("methods_to_PAGNodes.txt"); // methodIndex: [nodeIndex,formalNode=1/non-formal=0]*
@@ -1561,7 +1581,7 @@ void writeNodesToFile(TR::Compilation *comp)
       mToNodesfile << entry.first << ":";
 
       const std::vector<PAGNode *> &allNodes = entry.second;
-      const std::vector<PAGNode *> &formalNodes = pag.methods_to_formalNodes[entry.first];
+      const std::vector<PAGNode *> &formalNodes = pag->methods_to_formalNodes[entry.first];
 
       for (PAGNode *node : allNodes)
       {
@@ -1611,20 +1631,20 @@ void writeNodesToFile(TR::Compilation *comp)
    callgraphfile.close();
 
    std::ofstream tf("threadAccesible.txt");
-   for(auto field:pag.threadAccessibleFields)
+   for(auto field:pag->threadAccessibleFields)
    {
       tf << field << std::endl;
    }
    tf.close();
 
    std::ofstream sf("staticFields.txt");
-   for(auto field:pag.staticFields)
+   for(auto field:pag->staticFields)
    {
       sf << field << std::endl;
    }
    sf.close();
    // std::ofstream returnNodesfile("methods_to_returnPAGNodes.txt"); //methodIndex:nodeIndex
-   // for(auto entry:pag.methods_to_returnNode)
+   // for(auto entry:pag->methods_to_returnNode)
    // {
    //    TR_OpaqueMethodBlock* omb = entry.first;
    //    TR_ResolvedMethod *resolvedMethod = getCachedResolvedMethodFromPtr(comp, omb);
@@ -1726,7 +1746,7 @@ void printPAG(TR::Compilation *comp)
    if (!isLibraryMethod(getMethodName(comp->getMethodSymbol())))
    {
       std::cout << "*******PRINTING PAG********" << std::endl;
-      for (PAGNode *node : pag.PAG_nodes)
+      for (PAGNode *node : pag->PAG_nodes)
       {
          std::cout << " [\n ";
          std::cout << (*node);
@@ -1772,12 +1792,21 @@ int32_t OMR::Optimizer::performOptimization(const OptimizationStrategy *optimiza
 
    // string env_flag = std::getenv("RUN_MY_PASS");
    // if(env_flag.find("True")!=string::npos)
+    if(pag_to_use != nullptr)
+   {
+      pag = pag_to_use;
+   }
+   else
+   {
+      pag = new PointerAssignmentGraph();
+   } 
+
    if (comp()->getOption(TR_RunMyAnalysis))
    {
-      if (/*!exhaustive &&*/ pag._methodIndices.empty())
+      if (/*!exhaustive &&*/ pag->_methodIndices.empty())
       {
          // cout << "reading method indices" << endl;
-         pag._methodIndices = readMethodIndices();
+         pag->_methodIndices = readMethodIndices();
 
          // _partiallyAnalysedMethodIndices = readPartiallyAnalysedMethodIndices();
       }
@@ -1785,7 +1814,7 @@ int32_t OMR::Optimizer::performOptimization(const OptimizationStrategy *optimiza
       {
          // fetch a persistent oject for the thread.start method
          int len = strlen("java/lang/Thread");
-         TR_OpaqueClassBlock *type = comp()->fe()->getClassFromSignature("java/lang/Thread", len, comp()->getCurrentMethod());
+         TR_OpaqueClassBlock *type = comp()->fe()->getClassFromSignature("java/lang/Thread", len, comp()->getCurrentMethod(),true);
          TR_ASSERT_FATAL(type, "unable to get class pointer for receiver %s", "java/lang/Thread");
          // std::cout<<"thread ptr success"<< type <<std::endl;
          TR_ResolvedMethod *targetMethod = getCachedResolvedMethod(comp(), type, "start", "()V");
@@ -3384,12 +3413,15 @@ void benchmarkBuildIndependentSet(TR::Compilation *comp)
 
    // std::cout<< "analyzing " << getMethodName(comp->getMethodSymbol()) <<std::endl;
 
+  
+
    if (isLibraryMethod(getMethodName(comp->getMethodSymbol())))
       return;
 
    if (CHA.size() == 0)
    {
       constructCHA(comp);
+      getAlreadyAnalyzedMethodNames();
       // printf("=== Class Hierarchy Analysis (CHA) ===\n");
       // printf("Total parent classes: %zu\n", CHA.size());
 
@@ -3654,7 +3686,7 @@ std::unordered_set<std::string> getClassFields(J9Class *clazz, J9VMThread *vmThr
             // printf("   Reference field: %s\n", fieldNameStr.c_str());
             if (modifiers & J9AccStatic)
             {
-               pag.staticFields.insert(classNameStr + "." + fieldNameStr);
+               pag->staticFields.insert(classNameStr + "." + fieldNameStr);
             }
          }
       }
@@ -3780,7 +3812,7 @@ void constructCHA(TR::Compilation *comp)
          std::string superClassName = TR::Compiler->cls.classSignature(comp, (TR_OpaqueClassBlock *)superClass, comp->trMemory());
          if(superClassName.rfind("Ljava/lang/Thread;")==0)
          {
-            pag.threadAccessibleFields.insert(clazz_to_fields[type].begin(),clazz_to_fields[type].end());
+            pag->threadAccessibleFields.insert(clazz_to_fields[type].begin(),clazz_to_fields[type].end());
          }
       }
 
@@ -3818,7 +3850,7 @@ void constructCHA(TR::Compilation *comp)
           std::string superClassName = TR::Compiler->cls.classSignature(comp, (TR_OpaqueClassBlock *)iTableCur->interfaceClass, comp->trMemory());
          if(superClassName.rfind("Ljava/lang/Runnable")==0)
          {
-            pag.threadAccessibleFields.insert(clazz_to_fields[type].begin(),clazz_to_fields[type].end());
+            pag->threadAccessibleFields.insert(clazz_to_fields[type].begin(),clazz_to_fields[type].end());
          }
       }
    }
@@ -3975,9 +4007,9 @@ MethodSet computeMSetForMethod(TR::Compilation *comp, TR::ResolvedMethodSymbol *
    int method = getOrInsertMethodIndex(methodSymbol, comp);
    if (hasReturnType)
    {
-      pag.methods_to_returnNode[method] = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, methodBlock, -1, getOrInsertMethodIndex(methodSymbol, comp));
-      pag.PAG_nodes.insert(pag.methods_to_returnNode[method]);
-      pag.methods_to_allMethodNodes[method].push_back(pag.methods_to_returnNode[method]);
+      pag->methods_to_returnNode[method] = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, methodBlock, -1, getOrInsertMethodIndex(methodSymbol, comp));
+      pag->PAG_nodes.insert(pag->methods_to_returnNode[method]);
+      pag->methods_to_allMethodNodes[method].push_back(pag->methods_to_returnNode[method]);
    }
    int methodIndex = getOrInsertMethodIndex(methodSymbol, comp);
 
@@ -4053,7 +4085,7 @@ MethodSet computeMSetForMethod(TR::Compilation *comp, TR::ResolvedMethodSymbol *
       {
          // for static methods, our magic arg index begins from 1
          argIndex = 1;
-         pag.methods_to_formalNodes[method].push_back(NULL);
+         pag->methods_to_formalNodes[method].push_back(NULL);
       }
       // std::cout << "Iterating for: "<<getMethodName(methodSymbol) <<" paramCursor is: "<<paramCursor <<std::endl;
       for (; paramCursor != NULL; paramCursor = paramIterator.getNext())
@@ -4079,12 +4111,12 @@ MethodSet computeMSetForMethod(TR::Compilation *comp, TR::ResolvedMethodSymbol *
             if (symRefNumToPAGNode[methodBlock].find(symRefNumber) == symRefNumToPAGNode[methodBlock].end())
             {
                PAGNode *param_node_ptr = new PAGNode(VARIABLE, symRefNumber, nullptr, methodBlock, -1, getOrInsertMethodIndex(methodSymbol, comp));
-               pag.methods_to_allMethodNodes[method].push_back(param_node_ptr);
-               pag.PAG_nodes.insert(param_node_ptr);
+               pag->methods_to_allMethodNodes[method].push_back(param_node_ptr);
+               pag->PAG_nodes.insert(param_node_ptr);
                // nodeAllocationMap[] = null_node_ptr;
                // std::cout << "Iterating for: "<<getMethodName(methodSymbol) <<" created formal param node: "<< symRefNumber <<std::endl;
                symRefNumToPAGNode[methodBlock][symRefNumber] = param_node_ptr;
-               pag.methods_to_formalNodes[method].push_back(param_node_ptr);
+               pag->methods_to_formalNodes[method].push_back(param_node_ptr);
             }
             // cout << "symref num = " << symRefNumber << "\n";
 
@@ -4209,16 +4241,16 @@ int getOrInsertMethodIndex(TR::ResolvedMethodSymbol *methodSymbol, TR::Compilati
    {
       std::string methodSignature = methodSymbol->signature(comp->trMemory());
       int index;
-      if (pag._methodIndices.find(methodSignature) != pag._methodIndices.end())
+      if (pag->_methodIndices.find(methodSignature) != pag->_methodIndices.end())
       {
          // the id is available in the string map, add it to the pointer map for efficiency of later lookups
-         index = pag._methodIndices[methodSignature];
+         index = pag->_methodIndices[methodSignature];
       }
       else
       {
          // the index is in neither map, add it to both
-         index = pag._methodIndices.size() + 1;
-         pag._methodIndices[methodSignature] = index;
+         index = pag->_methodIndices.size() + 1;
+         pag->_methodIndices[methodSignature] = index;
       }
       _methodIndicesPtr[methodPersistentId] = index;
       return index;
@@ -4334,8 +4366,8 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
          else
          {
             null_node_ptr = new PAGNode(NULL_OBJ, -1, nullptr, methodPersistentId, usefulNode->getByteCodeIndex(), methodIndex);
-            pag.methods_to_allMethodNodes[getOrInsertMethodIndex(comp->getOwningMethodSymbol(currentMethod), comp)].push_back(null_node_ptr);
-            pag.PAG_nodes.insert(null_node_ptr);
+            pag->methods_to_allMethodNodes[getOrInsertMethodIndex(comp->getOwningMethodSymbol(currentMethod), comp)].push_back(null_node_ptr);
+            pag->PAG_nodes.insert(null_node_ptr);
             nodeAllocationMap[usefulNode] = null_node_ptr;
          }
 
@@ -4366,16 +4398,16 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
          else
          {
             alloc_node_ptr = evaluateAllocate(usefulNode, methodIndex, false, comp);
-            pag.methods_to_allMethodNodes[getOrInsertMethodIndex(comp->getOwningMethodSymbol(currentMethod), comp)].push_back(alloc_node_ptr);
+            pag->methods_to_allMethodNodes[getOrInsertMethodIndex(comp->getOwningMethodSymbol(currentMethod), comp)].push_back(alloc_node_ptr);
          }
 
          PAGNode *global_index_ptr = new PAGNode(VARIABLE, evaluatedSymRef, nullptr, methodPersistentId, usefulNode->getByteCodeIndex(), methodIndex);
-         pag.methods_to_allMethodNodes[getOrInsertMethodIndex(comp->getOwningMethodSymbol(currentMethod), comp)].push_back(global_index_ptr);
-         pag.PAG_nodes.insert(global_index_ptr);
+         pag->methods_to_allMethodNodes[getOrInsertMethodIndex(comp->getOwningMethodSymbol(currentMethod), comp)].push_back(global_index_ptr);
+         pag->PAG_nodes.insert(global_index_ptr);
          nodeAllocationMap[usefulNode] = global_index_ptr;
          symRefNumToPAGNode[methodPersistentId][evaluatedSymRef] = global_index_ptr;
 
-         pag.addEdge(alloc_node_ptr, global_index_ptr, NEW);
+         pag->addEdge(alloc_node_ptr, global_index_ptr, NEW);
 
          // if(populatePTA){
          //    Entry e = evaluateAllocate(usefulNode, methodIndex, false);
@@ -4416,7 +4448,7 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
          else
          {
             alloc_node_ptr = evaluateAllocate(usefulNode, methodIndex, false, comp);
-            pag.methods_to_allMethodNodes[getOrInsertMethodIndex(comp->getOwningMethodSymbol(currentMethod), comp)].push_back(alloc_node_ptr);
+            pag->methods_to_allMethodNodes[getOrInsertMethodIndex(comp->getOwningMethodSymbol(currentMethod), comp)].push_back(alloc_node_ptr);
          }
 
          // if(populatePTA){
@@ -4520,8 +4552,8 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
          else
          {
             storeChild_pagNode_ptr = new PAGNode(VARIABLE, storeSymRef, nullptr, methodPersistentId, storeChild->getByteCodeIndex(), methodIndex);
-            pag.methods_to_allMethodNodes[getOrInsertMethodIndex(comp->getOwningMethodSymbol(currentMethod), comp)].push_back(storeChild_pagNode_ptr);
-            pag.PAG_nodes.insert(storeChild_pagNode_ptr);
+            pag->methods_to_allMethodNodes[getOrInsertMethodIndex(comp->getOwningMethodSymbol(currentMethod), comp)].push_back(storeChild_pagNode_ptr);
+            pag->PAG_nodes.insert(storeChild_pagNode_ptr);
             nodeAllocationMap[storeChild] = storeChild_pagNode_ptr;
             if (storeChildSymRef >= 0 && storeChild->getSymbolReference())
             {
@@ -4547,9 +4579,9 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
          else
          {
             lhs_node_ptr = new PAGNode(VARIABLE, storeSymRef, nullptr, methodPersistentId, usefulNode->getByteCodeIndex(), methodIndex);
-            pag.methods_to_allMethodNodes[getOrInsertMethodIndex(comp->getOwningMethodSymbol(currentMethod), comp)].push_back(lhs_node_ptr);
+            pag->methods_to_allMethodNodes[getOrInsertMethodIndex(comp->getOwningMethodSymbol(currentMethod), comp)].push_back(lhs_node_ptr);
 
-            pag.PAG_nodes.insert(lhs_node_ptr);
+            pag->PAG_nodes.insert(lhs_node_ptr);
             nodeAllocationMap[usefulNode] = lhs_node_ptr;
 
             symRefNumToPAGNode[methodPersistentId][storeSymRef] = lhs_node_ptr;
@@ -4595,9 +4627,9 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
             else
             {
                y_PAGnode_ptr = new PAGNode(VARIABLE, y_node->getSymbolReference()->getReferenceNumber(), nullptr, methodPersistentId, y_node->getByteCodeIndex(), methodIndex);
-               pag.methods_to_allMethodNodes[getOrInsertMethodIndex(comp->getOwningMethodSymbol(currentMethod), comp)].push_back(y_PAGnode_ptr);
+               pag->methods_to_allMethodNodes[getOrInsertMethodIndex(comp->getOwningMethodSymbol(currentMethod), comp)].push_back(y_PAGnode_ptr);
 
-               pag.PAG_nodes.insert(y_PAGnode_ptr);
+               pag->PAG_nodes.insert(y_PAGnode_ptr);
                nodeAllocationMap[y_node] = y_PAGnode_ptr;
 
                symRefNumToPAGNode[methodPersistentId][y_node_symRef] = y_PAGnode_ptr;
@@ -4621,7 +4653,7 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
 
             // lhs_node_ptr->incoming.insert(new_edge);
             // y_PAGnode_ptr->outgoing.insert(new_edge);
-            pag.addEdge(y_PAGnode_ptr, lhs_node_ptr, e_type, field_name);
+            pag->addEdge(y_PAGnode_ptr, lhs_node_ptr, e_type, field_name);
 
             evaluatedSymRef = storeSymRef;
             break;
@@ -4645,12 +4677,21 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
             PAGNode *return_pag_node;
             for (auto target : callsite_to_targets[storeChild])
             {
-               return_pag_node = pag.methods_to_returnNode[getOrInsertMethodIndex(comp->getOwningMethodSymbol(target), comp)];
+               return_pag_node = pag->methods_to_returnNode[getOrInsertMethodIndex(comp->getOwningMethodSymbol(target), comp)];
                // PAGEdge *new_edge = new PAGEdge(return_pag_node, lhs_node_ptr, ASSIGN, storeChild->getByteCodeIndex());
                // lhs_node_ptr->incoming.insert(new_edge);
                // return_pag_node->outgoing.insert(new_edge);
+               if(!return_pag_node)
+               {  
+                  TR::ResolvedMethodSymbol * methodSymbol = getCachedResolvedMethodFromPtr(comp, currentMethod)->findOrCreateJittedMethodSymbol(comp);
+                  int methodInd = getOrInsertMethodIndex(methodSymbol, comp);
+                  pag->methods_to_returnNode[methodInd] = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, currentMethod, -1, methodInd);
+                  pag->PAG_nodes.insert(pag->methods_to_returnNode[methodInd]);
+                  pag->methods_to_allMethodNodes[methodInd].push_back(pag->methods_to_returnNode[methodInd]);
+                  return_pag_node = pag->methods_to_returnNode[methodInd];
+               }
 
-               pag.addEdge(return_pag_node, lhs_node_ptr, ASSIGN, storeChild->getByteCodeIndex());
+               pag->addEdge(return_pag_node, lhs_node_ptr, ASSIGN, storeChild->getByteCodeIndex());
                callsite_to_storeNode[storeChild->getByteCodeIndex()] = lhs_node_ptr;
             }
          }
@@ -4663,7 +4704,7 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
             // lhs_node_ptr->incoming.insert(new_edge);
             // storeChild_pagNode_ptr->outgoing.insert(new_edge);
 
-            pag.addEdge(storeChild_pagNode_ptr, lhs_node_ptr, e_type);
+            pag->addEdge(storeChild_pagNode_ptr, lhs_node_ptr, e_type);
          }
 
          // if (usefulNode->stmtNumber == 0)
@@ -4714,9 +4755,9 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
          else if (nodeAllocationMap.find(usefulNode) == nodeAllocationMap.end())
          {
             pag_node_ptr = new PAGNode(VARIABLE, loadSymRef, nullptr, methodPersistentId, usefulNode->getByteCodeIndex(), methodIndex);
-            pag.methods_to_allMethodNodes[getOrInsertMethodIndex(comp->getOwningMethodSymbol(currentMethod), comp)].push_back(pag_node_ptr);
+            pag->methods_to_allMethodNodes[getOrInsertMethodIndex(comp->getOwningMethodSymbol(currentMethod), comp)].push_back(pag_node_ptr);
 
-            pag.PAG_nodes.insert(pag_node_ptr);
+            pag->PAG_nodes.insert(pag_node_ptr);
             nodeAllocationMap[usefulNode] = pag_node_ptr;
 
             symRefNumToPAGNode[methodPersistentId][loadSymRef] = pag_node_ptr;
@@ -4749,9 +4790,9 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
             if (class_to_staticPAGNode.find(class_name) == class_to_staticPAGNode.end())
             {
                class_to_staticPAGNode[class_name] = new PAGNode(STATIC, class_name, methodIndex);
-               pag.methods_to_allMethodNodes[getOrInsertMethodIndex(comp->getOwningMethodSymbol(currentMethod), comp)].push_back(class_to_staticPAGNode[class_name]);
+               pag->methods_to_allMethodNodes[getOrInsertMethodIndex(comp->getOwningMethodSymbol(currentMethod), comp)].push_back(class_to_staticPAGNode[class_name]);
 
-               pag.PAG_nodes.insert(class_to_staticPAGNode[class_name]);
+               pag->PAG_nodes.insert(class_to_staticPAGNode[class_name]);
                nodeAllocationMap[usefulNode] = class_to_staticPAGNode[class_name];
             }
          }
@@ -4887,8 +4928,8 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
                else
                {
                   receiver_pag_ptr = new PAGNode(VARIABLE, receiverNode->getSymbolReference()->getReferenceNumber(), nullptr, methodPersistentId, receiverNode->getByteCodeIndex(), methodIndex);
-                  pag.methods_to_allMethodNodes[getOrInsertMethodIndex(comp->getOwningMethodSymbol(currentMethod), comp)].push_back(receiver_pag_ptr);
-                  pag.PAG_nodes.insert(receiver_pag_ptr);
+                  pag->methods_to_allMethodNodes[getOrInsertMethodIndex(comp->getOwningMethodSymbol(currentMethod), comp)].push_back(receiver_pag_ptr);
+                  pag->PAG_nodes.insert(receiver_pag_ptr);
                   nodeAllocationMap[receiverNode] = receiver_pag_ptr;
                   if (receiver_symRef >= 0)
                   {
@@ -4930,9 +4971,9 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
          if (class_to_staticPAGNode.find(class_name) == class_to_staticPAGNode.end())
          {
             class_to_staticPAGNode[class_name] = new PAGNode(STATIC, class_name, methodIndex);
-            pag.methods_to_allMethodNodes[getOrInsertMethodIndex(comp->getOwningMethodSymbol(currentMethod), comp)].push_back(class_to_staticPAGNode[class_name]);
+            pag->methods_to_allMethodNodes[getOrInsertMethodIndex(comp->getOwningMethodSymbol(currentMethod), comp)].push_back(class_to_staticPAGNode[class_name]);
 
-            pag.PAG_nodes.insert(class_to_staticPAGNode[class_name]);
+            pag->PAG_nodes.insert(class_to_staticPAGNode[class_name]);
          }
          // A.f1 = b1;   b1 --putf--> A
          PAGNode *static_pag_ptr = class_to_staticPAGNode[class_name];
@@ -4953,9 +4994,9 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
          {
 
             rhs_pag_ptr = new PAGNode(VARIABLE, evaluatedSymRef, nullptr, methodPersistentId, usefulNode->getFirstChild()->getByteCodeIndex(), methodIndex);
-            pag.methods_to_allMethodNodes[getOrInsertMethodIndex(comp->getOwningMethodSymbol(currentMethod), comp)].push_back(rhs_pag_ptr);
+            pag->methods_to_allMethodNodes[getOrInsertMethodIndex(comp->getOwningMethodSymbol(currentMethod), comp)].push_back(rhs_pag_ptr);
 
-            pag.PAG_nodes.insert(rhs_pag_ptr);
+            pag->PAG_nodes.insert(rhs_pag_ptr);
             nodeAllocationMap[usefulNode->getFirstChild()] = rhs_pag_ptr;
             // if (rhs_node_symRef >= 0)
             // {
@@ -4969,8 +5010,8 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
          // rhs_pag_ptr->outgoing.insert(new_edge);
 
          // static_pag_ptr->incoming.insert(new_edge);
-         pag.addEdge(rhs_pag_ptr, static_pag_ptr, PUTFIELD, field_name);
-         pag.LeakyNodes.insert(rhs_pag_ptr);
+         pag->addEdge(rhs_pag_ptr, static_pag_ptr, PUTFIELD, field_name);
+         pag->LeakyNodes.insert(rhs_pag_ptr);
          // stmtNumber[methodPersistentId][usefulNode->stmtNumber] = usefulNode;
          // mSet.stmtMap[evaluatedSymRef].insert(usefulNode->stmtNumber);
 
@@ -5040,9 +5081,9 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
             else
             {
                rhs_pag_ptr = new PAGNode(VARIABLE, rhs_node_symRef, nullptr, methodPersistentId, rhsNode->getByteCodeIndex(), methodIndex);
-               pag.methods_to_allMethodNodes[current_method_index].push_back(rhs_pag_ptr);
+               pag->methods_to_allMethodNodes[current_method_index].push_back(rhs_pag_ptr);
 
-               pag.PAG_nodes.insert(rhs_pag_ptr);
+               pag->PAG_nodes.insert(rhs_pag_ptr);
                nodeAllocationMap[rhsNode] = rhs_pag_ptr;
                if (rhs_node_symRef >= 0)
                {
@@ -5064,8 +5105,8 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
             else
             {
                receiver_pag_ptr = new PAGNode(VARIABLE, receiverNode->getSymbolReference()->getReferenceNumber(), nullptr, methodPersistentId, receiverNode->getByteCodeIndex(), methodIndex);
-               pag.PAG_nodes.insert(receiver_pag_ptr);
-               pag.methods_to_allMethodNodes[current_method_index].push_back(receiver_pag_ptr);
+               pag->PAG_nodes.insert(receiver_pag_ptr);
+               pag->methods_to_allMethodNodes[current_method_index].push_back(receiver_pag_ptr);
 
                nodeAllocationMap[receiverNode] = receiver_pag_ptr;
                if (rhs_node_symRef >= 0)
@@ -5090,10 +5131,10 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
             // rhs_pag_ptr->outgoing.insert(new_edge);
 
             // receiver_pag_ptr->incoming.insert(new_edge);
-            pag.addEdge(rhs_pag_ptr, receiver_pag_ptr, PUTFIELD, field_name);
-            if(pag.threadAccessibleFields.find(field_name)!=pag.threadAccessibleFields.end())
+            pag->addEdge(rhs_pag_ptr, receiver_pag_ptr, PUTFIELD, field_name);
+            if(pag->threadAccessibleFields.find(field_name)!=pag->threadAccessibleFields.end())
             {
-               pag.LeakyNodes.insert(rhs_pag_ptr);
+               pag->LeakyNodes.insert(rhs_pag_ptr);
             }
 
             //       TR::SymbolReference *symRef = usefulNode->getSymbolReference();
@@ -5143,8 +5184,8 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
             //          else
             //          {
             //             receiver_pag_ptr = new PAGNode(VARIABLE, receiverNode->getSymbolReference()->getReferenceNumber(), nullptr, methodPersistentId, receiverNode->getByteCodeIndex());
-            //             pag.PAG_nodes.insert(receiver_pag_ptr);
-            // pag.methods_to_allMethodNodes[currentMethod].push_back(receiver_pag_ptr);
+            //             pag->PAG_nodes.insert(receiver_pag_ptr);
+            // pag->methods_to_allMethodNodes[currentMethod].push_back(receiver_pag_ptr);
 
             //             nodeAllocationMap[receiverNode] = receiver_pag_ptr;
             //             if (rhs_node_symRef >= 0)
@@ -5312,7 +5353,7 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
                   int classNameLength = usefulNode->getSymbol()->castToResolvedMethodSymbol()->getMethod()->classNameLength();
                   string className = usefulNode->getSymbol()->castToResolvedMethodSymbol()->getMethod()->classNameChars();
 
-                  TR_OpaqueClassBlock *type = comp->fe()->getClassFromSignature(className.c_str(), classNameLength, comp->getCurrentMethod());
+                  TR_OpaqueClassBlock *type = comp->fe()->getClassFromSignature(className.c_str(), classNameLength, comp->getCurrentMethod(),true);
                   TR_ASSERT_FATAL(type, "unable to get class pointer for receiver %s", className.c_str());
 
                   std::queue<TR_OpaqueClassBlock *> bfsList;
@@ -5347,8 +5388,10 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
             callsite_to_targets[usefulNode] = methodsToPeek;
 
             for (auto calleeMethodPtr : methodsToPeek)
-            {
-               if (_methodsAnalyzed.find(calleeMethodPtr) == _methodsAnalyzed.end() && _methodsBeingAnalyzed.find(calleeMethodPtr) == _methodsBeingAnalyzed.end())
+            {  
+
+               std::string calleeName = getMethodName(getCachedResolvedMethodFromPtr(comp, calleeMethodPtr)->findOrCreateJittedMethodSymbol(comp));
+               if (_methodsAnalyzed.find(calleeMethodPtr) == _methodsAnalyzed.end() && _methodsBeingAnalyzed.find(calleeMethodPtr) == _methodsBeingAnalyzed.end() && alreadyAnalyzedMethods.find(calleeName)==alreadyAnalyzedMethods.end())
                {
                   if (inverseMethodNameIDmapping[currentMethod].find("<init>()V") != std::string::npos && cachedMethodName[usefulNode].find("java/lang/Object.<init>()V") != std::string::npos)
                   {
@@ -5445,8 +5488,8 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
                else
                {
                   actual_param_pag_ptr = new PAGNode(VARIABLE, actual_param_node->getSymbolReference()->getReferenceNumber(), nullptr, methodPersistentId, actual_param_node->getByteCodeIndex(), methodIndex);
-                  pag.PAG_nodes.insert(actual_param_pag_ptr);
-                  pag.methods_to_allMethodNodes[current_method_index].push_back(actual_param_pag_ptr);
+                  pag->PAG_nodes.insert(actual_param_pag_ptr);
+                  pag->methods_to_allMethodNodes[current_method_index].push_back(actual_param_pag_ptr);
 
                   nodeAllocationMap[actual_param_node] = actual_param_pag_ptr;
 
@@ -5457,16 +5500,16 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
                for (auto target : callsite_to_targets[usefulNode])
                {
                   // std::cout << "IIIIformal_param_pag_ptr: " << " CURRENT Method: " << getMethodName(comp->getOwningMethodSymbol(currentMethod)) << " target " << target << " " << getMethodName(comp->getOwningMethodSymbol(target)) << std::endl;
-                  vector<PAGNode *> formal_nodes = pag.methods_to_formalNodes[getOrInsertMethodIndex(comp->getOwningMethodSymbol(target), comp)];
+                  vector<PAGNode *> formal_nodes = pag->methods_to_formalNodes[getOrInsertMethodIndex(comp->getOwningMethodSymbol(target), comp)];
 
-                  PAGNode *formal_param_pag_ptr = formal_nodes.empty() ? pag.bottom_node : formal_nodes[argIndex];
+                  PAGNode *formal_param_pag_ptr = formal_nodes.empty() ? pag->bottom_node : formal_nodes[argIndex];
 
                   // Add edge from actual to formal pag node
                   // PAGEdge *call_edge = new PAGEdge(actual_param_pag_ptr, formal_param_pag_ptr, e_type, usefulNode->getByteCodeIndex());
                   // actual_param_pag_ptr->outgoing.insert(call_edge);
                   // formal_param_pag_ptr->incoming.insert(call_edge);
 
-                  pag.addEdge(actual_param_pag_ptr, formal_param_pag_ptr, e_type, usefulNode->getByteCodeIndex());
+                  pag->addEdge(actual_param_pag_ptr, formal_param_pag_ptr, e_type, usefulNode->getByteCodeIndex());
 
                   callsite_to_ActualParamPAGNodes[usefulNode->getByteCodeIndex()].insert(actual_param_pag_ptr);
                }
@@ -5500,9 +5543,18 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
             TR::Node *child_node = usefulNode->getFirstChild();
             // the evaluated value of the first child (ie. the call node) will hold the respective call's return value - simply fetch and assign
             int loadSymRef = evaluateNode(child_node, evaluatedNodeValues, counter, methodIndex, mSet, currentMethod, comp, populatePTA);
-
+            
             // Add edge from the child of the useful node(loadSymRef) to return_pag_node_ptr;
-            PAGNode *return_pag_node_ptr = pag.methods_to_returnNode[current_method_index];
+            PAGNode *return_pag_node_ptr = pag->methods_to_returnNode[current_method_index];
+            if(!return_pag_node_ptr)
+            {  
+               TR::ResolvedMethodSymbol * methodSymbol = getCachedResolvedMethodFromPtr(comp, currentMethod)->findOrCreateJittedMethodSymbol(comp);
+               int methodInd = getOrInsertMethodIndex(methodSymbol, comp);
+               pag->methods_to_returnNode[methodInd] = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, currentMethod, -1, methodInd);
+               pag->PAG_nodes.insert(pag->methods_to_returnNode[methodInd]);
+               pag->methods_to_allMethodNodes[methodInd].push_back(pag->methods_to_returnNode[methodInd]);
+               return_pag_node_ptr = pag->methods_to_returnNode[methodInd];
+            }
             int symref = child_node->getSymbolReference()->getReferenceNumber();
             // std::cout<< symref << std::endl;
             if (child_node->getOpCodeValue() == TR::aloadi)
@@ -5528,8 +5580,8 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
                else
                {
                   y_PAGnode_ptr = new PAGNode(VARIABLE, y_node->getSymbolReference()->getReferenceNumber(), nullptr, methodPersistentId, y_node->getByteCodeIndex(), methodIndex);
-                  pag.PAG_nodes.insert(y_PAGnode_ptr);
-                  pag.methods_to_allMethodNodes[current_method_index].push_back(y_PAGnode_ptr);
+                  pag->PAG_nodes.insert(y_PAGnode_ptr);
+                  pag->methods_to_allMethodNodes[current_method_index].push_back(y_PAGnode_ptr);
 
                   nodeAllocationMap[y_node] = y_PAGnode_ptr;
 
@@ -5549,7 +5601,7 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
 
                // return_pag_node_ptr->incoming.insert(new_edge);
                // y_PAGnode_ptr->outgoing.insert(new_edge);
-               pag.addEdge(y_PAGnode_ptr, return_pag_node_ptr, GETFIELD, field_name);
+               pag->addEdge(y_PAGnode_ptr, return_pag_node_ptr, GETFIELD, field_name);
             }
             else if (child_node->getOpCodeValue() == TR::New)
             {
@@ -5559,20 +5611,20 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
                // PAGEdge *new_edge = new PAGEdge(symRefNumToPAGNode[methodPersistentId][globalIndex], return_pag_node_ptr, ASSIGN);
                // symRefNumToPAGNode[methodPersistentId][globalIndex]->outgoing.insert(new_edge);
                // return_pag_node_ptr->incoming.insert(new_edge);
-               pag.addEdge(symRefNumToPAGNode[methodPersistentId][globalIndex], return_pag_node_ptr, ASSIGN);
+               pag->addEdge(symRefNumToPAGNode[methodPersistentId][globalIndex], return_pag_node_ptr, ASSIGN);
             }
             else if (callsite_to_targets.find(child_node) != callsite_to_targets.end()) // return b.foo() type of stmts => add edge from return node of foo to the current method's return node
             {
                std::unordered_set<TR_OpaqueMethodBlock *> targets = callsite_to_targets[child_node];
                for (auto target : targets)
                {
-                  PAGNode *child_pag_ptr = pag.methods_to_returnNode[getOrInsertMethodIndex(comp->getOwningMethodSymbol(target), comp)];
+                  PAGNode *child_pag_ptr = pag->methods_to_returnNode[getOrInsertMethodIndex(comp->getOwningMethodSymbol(target), comp)];
 
                   // PAGEdge *new_edge = new PAGEdge(child_pag_ptr, return_pag_node_ptr, ASSIGN);
 
                   // return_pag_node_ptr->incoming.insert(new_edge);
                   // child_pag_ptr->outgoing.insert(new_edge);
-                  pag.addEdge(child_pag_ptr, return_pag_node_ptr, ASSIGN);
+                  pag->addEdge(child_pag_ptr, return_pag_node_ptr, ASSIGN);
                }
             }
             else
@@ -5586,8 +5638,8 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
                else
                {
                   child_pag_ptr = new PAGNode(VARIABLE, symref, nullptr, methodPersistentId, child_node->getByteCodeIndex(), methodIndex);
-                  pag.PAG_nodes.insert(child_pag_ptr);
-                  pag.methods_to_allMethodNodes[getOrInsertMethodIndex(comp->getOwningMethodSymbol(currentMethod), comp)].push_back(child_pag_ptr);
+                  pag->PAG_nodes.insert(child_pag_ptr);
+                  pag->methods_to_allMethodNodes[getOrInsertMethodIndex(comp->getOwningMethodSymbol(currentMethod), comp)].push_back(child_pag_ptr);
 
                   nodeAllocationMap[child_node] = child_pag_ptr;
 
@@ -5599,7 +5651,7 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
 
                // return_pag_node_ptr->incoming.insert(new_edge);
                // child_pag_ptr->outgoing.insert(new_edge);
-               pag.addEdge(child_pag_ptr, return_pag_node_ptr, ASSIGN);
+               pag->addEdge(child_pag_ptr, return_pag_node_ptr, ASSIGN);
             }
 
             evaluatedSymRef = loadSymRef;
@@ -5726,7 +5778,7 @@ PAGNode *evaluateAllocate(TR::Node *node, int methodIndex, bool isArray, TR::Com
       symRefNumToPAGNode[comp->getMethodSymbol()->getResolvedMethod()->getPersistentIdentifier()][node_symRef] = obj_ptr;
       symRefNumToNode[node_symRef] = node;
    }
-   pag.PAG_nodes.insert(obj_ptr);
+   pag->PAG_nodes.insert(obj_ptr);
 
    // if (_runtimeVerifierDiagnostics)
    //    cout << "evaluated an allocation node at n" << node->getGlobalIndex() << "n" << endl;
@@ -5860,7 +5912,7 @@ void printExhaustive()
    int i = 0;
    ofstream miFile("mi.txt");
    map<int, std::string> inverseMethodIndices;
-   for (auto m : pag._methodIndices)
+   for (auto m : pag->_methodIndices)
    {
       inverseMethodIndices[m.second] = m.first;
    }
@@ -5901,4 +5953,14 @@ std::unordered_map<std::string, int> readMethodIndices()
    }
 
    return ret;
+}
+
+void getAlreadyAnalyzedMethodNames() {
+    std::ifstream file("analyzedMethods.txt");
+    std::string line;
+    int index = 1;
+
+    while (std::getline(file, line)) {
+        alreadyAnalyzedMethods.insert(line);
+    }
 }

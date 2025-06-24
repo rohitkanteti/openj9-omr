@@ -1,5 +1,5 @@
 #include<bits/stdc++.h>
-#include "PointerAssignmentGraph.cpp"
+#include "PointerAssignmentGraph.hpp"
 /*
  Implementation of REFINED points analysis as in the paper 
  Manu Sridharan, Denis Gopan, Lexin Shan, and Rastislav Bodík. 2005. 

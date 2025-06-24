@@ -1,55 +1,10 @@
-#pragma once
-
-#include <unordered_set>
-#include <unordered_map>
-#include <fstream>
-#include <sstream>
-#include <iostream>
-
-#ifndef PAG_POINTER_ASSIGNMENT_GRAPH_CPP
-#define PAG_POINTER_ASSIGNMENT_GRAPH_CPP
-#include "../PAG/PointerAssignmentGraph.cpp"
-#endif
-
-#ifndef PAG_COMPONENTS_CPP
-#define PAG_COMPONENTS_CPP
-#include "../PAG/PAG_Components.cpp"
-#endif
-
-class LoadPAG {
-    public:
-        LoadPAG(const std::string& nodeFile, const std::string& edgeFile,const std::string& methodNodeMappingFile,const std::string& callgraphfile,std::string& threadfieldFile,std::string& staticfieldFile);
-    
-        PointerAssignmentGraph* getPAG();  
-    
-    private:
-        std::string nodeFile;
-        std::string edgeFile;
-        std::string methodNodeMappingFile;
-        std::string callgraphfile;
-        std::string& threadfieldFile;
-        std::string& staticfieldFile;
-        bool loaded = false;
-    
-        PointerAssignmentGraph* pag = new PointerAssignmentGraph();
-        std::unordered_map<int, PAGNode*> nodeIndexToNode;
-    
-        void loadNodes(const std::string& filename);
-        void loadEdges(const std::string& filename);
-        void loadMethodNodeMappings(const std::string& filename);
-        void addMatchEdges(); 
-        void loadCG(const std::string& filename);
-        void getImportantFieldNames(const std::string& file,int static_or_thread);
-    
-        NodeType parseNodeType(int typeVal);
-        EdgeType parseEdgeType(int typeVal);
-    };
-
+#include "LoadPAG.hpp"
 LoadPAG::LoadPAG(const std::string& nodeFile, const std::string& edgeFile,const std::string& methodNodeMappingFile,const std::string& callgraphfile,std::string& threadfieldFile,std::string& staticfieldFile)
     : nodeFile(nodeFile), edgeFile(edgeFile), methodNodeMappingFile(methodNodeMappingFile),callgraphfile(callgraphfile),threadfieldFile(threadfieldFile),staticfieldFile(staticfieldFile) {}
 
 PointerAssignmentGraph* LoadPAG::getPAG() {
     if (!loaded) {
+        pag->_methodIndices = readMethodIndices();
         loadNodes(nodeFile);
         loadEdges(edgeFile);
         loadMethodNodeMappings(methodNodeMappingFile);
@@ -330,7 +285,9 @@ void LoadPAG::loadCG(const std::string& filename) {
                 pag->CG.calleeToCallers[targetMethodIndex].insert(callerMethodIndex);
                 pag->CG.callerCalleeSites[callerMethodIndex][targetMethodIndex].insert(callsiteBCI);
                 
-                auto key = std::make_tuple(callerMethodIndex, targetMethodIndex, callsiteBCI);
+                std::ostringstream oss;
+                oss << callerMethodIndex << ' ' << targetMethodIndex << ' ' << callsiteBCI;
+                std::string key = oss.str();
                 pag->CG.callsiteParams[key] = actualParams;
             }
         }
@@ -355,3 +312,4 @@ void LoadPAG::getImportantFieldNames(const std::string& threadfieldFile,int stat
 
     file.close();
 }
+

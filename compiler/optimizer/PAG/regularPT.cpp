@@ -1,7 +1,6 @@
-#include<bits/stdc++.h>
-#include "PAG_Components.cpp"
+#include "regularPT.hpp"
 
-void propagate(PAGNode* x,std::unordered_set<PAGNode*>& marked,std::queue<PAGNode*>& worklist)
+void Regular_PointsTo::propagate(PAGNode* x,std::unordered_set<PAGNode*>& marked,std::queue<PAGNode*>& worklist)
 {
     if(marked.find(x)==marked.end())
     {
@@ -9,7 +8,7 @@ void propagate(PAGNode* x,std::unordered_set<PAGNode*>& marked,std::queue<PAGNod
         worklist.push(x);
     }
 }
-std::unordered_set<PAGNode*> regularPT(PAGNode* src)
+std::unordered_set<PAGNode*> Regular_PointsTo::regularPT(PAGNode* src)
 {
     std::unordered_set<PAGNode*> pointsTo;
     std::unordered_set<PAGNode*> marked;
