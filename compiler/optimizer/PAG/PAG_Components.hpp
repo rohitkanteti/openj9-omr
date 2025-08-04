@@ -42,6 +42,11 @@ public:
     std::unordered_set<PAGEdge*> outgoing;
     TR_OpaqueClassBlock* clazz_ptr;
     std::string class_name;
+    std::unordered_set<std::string> pointee_class_names;
+    // class_name.varname , For a putfield stmt like `x.f = z` if the class in which f is present is A then store "A.f"
+    std::unordered_set<std::string> variableNames;
+
+    int formal_param_index = -924305;
 
     PAGNode();
     PAGNode(NodeType type,std::string c,int mi);

@@ -30,7 +30,7 @@ public:
 
     std::unordered_set<std::string> staticFields; // class_name.field_name
     std::unordered_set<std::string> threadAccessibleFields;// class_name.field_name
-    
+
     std::unordered_map<int,int> callsite_to_storeNodeIndex;
     unordered_map<int,vector<PAGNode*>> methods_to_formalNodes;
     unordered_map<int,vector<PAGNode*>> methods_to_allMethodNodes;
@@ -60,11 +60,13 @@ public:
     void removeEdge(PAGNode* src,PAGNode* dest,CALLSITE_BCI callsite);
     void removeEdge(PAGNode* src,PAGNode* dest);
     void removeEdge(PAGEdge* edge);
+    void removeEdges(int method);
    
     vector<PAGEdge*> getStoreEdges(); // for entire PAG
     vector<PAGEdge*> getStoreEdges(int method); // for the given method
     vector<PAGEdge*> getLoadEdges(); // for entire PAG
     vector<PAGEdge*> getLoadEdges(int method);// for the given method
+    vector<PAGEdge*> getMatchEdgesEndingAt(PAGNode*);  
     std::unordered_set<PAGNode*> points_to(PAGNode* src);
     vector<PAGEdge*> getIntraproceduralAssignEdges(int method);
     unordered_set<PAGEdge*> getAllocEdges(int method);

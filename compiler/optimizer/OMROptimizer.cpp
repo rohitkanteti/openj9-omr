@@ -160,20 +160,23 @@ public:
 
 //
 
-static PointerAssignmentGraph* pag;
-extern PointerAssignmentGraph* pag_to_use;
+static PointerAssignmentGraph *pag = nullptr;
+extern PointerAssignmentGraph *pag_to_use;
 
 //(method name, symbol ref, PAGNode*)
 static unordered_map<TR_OpaqueMethodBlock *, unordered_map<int32_t, PAGNode *>> symRefNumToPAGNode;
 static unordered_map<int32_t, TR::Node *> symRefNumToNode;
 static bool done = false;
 static std::unordered_map<TR_OpaqueClassBlock *, std::unordered_set<std::string>> clazz_to_fields;
+static std::unordered_map<std::string, std::unordered_set<std::string>> className_to_fields;
+
 //
 bool exhaustive = false;
 static std::unordered_map<TR_OpaqueClassBlock *, int> classPtrToIndex;
 
 void printMatch();
 void calculateMatch();
+void updateMatchEdges();
 // std::string join(std::set<Entry> const &entrySet, std::string delim);
 std::string joinVec(std::vector<std::string> const &strings, std::string delim);
 // bool canCast(Entry e, TR_OpaqueClassBlock* type, TR::Compilation* comp);
@@ -187,6 +190,7 @@ TR_ResolvedMethod *getCachedResolvedMethodFromPtr(TR::Compilation *comp, TR_Opaq
 TR_MethodParameterIterator *getCachedIterFromRM(TR::Compilation *comp, TR_ResolvedMethod *tempRM);
 std::unordered_map<TR_OpaqueMethodBlock *, std::unordered_set<int>> getVarMapping(TR_OpaqueMethodBlock *currentMethod, int currentVar, TR_OpaqueMethodBlock *HCRmethod);
 TR::Node *getUsefulNode(TR::Node *node);
+std::unordered_set<std::string> getClassFields(J9Class *clazz, J9VMThread *vmThread);
 void performDelete(TR::Compilation *comp, std::map<TR_OpaqueMethodBlock *, std::set<int>> delStmt);
 void finalReanalyze(TR::Node *usefulNode, TR_OpaqueMethodBlock *currentMethod, TR::Compilation *comp);
 void refineCollect(TR::Compilation *comp);
@@ -204,7 +208,7 @@ int getOrInsertMethodIndex(TR::ResolvedMethodSymbol *methodSymbol, TR::Compilati
 void performRuntimePTA(TR::Compilation *comp);
 MethodSet computeMSetForMethod(TR::Compilation *comp, TR::ResolvedMethodSymbol *methodSymbol);
 bool isLibraryMethod(std::string methodName);
-void writeNodesToFile(TR::Compilation *);
+void writeNodesToFile(TR::Compilation *, PointerAssignmentGraph *p);
 void printExhaustive();
 void getAlreadyAnalyzedMethodNames();
 // std::set<Entry> processNode(TR::Node *node, int methodIndex, TR_OpaqueMethodBlock *currentMethod, TR::Compilation *comp,
@@ -228,7 +232,7 @@ PAGNode *evaluateAllocate(TR::Node *node, int methodIndex, bool isArray, TR::Com
 
 // bool isEqual(PointsToGraph *ptg1, PointsToGraph *ptg2);
 
-void printExhaustive();
+// void printExhaustive();
 
 // (method name, int)
 // static std::unordered_map<std::string, int> _methodIndices;
@@ -267,7 +271,7 @@ static std::unordered_map<TR_OpaqueMethodBlock *, std::unordered_map<TR_OpaqueMe
 // used to recognize thread type
 TR_OpaqueMethodBlock *_threadStartPersistentId;
 
-//methods analyzed 
+// methods analyzed
 std::unordered_set<std::string> alreadyAnalyzedMethods;
 
 // (method, int)
@@ -1452,27 +1456,28 @@ void OMR::Optimizer::optimize()
    comp()->setOptimizer(stackedOptimizer);
    _stackedOptimizer = false;
    //---------END OF EXISTING CODE--------------
-   if (comp()->getOption(TR_RunMyAnalysis) && comp()->getOption(TR_DumpPAG) && optimize_count == 1 && !done)
+   if (comp()->getOption(TR_RunMyAnalysis) /*&& comp()->getOption(TR_DumpPAG)*/ && optimize_count == 1 && !done)
    {
       done = true;
-      // printPAG(comp());
+      if(comp()->getOption(TR_DumpPAG)) printPAG(comp());
 
-      writeNodesToFile(comp());
+      writeNodesToFile(comp(), pag);
 
       std::ofstream outFile("analyzedMethods.txt");
 
-      for (auto *omb : _methodsAnalyzed) {
-        if (omb == nullptr) continue;
+      for (auto *omb : _methodsAnalyzed)
+      {
+         if (omb == nullptr)
+            continue;
 
-        TR_ResolvedMethod *Method = getCachedResolvedMethodFromPtr(comp(), omb);
-      TR::ResolvedMethodSymbol *ResolvedMethodSymbol = Method->findOrCreateJittedMethodSymbol(comp());
+         TR_ResolvedMethod *Method = getCachedResolvedMethodFromPtr(comp(), omb);
+         TR::ResolvedMethodSymbol *ResolvedMethodSymbol = Method->findOrCreateJittedMethodSymbol(comp());
 
-        std::string methodName = getMethodName(ResolvedMethodSymbol);
-        outFile << methodName << std::endl;
-    }
+         std::string methodName = getMethodName(ResolvedMethodSymbol);
+         outFile << methodName << std::endl;
+      }
 
-    outFile.close();
-     
+      outFile.close();
 
       // std::string nodeFile = "nodes.txt";
       // std::string edgeFile = "PAGEdges.txt";
@@ -1519,7 +1524,7 @@ int getNodeIndex(PAGNode *node, std::unordered_map<string, int> nodeIndices)
    return nodeIndices[std::to_string(node->bci) + "," + std::to_string(node->methodIndex) + "," + std::to_string(node->type) + "," + std::to_string(node->name)];
 }
 
-void writeNodesToFile(TR::Compilation *comp)
+void writeNodesToFile(TR::Compilation *comp, PointerAssignmentGraph *pag)
 {
    std::ofstream outfile("nodes.txt");
    std::ofstream edgesfile("PAGEdges.txt");
@@ -1537,15 +1542,24 @@ void writeNodesToFile(TR::Compilation *comp)
               << node->bci << ","
               << node->methodIndex << ","
               << node->type << ","
-              << node->name;
+              << node->name << ",";
+
       if (pag->LeakyNodes.find(node) != pag->LeakyNodes.end())
+      {
          outfile << "1,";
+      }   
       else
-         outfile << "1,";
+         outfile << "0,";
+      for (std::string cname : node->pointee_class_names)
+      {
+         outfile << cname << ",";
+      }
       outfile << "]\n";
+
       std::string nodeKey = std::to_string(node->bci) + "," + std::to_string(node->methodIndex) + "," + std::to_string(node->type) + "," + std::to_string(node->name);
       nodeIndices[nodeKey] = index++;
    }
+   outfile.close();
 
    for (const auto &node : pag->PAG_nodes)
    {
@@ -1566,7 +1580,7 @@ void writeNodesToFile(TR::Compilation *comp)
       edgesfile << "\n";
    }
    edgesfile.close();
-   outfile.close();
+   // outfile.close();
    // sort the node mappings
    std::vector<pair<int, vector<PAGNode *>>> sortedMappings = sortMethodsByIndex(pag->methods_to_allMethodNodes, comp);
 
@@ -1631,14 +1645,14 @@ void writeNodesToFile(TR::Compilation *comp)
    callgraphfile.close();
 
    std::ofstream tf("threadAccesible.txt");
-   for(auto field:pag->threadAccessibleFields)
+   for (auto field : pag->threadAccessibleFields)
    {
       tf << field << std::endl;
    }
    tf.close();
 
    std::ofstream sf("staticFields.txt");
-   for(auto field:pag->staticFields)
+   for (auto field : pag->staticFields)
    {
       sf << field << std::endl;
    }
@@ -1792,47 +1806,50 @@ int32_t OMR::Optimizer::performOptimization(const OptimizationStrategy *optimiza
 
    // string env_flag = std::getenv("RUN_MY_PASS");
    // if(env_flag.find("True")!=string::npos)
-    if(pag_to_use != nullptr)
+   if (pag == nullptr && pag_to_use != nullptr)
    {
       pag = pag_to_use;
    }
-   else
+   else if (pag == nullptr)
    {
       pag = new PointerAssignmentGraph();
-   } 
-
-   if (comp()->getOption(TR_RunMyAnalysis))
-   {
-      if (/*!exhaustive &&*/ pag->_methodIndices.empty())
-      {
-         // cout << "reading method indices" << endl;
-         pag->_methodIndices = readMethodIndices();
-
-         // _partiallyAnalysedMethodIndices = readPartiallyAnalysedMethodIndices();
-      }
-      if (!_threadStartPersistentId)
-      {
-         // fetch a persistent oject for the thread.start method
-         int len = strlen("java/lang/Thread");
-         TR_OpaqueClassBlock *type = comp()->fe()->getClassFromSignature("java/lang/Thread", len, comp()->getCurrentMethod(),true);
-         TR_ASSERT_FATAL(type, "unable to get class pointer for receiver %s", "java/lang/Thread");
-         // std::cout<<"thread ptr success"<< type <<std::endl;
-         TR_ResolvedMethod *targetMethod = getCachedResolvedMethod(comp(), type, "start", "()V");
-         TR_ASSERT_FATAL(targetMethod, "unable to find method for name and signature %s %s", "start", "()V");
-         TR::ResolvedMethodSymbol *targetMethodSymbol = targetMethod->findOrCreateJittedMethodSymbol(comp());
-         TR_ASSERT_FATAL(targetMethodSymbol, "unable to find method for name and signature %s %s", "start", "()V");
-         _threadStartPersistentId = targetMethod->getPersistentIdentifier();
-
-         // std::cout << "Thread start id: " << _threadStartPersistentId << std::endl;
-      }
-      benchmarkBuildIndependentSet(comp());
-      // if (comp()->getOption(TR_PrintPAG)) //&& !done)
-      // {
-      //    done = true;
-      //    printPAG(comp());
-      // }
    }
 
+   if (!isLibraryMethod(getMethodName(comp()->getMethodSymbol())))
+   {
+
+      if (comp()->getOption(TR_RunMyAnalysis))
+      {
+         if (/*!exhaustive &&*/ pag->_methodIndices.empty())
+         {
+            // cout << "reading method indices" << endl;
+            pag->_methodIndices = readMethodIndices();
+
+            // _partiallyAnalysedMethodIndices = readPartiallyAnalysedMethodIndices();
+         }
+         if (!_threadStartPersistentId)
+         {
+            // fetch a persistent oject for the thread.start method
+            int len = strlen("java/lang/Thread");
+            TR_OpaqueClassBlock *type = comp()->fe()->getClassFromSignature("java/lang/Thread", len, comp()->getCurrentMethod(), true);
+            TR_ASSERT_FATAL(type, "unable to get class pointer for receiver %s", "java/lang/Thread");
+            // std::cout<<"thread ptr success"<< type <<std::endl;
+            TR_ResolvedMethod *targetMethod = getCachedResolvedMethod(comp(), type, "start", "()V");
+            TR_ASSERT_FATAL(targetMethod, "unable to find method for name and signature %s %s", "start", "()V");
+            TR::ResolvedMethodSymbol *targetMethodSymbol = targetMethod->findOrCreateJittedMethodSymbol(comp());
+            TR_ASSERT_FATAL(targetMethodSymbol, "unable to find method for name and signature %s %s", "start", "()V");
+            _threadStartPersistentId = targetMethod->getPersistentIdentifier();
+
+            // std::cout << "Thread start id: " << _threadStartPersistentId << std::endl;
+         }
+         benchmarkBuildIndependentSet(comp());
+         // if (comp()->getOption(TR_PrintPAG)) //&& !done)
+         // {
+         //    done = true;
+         //    printPAG(comp());
+         // }
+      }
+   }
    // ********my code ends********
    OMR::Optimizations optNum = optimization->_num;
    TR::OptimizationManager *manager = getOptimization(optNum);
@@ -3411,10 +3428,6 @@ void benchmarkBuildIndependentSet(TR::Compilation *comp)
    // printSet();
    // std::cout<< sig <<std::endl;
 
-   // std::cout<< "analyzing " << getMethodName(comp->getMethodSymbol()) <<std::endl;
-
-  
-
    if (isLibraryMethod(getMethodName(comp->getMethodSymbol())))
       return;
 
@@ -3462,10 +3475,16 @@ void benchmarkBuildIndependentSet(TR::Compilation *comp)
    std::string actCName = tempCName.substr(0, comp->getMethodSymbol()->getResolvedMethod()->classNameLength());
    if (_methodsAnalyzed.find(methodPersistentId) == _methodsAnalyzed.end())
    {
+      std::cout << "**************************************************************analyzing " << getMethodName(comp->getMethodSymbol()) << " in OMROptimizer.cpp**************************************************************" << std::endl;
+
       _methodsAnalyzed.insert(methodPersistentId);
       _methodsBeingAnalyzed.insert(methodPersistentId);
 
       methodDict[methodPersistentId] = computeMSetForMethod(comp, comp->getMethodSymbol());
+
+      std::cout << "**************************************************************Done analyzing " << getMethodName(comp->getMethodSymbol()) << " in OMROptimizer.cpp**************************************************************" << std::endl;
+
+      // methodDict[methodPersistentId] = new recompilation_test().traverse_bytecode(my_prime_J9Method, pag, my,comp);
       _methodsBeingAnalyzed.erase(methodPersistentId);
 
       if (_methodsBeingAnalyzed.empty())
@@ -3682,11 +3701,13 @@ std::unordered_set<std::string> getClassFields(J9Class *clazz, J9VMThread *vmThr
          if (sigChar == 'L' || sigChar == '[')
          {
             std::string fieldNameStr(reinterpret_cast<const char *>(J9UTF8_DATA(fieldName)), J9UTF8_LENGTH(fieldName));
+
             fields.insert(classNameStr + "." + fieldNameStr);
             // printf("   Reference field: %s\n", fieldNameStr.c_str());
             if (modifiers & J9AccStatic)
             {
-               pag->staticFields.insert(classNameStr + "." + fieldNameStr);
+               if (pag)
+                  pag->staticFields.insert(classNameStr + "." + fieldNameStr);
             }
          }
       }
@@ -3767,10 +3788,15 @@ void constructCHA(TR::Compilation *comp)
       {
          if (!J9ROMCLASS_IS_ARRAY(clazz->romClass))
          {
-            std::string className = TR::Compiler->cls.classSignature(comp, reinterpret_cast<TR_OpaqueClassBlock *>(clazz), comp->trMemory());
-            TR_ASSERT_FATAL(className.size() != 0, "unable to get class name for type");
+            // std::string className1 = TR::Compiler->cls.classSignature(comp, reinterpret_cast<TR_OpaqueClassBlock *>(clazz), comp->trMemory());
+            // TR_ASSERT_FATAL(className.size() != 0, "unable to get class name for type");
 
-            if (!(className.rfind("Ljava/") == 0 || className.rfind("Lsun") == 0 || className.rfind("Ljdk") == 0 || className.rfind("Lopenj9") == 0 || className.rfind("Lcom") == 0))
+            J9Class *j9clazz = (J9Class *)clazz;
+            J9UTF8 *nameUTF8 = J9ROMCLASS_CLASSNAME(j9clazz->romClass);
+            std::string className((char *)J9UTF8_DATA(nameUTF8), J9UTF8_LENGTH(nameUTF8));
+
+            // std :: cout << className <<std::endl;
+            if (!(className.rfind("java/") == 0 || className.rfind("sun") == 0 || className.rfind("jdk") == 0 || className.rfind("openj9") == 0 || className.rfind("com") == 0))
             {
                classes.push_back(reinterpret_cast<TR_OpaqueClassBlock *>(clazz));
                clazz_to_fields[(TR_OpaqueClassBlock *)clazz] = getClassFields(clazz, comp->j9VMThread());
@@ -3808,11 +3834,11 @@ void constructCHA(TR::Compilation *comp)
       {
          J9Class *superClass = superClasses[i];
          CHA[(TR_OpaqueClassBlock *)superClass].insert(type);
-         
+
          std::string superClassName = TR::Compiler->cls.classSignature(comp, (TR_OpaqueClassBlock *)superClass, comp->trMemory());
-         if(superClassName.rfind("Ljava/lang/Thread;")==0)
+         if (superClassName.rfind("Ljava/lang/Thread;") == 0)
          {
-            pag->threadAccessibleFields.insert(clazz_to_fields[type].begin(),clazz_to_fields[type].end());
+            pag->threadAccessibleFields.insert(clazz_to_fields[type].begin(), clazz_to_fields[type].end());
          }
       }
 
@@ -3847,10 +3873,10 @@ void constructCHA(TR::Compilation *comp)
       {
          CHA[(TR_OpaqueClassBlock *)iTableCur->interfaceClass].insert(type);
          // std::cout << TR::Compiler->cls.classSignature(comp, (TR_OpaqueClassBlock *)iTableCur->interfaceClass, comp->trMemory()) << "---->" << TR::Compiler->cls.classSignature(comp, type, comp->trMemory()) << std::endl;
-          std::string superClassName = TR::Compiler->cls.classSignature(comp, (TR_OpaqueClassBlock *)iTableCur->interfaceClass, comp->trMemory());
-         if(superClassName.rfind("Ljava/lang/Runnable")==0)
+         std::string superClassName = TR::Compiler->cls.classSignature(comp, (TR_OpaqueClassBlock *)iTableCur->interfaceClass, comp->trMemory());
+         if (superClassName.rfind("Ljava/lang/Runnable") == 0)
          {
-            pag->threadAccessibleFields.insert(clazz_to_fields[type].begin(),clazz_to_fields[type].end());
+            pag->threadAccessibleFields.insert(clazz_to_fields[type].begin(), clazz_to_fields[type].end());
          }
       }
    }
@@ -3913,7 +3939,7 @@ void print(TR::Node *node, int indent, TR_Debug *de)
    if (node->getOpCode().hasSymbolReference() && node->getSymbolReference())
    {
       std::cout << opcode;
-      std::cout << " " << node->getSymbolReference()->getName(de);
+      std::cout << " " << node->getSymbolReference()->getName(de); //<< std::endl;
 
       std::cout << "\t[" << node->getSymbolReference()->getReferenceNumber() << "]";
    }
@@ -4011,7 +4037,7 @@ MethodSet computeMSetForMethod(TR::Compilation *comp, TR::ResolvedMethodSymbol *
       pag->PAG_nodes.insert(pag->methods_to_returnNode[method]);
       pag->methods_to_allMethodNodes[method].push_back(pag->methods_to_returnNode[method]);
    }
-   int methodIndex = getOrInsertMethodIndex(methodSymbol, comp);
+   int methodIndex = method;
 
    // TR_OpaqueMethodBlock *methodPersistentId = methodSymbol->getResolvedMethod()->getPersistentIdentifier();
 
@@ -4304,11 +4330,12 @@ void getTargetsToPeek(std::queue<TR_OpaqueClassBlock *> &bfsList, std::unordered
       }
    }
 }
+
 int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues, Counter &counter, int methodIndex, MethodSet &mSet, TR_OpaqueMethodBlock *currentMethod, TR::Compilation *comp, bool populatePTA)
 {
 
    std::unordered_set<TR_OpaqueMethodBlock *> methodsToPeek;
-   int current_method_index = getOrInsertMethodIndex(comp->getOwningMethodSymbol(currentMethod), comp);
+   int current_method_index = methodIndex;
    int evaluatedSymRef = -2;
 
    TR_OpaqueMethodBlock *methodPersistentId = currentMethod;
@@ -4408,6 +4435,7 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
          symRefNumToPAGNode[methodPersistentId][evaluatedSymRef] = global_index_ptr;
 
          pag->addEdge(alloc_node_ptr, global_index_ptr, NEW);
+         global_index_ptr->pointee_class_names.insert(alloc_node_ptr->pointee_class_names.begin(), alloc_node_ptr->pointee_class_names.end());
 
          // if(populatePTA){
          //    Entry e = evaluateAllocate(usefulNode, methodIndex, false);
@@ -4447,7 +4475,7 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
          }
          else
          {
-            alloc_node_ptr = evaluateAllocate(usefulNode, methodIndex, false, comp);
+            alloc_node_ptr = evaluateAllocate(usefulNode, methodIndex, true, comp);
             pag->methods_to_allMethodNodes[getOrInsertMethodIndex(comp->getOwningMethodSymbol(currentMethod), comp)].push_back(alloc_node_ptr);
          }
 
@@ -4653,8 +4681,13 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
 
             // lhs_node_ptr->incoming.insert(new_edge);
             // y_PAGnode_ptr->outgoing.insert(new_edge);
+            updateMatchEdges();
             pag->addEdge(y_PAGnode_ptr, lhs_node_ptr, e_type, field_name);
-
+            for (auto *edge : pag->getMatchEdgesEndingAt(lhs_node_ptr))
+            {
+               PAGNode *src = edge->src;
+               lhs_node_ptr->pointee_class_names.insert(src->pointee_class_names.begin(), src->pointee_class_names.end());
+            }
             evaluatedSymRef = storeSymRef;
             break;
          }
@@ -4681,9 +4714,9 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
                // PAGEdge *new_edge = new PAGEdge(return_pag_node, lhs_node_ptr, ASSIGN, storeChild->getByteCodeIndex());
                // lhs_node_ptr->incoming.insert(new_edge);
                // return_pag_node->outgoing.insert(new_edge);
-               if(!return_pag_node)
-               {  
-                  TR::ResolvedMethodSymbol * methodSymbol = getCachedResolvedMethodFromPtr(comp, currentMethod)->findOrCreateJittedMethodSymbol(comp);
+               if (!return_pag_node)
+               {
+                  TR::ResolvedMethodSymbol *methodSymbol = getCachedResolvedMethodFromPtr(comp, currentMethod)->findOrCreateJittedMethodSymbol(comp);
                   int methodInd = getOrInsertMethodIndex(methodSymbol, comp);
                   pag->methods_to_returnNode[methodInd] = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, currentMethod, -1, methodInd);
                   pag->PAG_nodes.insert(pag->methods_to_returnNode[methodInd]);
@@ -4693,6 +4726,7 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
 
                pag->addEdge(return_pag_node, lhs_node_ptr, ASSIGN, storeChild->getByteCodeIndex());
                callsite_to_storeNode[storeChild->getByteCodeIndex()] = lhs_node_ptr;
+               lhs_node_ptr->pointee_class_names.insert(return_pag_node->pointee_class_names.begin(), return_pag_node->pointee_class_names.end());
             }
          }
          else
@@ -4705,6 +4739,19 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
             // storeChild_pagNode_ptr->outgoing.insert(new_edge);
 
             pag->addEdge(storeChild_pagNode_ptr, lhs_node_ptr, e_type);
+            if (e_type == GETFIELD)
+            {
+               updateMatchEdges();
+               for (auto *edge : pag->getMatchEdgesEndingAt(lhs_node_ptr))
+               {
+                  PAGNode *src = edge->src;
+                  lhs_node_ptr->pointee_class_names.insert(src->pointee_class_names.begin(), src->pointee_class_names.end());
+               }
+            }
+            else if (e_type == ASSIGN)
+            {
+               lhs_node_ptr->pointee_class_names.insert(storeChild_pagNode_ptr->pointee_class_names.begin(), storeChild_pagNode_ptr->pointee_class_names.end());
+            }
          }
 
          // if (usefulNode->stmtNumber == 0)
@@ -5010,7 +5057,9 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
          // rhs_pag_ptr->outgoing.insert(new_edge);
 
          // static_pag_ptr->incoming.insert(new_edge);
+
          pag->addEdge(rhs_pag_ptr, static_pag_ptr, PUTFIELD, field_name);
+         updateMatchEdges();
          pag->LeakyNodes.insert(rhs_pag_ptr);
          // stmtNumber[methodPersistentId][usefulNode->stmtNumber] = usefulNode;
          // mSet.stmtMap[evaluatedSymRef].insert(usefulNode->stmtNumber);
@@ -5131,8 +5180,23 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
             // rhs_pag_ptr->outgoing.insert(new_edge);
 
             // receiver_pag_ptr->incoming.insert(new_edge);
+            // TR_OpaqueMethodBlock *clazz = usefulNode->getSymbol()->getResolvedMethodSymbol()->getResolvedMethod()->getPersistentIdentifier();
+            // TR::SymbolReference *fieldSymRef = usefulNode->getSymbolReference();
+           
+            // TR_OpaqueClassBlock *declaringClassBlock = fieldSymRef->getOwningMethod(comp)->getDeclaringClassFromFieldOrStatic(comp, fieldSymRef->getCPIndex());
+            // J9Class *resolvedClass = (J9Class *)declaringClassBlock;
+             
+            // J9UTF8 *classNameutf8 = J9ROMCLASS_CLASSNAME(resolvedClass->romClass);
+            // const char *classNameData = (const char *)J9UTF8_DATA(classNameutf8);
+            // uint16_t classNameLength = J9UTF8_LENGTH(classNameutf8);
+            // std::string className(classNameData,classNameLength);
+            
+            // field_name = className + "." + field_name;
+            std::string name = usefulNode->getSymbolReference()->getName(comp->getDebug());
+            std::string full_name = name.substr(0, name.find(' '));;
+            std::cout << full_name << std::endl;
             pag->addEdge(rhs_pag_ptr, receiver_pag_ptr, PUTFIELD, field_name);
-            if(pag->threadAccessibleFields.find(field_name)!=pag->threadAccessibleFields.end())
+            if (pag->threadAccessibleFields.find(full_name) != pag->threadAccessibleFields.end())
             {
                pag->LeakyNodes.insert(rhs_pag_ptr);
             }
@@ -5243,8 +5307,7 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
             // cache the name of method
             cachedMethodName[usefulNode] = methodName;
 
-         std:
-            cout << "Called method: " << cachedMethodName[usefulNode] << " usefull node " << usefulNode << std::endl;
+            std::cout << "Called method: " << cachedMethodName[usefulNode] << " usefull node " << usefulNode << std::endl;
          }
 
          // we do not want to process helper method calls (prepareForOSR, potentialOSRPointHelper, for example)
@@ -5275,7 +5338,7 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
                string className = usefulNode->getSymbol()->castToResolvedMethodSymbol()->getMethod()->classNameChars();
                className = className.substr(0, classNameLength);
 
-               TR_OpaqueClassBlock *type = comp->fe()->getClassFromSignature(className.c_str(), classNameLength, comp->getCurrentMethod());
+               TR_OpaqueClassBlock *type = comp->fe()->getClassFromSignature(className.c_str(), classNameLength, comp->getCurrentMethod(), true);
                TR_ASSERT_FATAL(type, "unable to get class pointer for receiver %s", className.c_str());
                int methodNameLength = usefulNode->getSymbol()->castToResolvedMethodSymbol()->getMethod()->nameLength();
                std::string methodNm;
@@ -5285,7 +5348,7 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
                std::string signatureChars = usefulNode->getSymbol()->getMethodSymbol()->getMethod()->signatureChars();
                std::string sig = signatureChars.substr(0, sigLength);
 
-               std::cout << "Class name: " << className << " method_name: " << methodNm << " Signature " << sig << std::endl;
+               std::cout << "In isStatic :: Class name: " << className << " method_name: " << methodNm << " Signature " << sig << std::endl;
 
                if (type != NULL)
                {
@@ -5335,7 +5398,7 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
                   // {
                   //    std::string className = ci.second;
                   //    int len = strlen(className.c_str());
-                  //    TR_OpaqueClassBlock *type = comp->fe()->getClassFromSignature(className.c_str(), len, comp->getCurrentMethod());
+                  //    TR_OpaqueClassBlock *type = comp->fe()->getClassFromSignature(className.c_str(), len, comp->getCurrentMethod(),true);
                   //    if (type != NULL)
                   //    {
                   //       TR_ResolvedMethod *targetMethod = getCachedResolvedMethod(comp, type, methodNm.c_str(), sig.c_str());
@@ -5353,7 +5416,7 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
                   int classNameLength = usefulNode->getSymbol()->castToResolvedMethodSymbol()->getMethod()->classNameLength();
                   string className = usefulNode->getSymbol()->castToResolvedMethodSymbol()->getMethod()->classNameChars();
 
-                  TR_OpaqueClassBlock *type = comp->fe()->getClassFromSignature(className.c_str(), classNameLength, comp->getCurrentMethod(),true);
+                  TR_OpaqueClassBlock *type = comp->fe()->getClassFromSignature(className.c_str(), classNameLength, comp->getCurrentMethod(), true);
                   TR_ASSERT_FATAL(type, "unable to get class pointer for receiver %s", className.c_str());
 
                   std::queue<TR_OpaqueClassBlock *> bfsList;
@@ -5364,8 +5427,8 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
 
                   // std::string tpName = TR::Compiler->cls.classSignature(comp, type, comp->trMemory());
                   // std::cout <<"Tyepc class name: "<<className << std::endl;
-                  std::cout << className << std::endl;
-                  std::cout << methodNm << std::endl;
+                  // std::cout << className << std::endl;
+                  // std::cout << methodNm << std::endl;
                   std::cout << "type class name = " << className << " where method name = " << methodNm << "\n";
 
                   if (cachedMethodName[usefulNode].find(".<init>") != std::string::npos) //&& cachedMethodName[usefulNode].find("java/lang/Object.<init>()V") == std::string::npos) // if this is a constructor call then directly peek
@@ -5388,10 +5451,10 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
             callsite_to_targets[usefulNode] = methodsToPeek;
 
             for (auto calleeMethodPtr : methodsToPeek)
-            {  
+            {
 
                std::string calleeName = getMethodName(getCachedResolvedMethodFromPtr(comp, calleeMethodPtr)->findOrCreateJittedMethodSymbol(comp));
-               if (_methodsAnalyzed.find(calleeMethodPtr) == _methodsAnalyzed.end() && _methodsBeingAnalyzed.find(calleeMethodPtr) == _methodsBeingAnalyzed.end() && alreadyAnalyzedMethods.find(calleeName)==alreadyAnalyzedMethods.end())
+               if (_methodsAnalyzed.find(calleeMethodPtr) == _methodsAnalyzed.end() && _methodsBeingAnalyzed.find(calleeMethodPtr) == _methodsBeingAnalyzed.end() && alreadyAnalyzedMethods.find(calleeName) == alreadyAnalyzedMethods.end())
                {
                   if (inverseMethodNameIDmapping[currentMethod].find("<init>()V") != std::string::npos && cachedMethodName[usefulNode].find("java/lang/Object.<init>()V") != std::string::npos)
                   {
@@ -5510,6 +5573,19 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
                   // formal_param_pag_ptr->incoming.insert(call_edge);
 
                   pag->addEdge(actual_param_pag_ptr, formal_param_pag_ptr, e_type, usefulNode->getByteCodeIndex());
+                  if (e_type == GETFIELD)
+                  {
+                     updateMatchEdges();
+                     for (auto *edge : pag->getMatchEdgesEndingAt(formal_param_pag_ptr))
+                     {
+                        PAGNode *src = edge->src;
+                        formal_param_pag_ptr->pointee_class_names.insert(src->pointee_class_names.begin(), src->pointee_class_names.end());
+                     }
+                  }
+                  else if (e_type == ASSIGN)
+                  {
+                     formal_param_pag_ptr->pointee_class_names.insert(actual_param_pag_ptr->pointee_class_names.begin(), actual_param_pag_ptr->pointee_class_names.end());
+                  }
 
                   callsite_to_ActualParamPAGNodes[usefulNode->getByteCodeIndex()].insert(actual_param_pag_ptr);
                }
@@ -5543,12 +5619,12 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
             TR::Node *child_node = usefulNode->getFirstChild();
             // the evaluated value of the first child (ie. the call node) will hold the respective call's return value - simply fetch and assign
             int loadSymRef = evaluateNode(child_node, evaluatedNodeValues, counter, methodIndex, mSet, currentMethod, comp, populatePTA);
-            
+
             // Add edge from the child of the useful node(loadSymRef) to return_pag_node_ptr;
             PAGNode *return_pag_node_ptr = pag->methods_to_returnNode[current_method_index];
-            if(!return_pag_node_ptr)
-            {  
-               TR::ResolvedMethodSymbol * methodSymbol = getCachedResolvedMethodFromPtr(comp, currentMethod)->findOrCreateJittedMethodSymbol(comp);
+            if (!return_pag_node_ptr)
+            {
+               TR::ResolvedMethodSymbol *methodSymbol = getCachedResolvedMethodFromPtr(comp, currentMethod)->findOrCreateJittedMethodSymbol(comp);
                int methodInd = getOrInsertMethodIndex(methodSymbol, comp);
                pag->methods_to_returnNode[methodInd] = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, currentMethod, -1, methodInd);
                pag->PAG_nodes.insert(pag->methods_to_returnNode[methodInd]);
@@ -5602,6 +5678,13 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
                // return_pag_node_ptr->incoming.insert(new_edge);
                // y_PAGnode_ptr->outgoing.insert(new_edge);
                pag->addEdge(y_PAGnode_ptr, return_pag_node_ptr, GETFIELD, field_name);
+
+               updateMatchEdges();
+               for (auto *edge : pag->getMatchEdgesEndingAt(return_pag_node_ptr))
+               {
+                  PAGNode *src = edge->src;
+                  return_pag_node_ptr->pointee_class_names.insert(src->pointee_class_names.begin(), src->pointee_class_names.end());
+               }
             }
             else if (child_node->getOpCodeValue() == TR::New)
             {
@@ -5612,6 +5695,7 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
                // symRefNumToPAGNode[methodPersistentId][globalIndex]->outgoing.insert(new_edge);
                // return_pag_node_ptr->incoming.insert(new_edge);
                pag->addEdge(symRefNumToPAGNode[methodPersistentId][globalIndex], return_pag_node_ptr, ASSIGN);
+               return_pag_node_ptr->pointee_class_names.insert(symRefNumToPAGNode[methodPersistentId][globalIndex]->pointee_class_names.begin(), symRefNumToPAGNode[methodPersistentId][globalIndex]->pointee_class_names.end());
             }
             else if (callsite_to_targets.find(child_node) != callsite_to_targets.end()) // return b.foo() type of stmts => add edge from return node of foo to the current method's return node
             {
@@ -5625,6 +5709,7 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
                   // return_pag_node_ptr->incoming.insert(new_edge);
                   // child_pag_ptr->outgoing.insert(new_edge);
                   pag->addEdge(child_pag_ptr, return_pag_node_ptr, ASSIGN);
+                  return_pag_node_ptr->pointee_class_names.insert(child_pag_ptr->pointee_class_names.begin(), child_pag_ptr->pointee_class_names.end());
                }
             }
             else
@@ -5652,6 +5737,7 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
                // return_pag_node_ptr->incoming.insert(new_edge);
                // child_pag_ptr->outgoing.insert(new_edge);
                pag->addEdge(child_pag_ptr, return_pag_node_ptr, ASSIGN);
+               return_pag_node_ptr->pointee_class_names.insert(child_pag_ptr->pointee_class_names.begin(), child_pag_ptr->pointee_class_names.end());
             }
 
             evaluatedSymRef = loadSymRef;
@@ -5795,7 +5881,18 @@ PAGNode *evaluateAllocate(TR::Node *node, int methodIndex, bool isArray, TR::Com
    }
 
    nodeAllocationMap[node] = obj_ptr;
+   // TR_Debug de(comp);
+   // TR_Debug *deb = &de;
+   // std::string obj_type = loadaddrNode->getSymbolReference()->getName(comp->getDebug());
+   int len;
+   TR::SymbolReference * symRef = loadaddrNode->getSymbolReference();
+   std::cout << symRef << std::endl;
 
+   // std::cout << "NAME IS " << loadaddrNode->getSymbolReference()->getName(comp->getDebug()) << std::endl;
+   char *objc = TR::Compiler->cls.classNameChars(comp,symRef, len);
+   std::string obj_type(objc, len);
+   std::cout << "Allocate object type: " << obj_type << std::endl;
+   nodeAllocationMap[node]->pointee_class_names.insert(obj_type);
    // std::cout<<"loadaddr node is "<<loadaddrNode<<"\n";
    // TR_ASSERT_FATAL(loadaddrNode->getOpCodeValue() == TR::loadaddr, "expected first child of jitnewobject to be loadaddr op");
    // if (loadaddrNode->getOpCodeValue() == TR::loadaddr && loadaddrNode->getSymbolReference()->isUnresolved())
@@ -5920,17 +6017,17 @@ void printExhaustive()
    {
       miFile /*<<std::to_string(i)<<":"*/ << m.second << "\n";
       i++;
-      ofstream crFile("crr" + to_string(m.first) + ".txt");
-      for (auto r : _callsiteReceivers[m.first])
-      {
-         crFile << r.first;
-         for (auto s : r.second)
-         {
-            crFile << " " << s;
-         }
-         crFile << ";";
-      }
-      crFile.close();
+      // ofstream crFile("crr" + to_string(m.first) + ".txt");
+      // for (auto r : _callsiteReceivers[m.first])
+      // {
+      //    crFile << r.first;
+      //    for (auto s : r.second)
+      //    {
+      //       crFile << " " << s;
+      //    }
+      //    crFile << ";";
+      // }
+      // crFile.close();
    }
 
    miFile.close();
@@ -5943,7 +6040,7 @@ std::unordered_map<std::string, int> readMethodIndices()
 
    ifstream file(methodIndicesFileName);
    string methodName;
-   int index = 0;
+   int index = 1;
    while (file >> methodName)
    {
       // cout << methodName << ":" << index << endl;
@@ -5955,12 +6052,40 @@ std::unordered_map<std::string, int> readMethodIndices()
    return ret;
 }
 
-void getAlreadyAnalyzedMethodNames() {
-    std::ifstream file("analyzedMethods.txt");
-    std::string line;
-    int index = 1;
+void getAlreadyAnalyzedMethodNames()
+{
+   std::ifstream file("analyzedMethods.txt");
+   std::string line;
+   int index = 1;
 
-    while (std::getline(file, line)) {
-        alreadyAnalyzedMethods.insert(line);
-    }
+   while (std::getline(file, line))
+   {
+      alreadyAnalyzedMethods.insert(line);
+   }
+}
+
+void updateMatchEdges()
+{
+   for (PAGEdge *e1 : pag->getStoreEdges())
+   {
+      for (PAGEdge *e2 : pag->getLoadEdges())
+      {
+         if (e1->field == e2->field)
+         {
+            bool exists = false;
+            for (PAGEdge *outEdge : e1->src->outgoing)
+            {
+               if (outEdge->dest == e2->dest && outEdge->type == MATCH)
+               {
+                  exists = true;
+                  break;
+               }
+            }
+            if (!exists)
+            {
+               pag->addEdge(e1->src, e2->dest, MATCH);
+            }
+         }
+      }
+   }
 }
