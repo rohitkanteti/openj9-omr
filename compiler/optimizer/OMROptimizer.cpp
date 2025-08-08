@@ -169,7 +169,7 @@ static unordered_map<int32_t, TR::Node *> symRefNumToNode;
 static bool done = false;
 static std::unordered_map<TR_OpaqueClassBlock *, std::unordered_set<std::string>> clazz_to_fields;
 static std::unordered_map<std::string, std::unordered_set<std::string>> className_to_fields;
-
+static std::unordered_map<std::string,PAGNode*> staticField_to_Node;
 //
 bool exhaustive = false;
 static std::unordered_map<TR_OpaqueClassBlock *, int> classPtrToIndex;
@@ -1568,9 +1568,18 @@ void writeNodesToFile(TR::Compilation *comp, PointerAssignmentGraph *pag)
       for (auto *edge : node->outgoing)
       {
          auto *dest = edge->dest;
-         int destNodeIndex = nodeIndices[std::to_string(dest->bci) + "," + std::to_string(_methodIndicesPtr[dest->caller]) + "," +
+         
+         std::string indexkey = std::to_string(dest->bci) + "," + std::to_string(_methodIndicesPtr[dest->caller]) + "," +
                                          std::to_string(dest->type) + "," +
-                                         std::to_string(dest->name)];
+                                         std::to_string(dest->name);
+                                       
+                                         
+         // std::cout << "Index key is " << indexkey << std::endl;                                         
+         int destNodeIndex = nodeIndices[indexkey];
+         if(destNodeIndex==0 && pag->staticFields.find(edge->field) != pag->staticFields.end())
+         {
+            destNodeIndex = getNodeIndex(staticField_to_Node[edge->field], nodeIndices);
+         }
          edgesfile << "["
                    << destNodeIndex << ","
                    << edge->type << ","
@@ -5061,6 +5070,7 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
          pag->addEdge(rhs_pag_ptr, static_pag_ptr, PUTFIELD, field_name);
          updateMatchEdges();
          pag->LeakyNodes.insert(rhs_pag_ptr);
+         staticField_to_Node[field_name] = static_pag_ptr;
          // stmtNumber[methodPersistentId][usefulNode->stmtNumber] = usefulNode;
          // mSet.stmtMap[evaluatedSymRef].insert(usefulNode->stmtNumber);
 
