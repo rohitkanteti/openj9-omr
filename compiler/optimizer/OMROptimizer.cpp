@@ -169,7 +169,7 @@ static unordered_map<int32_t, TR::Node *> symRefNumToNode;
 static bool done = false;
 static std::unordered_map<TR_OpaqueClassBlock *, std::unordered_set<std::string>> clazz_to_fields;
 static std::unordered_map<std::string, std::unordered_set<std::string>> className_to_fields;
-static std::unordered_map<std::string,PAGNode*> staticField_to_Node;
+static std::unordered_map<std::string, PAGNode *> staticField_to_Node;
 //
 bool exhaustive = false;
 static std::unordered_map<TR_OpaqueClassBlock *, int> classPtrToIndex;
@@ -181,6 +181,7 @@ void updateMatchEdges();
 std::string joinVec(std::vector<std::string> const &strings, std::string delim);
 // bool canCast(Entry e, TR_OpaqueClassBlock* type, TR::Compilation* comp);
 void constructCHA(TR::Compilation *comp);
+void getResolvedReflectiveCalls();
 void buildIndependentSet(TR::Compilation *comp);
 void benchmarkBuildIndependentSet(TR::Compilation *comp);
 int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues, Counter &counter, int methodIndex, MethodSet &mSet, TR_OpaqueMethodBlock *currentMethodSymbol, TR::Compilation *comp, bool populatePTA);
@@ -211,6 +212,7 @@ bool isLibraryMethod(std::string methodName);
 void writeNodesToFile(TR::Compilation *, PointerAssignmentGraph *p);
 void printExhaustive();
 void getAlreadyAnalyzedMethodNames();
+std::unordered_set<std::string> getReflectiveTargets(std::string &caller, int lineNumber);
 // std::set<Entry> processNode(TR::Node *node, int methodIndex, TR_OpaqueMethodBlock *currentMethod, TR::Compilation *comp,
 //                               Counter &counter, std::unordered_map<TR_OpaqueMethodBlock*,
 //                                  std::set<int>> &reanalyzeStmt, std::unordered_map<TR_OpaqueMethodBlock*, std::set<int>> &parentVisited,
@@ -229,6 +231,17 @@ void addReachableVariable(int argNum, TR::Node *callStmt, TR_OpaqueMethodBlock *
 void pseudoTopoSort(TR::Block *currentBlock, std::vector<TR::Block *> &gray, std::vector<TR::Block *> &black, std::stack<TR::Block *> &sorted);
 
 PAGNode *evaluateAllocate(TR::Node *node, int methodIndex, bool isArray, TR::Compilation *);
+
+struct CallInfo
+{
+   std::string callee;
+   int lineNumber;
+
+   CallInfo(const std::string &callee, int line)
+       : callee(callee), lineNumber(line) {}
+};
+
+static std::unordered_map<std::string, std::vector<CallInfo>> reflectiveCallGraph;
 
 // bool isEqual(PointsToGraph *ptg1, PointsToGraph *ptg2);
 
@@ -1459,7 +1472,8 @@ void OMR::Optimizer::optimize()
    if (comp()->getOption(TR_RunMyAnalysis) /*&& comp()->getOption(TR_DumpPAG)*/ && optimize_count == 1 && !done)
    {
       done = true;
-      if(comp()->getOption(TR_DumpPAG)) printPAG(comp());
+      if (comp()->getOption(TR_DumpPAG))
+         printPAG(comp());
 
       writeNodesToFile(comp(), pag);
 
@@ -1547,7 +1561,7 @@ void writeNodesToFile(TR::Compilation *comp, PointerAssignmentGraph *pag)
       if (pag->LeakyNodes.find(node) != pag->LeakyNodes.end())
       {
          outfile << "1,";
-      }   
+      }
       else
          outfile << "0,";
       for (std::string cname : node->pointee_class_names)
@@ -1568,15 +1582,14 @@ void writeNodesToFile(TR::Compilation *comp, PointerAssignmentGraph *pag)
       for (auto *edge : node->outgoing)
       {
          auto *dest = edge->dest;
-         
+
          std::string indexkey = std::to_string(dest->bci) + "," + std::to_string(_methodIndicesPtr[dest->caller]) + "," +
-                                         std::to_string(dest->type) + "," +
-                                         std::to_string(dest->name);
-                                       
-                                         
-         // std::cout << "Index key is " << indexkey << std::endl;                                         
+                                std::to_string(dest->type) + "," +
+                                std::to_string(dest->name);
+
+         // std::cout << "Index key is " << indexkey << std::endl;
          int destNodeIndex = nodeIndices[indexkey];
-         if(destNodeIndex==0 && pag->staticFields.find(edge->field) != pag->staticFields.end())
+         if (destNodeIndex == 0 && pag->staticFields.find(edge->field) != pag->staticFields.end())
          {
             destNodeIndex = getNodeIndex(staticField_to_Node[edge->field], nodeIndices);
          }
@@ -3444,6 +3457,7 @@ void benchmarkBuildIndependentSet(TR::Compilation *comp)
    {
       constructCHA(comp);
       getAlreadyAnalyzedMethodNames();
+      getResolvedReflectiveCalls();
       // printf("=== Class Hierarchy Analysis (CHA) ===\n");
       // printf("Total parent classes: %zu\n", CHA.size());
 
@@ -5192,18 +5206,19 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
             // receiver_pag_ptr->incoming.insert(new_edge);
             // TR_OpaqueMethodBlock *clazz = usefulNode->getSymbol()->getResolvedMethodSymbol()->getResolvedMethod()->getPersistentIdentifier();
             // TR::SymbolReference *fieldSymRef = usefulNode->getSymbolReference();
-           
+
             // TR_OpaqueClassBlock *declaringClassBlock = fieldSymRef->getOwningMethod(comp)->getDeclaringClassFromFieldOrStatic(comp, fieldSymRef->getCPIndex());
             // J9Class *resolvedClass = (J9Class *)declaringClassBlock;
-             
+
             // J9UTF8 *classNameutf8 = J9ROMCLASS_CLASSNAME(resolvedClass->romClass);
             // const char *classNameData = (const char *)J9UTF8_DATA(classNameutf8);
             // uint16_t classNameLength = J9UTF8_LENGTH(classNameutf8);
             // std::string className(classNameData,classNameLength);
-            
+
             // field_name = className + "." + field_name;
             std::string name = usefulNode->getSymbolReference()->getName(comp->getDebug());
-            std::string full_name = name.substr(0, name.find(' '));;
+            std::string full_name = name.substr(0, name.find(' '));
+            ;
             std::cout << full_name << std::endl;
             pag->addEdge(rhs_pag_ptr, receiver_pag_ptr, PUTFIELD, field_name);
             if (pag->threadAccessibleFields.find(full_name) != pag->threadAccessibleFields.end())
@@ -5419,6 +5434,46 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
                   //       }
                   //    }
                   // }
+               }
+               else if (cachedMethodName[usefulNode].find("java/lang/reflect/Constructor.newInstance([Ljava/lang/Object;)Ljava/lang/Object") != std::string::npos || cachedMethodName[usefulNode].find("java/lang/reflect/Method.invoke(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;") != std::string::npos)
+               // reflective calls
+               {
+
+                  int lineNumber = comp->getLineNumber(usefulNode);
+                  std::unordered_set<std::string> targets = getReflectiveTargets(inverseMethodNameIDmapping[methodPersistentId], lineNumber);
+                  for (std::string fullName : targets)
+                  {
+                     auto dotPos = fullName.find('.');
+                     auto parenPos = fullName.find('(');
+
+                     std::string className = fullName.substr(0, dotPos);
+                     std::string methodName = fullName.substr(dotPos + 1, parenPos - dotPos - 1);
+                     std::string signature = fullName.substr(parenPos);
+
+                     TR_OpaqueClassBlock *type = comp->fe()->getClassFromSignature(className.c_str(), className.size(), comp->getCurrentMethod(), true);
+                     TR_ResolvedMethod *targetMethod = getCachedResolvedMethod(comp,type,methodName.c_str(), signature.c_str());
+
+                     // std::cout <<"Target method "<<getMethodName(targetMethod->findOrCreateJittedMethodSymbol(comp))<<std::endl;
+                     // if(!targetMethod) continue;
+
+                     if (targetMethod && !targetMethod->isAbstract())
+                     {
+
+                        //! TR::Compiler->cls.isInterfaceClass(comp, currentClass)){
+                        // std::cout<<"targetMethod in CHA is null\n";
+                        // if (classPtrToIndex[currentClass] == 0)
+                        // {
+                        //    // std::cout<<"didid 4 = "<<methodName<<"\n";
+                        // }
+                        // _callsiteReceivers[methodPtrToIndex[currentMethod]][callsiteBCI].insert(classPtrToIndex[currentClass]);
+                        if (!isLibraryMethod(getMethodName(targetMethod->findOrCreateJittedMethodSymbol(comp))))
+                        {
+                           methodsToPeek.insert(targetMethod->getPersistentIdentifier());
+                           std::cout << "Added to peek (in reflective block): " << getMethodName(targetMethod->findOrCreateJittedMethodSymbol(comp)) << " called  method: " << methodNm << sig << std::endl;
+                           cachedParameterType[targetMethod->getPersistentIdentifier()][0] = type;
+                        }
+                     }
+                  }
                }
                else
                {
@@ -5895,11 +5950,11 @@ PAGNode *evaluateAllocate(TR::Node *node, int methodIndex, bool isArray, TR::Com
    // TR_Debug *deb = &de;
    // std::string obj_type = loadaddrNode->getSymbolReference()->getName(comp->getDebug());
    int len;
-   TR::SymbolReference * symRef = loadaddrNode->getSymbolReference();
+   TR::SymbolReference *symRef = loadaddrNode->getSymbolReference();
    std::cout << symRef << std::endl;
 
    // std::cout << "NAME IS " << loadaddrNode->getSymbolReference()->getName(comp->getDebug()) << std::endl;
-   char *objc = TR::Compiler->cls.classNameChars(comp,symRef, len);
+   char *objc = TR::Compiler->cls.classNameChars(comp, symRef, len);
    std::string obj_type(objc, len);
    std::cout << "Allocate object type: " << obj_type << std::endl;
    nodeAllocationMap[node]->pointee_class_names.insert(obj_type);
@@ -6098,4 +6153,54 @@ void updateMatchEdges()
          }
       }
    }
+}
+
+void getResolvedReflectiveCalls()
+{
+   std::ifstream file("transformedRefLog.txt");
+   std::string line;
+
+   while (std::getline(file, line))
+   {
+      if (line.empty())
+         continue;
+
+      std::istringstream iss(line);
+      std::string caller, lineNumStr, callee;
+
+      if (iss >> caller >> lineNumStr)
+      {
+         int lineNumber = std::stoi(lineNumStr);
+         std::getline(iss, callee);
+
+         if (!callee.empty() && callee[0] == ' ')
+         {
+            callee = callee.substr(1);
+         }
+
+         reflectiveCallGraph[caller].emplace_back(callee, lineNumber);
+      }
+   }
+}
+
+std::unordered_set<std::string> getReflectiveTargets(std::string &caller, int lineNumber)
+{
+   auto it = reflectiveCallGraph.find(caller);
+   std::unordered_set<std::string> targets;
+   if (it != reflectiveCallGraph.end())
+   {
+      // std::cout << caller << " calls:" << std::endl;
+      for (const auto &call : it->second)
+      {
+         //  std::cout << "  - " << call.callee << " (line " << call.lineNumber << ")" << std::endl;
+         if (call.lineNumber == lineNumber)
+            targets.insert(call.callee);
+      }
+   }
+   else
+   {
+      std::cout << "No calls found for " << caller << std::endl;
+   }
+
+   return targets;
 }
