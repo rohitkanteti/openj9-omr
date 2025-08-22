@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <unordered_set>
+#include <unordered_map>
 #include "env/jittypes.h"
 #include "../il/Node.hpp"
 #include "enums.h"
