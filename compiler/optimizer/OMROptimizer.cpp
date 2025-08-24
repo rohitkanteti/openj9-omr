@@ -6212,7 +6212,7 @@ std::unordered_map<std::string, int> readMethodIndices()
       ret[methodName] = index;
       index++;
    }
-
+   file.close();
    return ret;
 }
 
@@ -6226,6 +6226,7 @@ void getAlreadyAnalyzedMethodNames()
    {
       alreadyAnalyzedMethods.insert(line);
    }
+   file.close();
 }
 
 void updateMatchEdges()
@@ -6280,6 +6281,7 @@ void getResolvedReflectiveCalls()
          reflectiveCallGraph[caller].emplace_back(callee, lineNumber);
       }
    }
+   file.close();
 }
 
 std::unordered_set<std::string> getReflectiveTargets(std::string &caller, int lineNumber)
