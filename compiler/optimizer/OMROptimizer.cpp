@@ -431,7 +431,7 @@ void getall_loaded_classes(TR::Compilation *comp);
 void updateMatchEdges(PointerAssignmentGraph *pag);
 bool is_reference_type(const char *signature, int argumentIndex);
 int count_parameters(const char *signature);
-bool searchForOveridingMethodsInClass(std::string className, std::string method_name, std::string method_signature, PointerAssignmentGraph *pag, TR_J9VMBase *fej9, TR_ResolvedMethod *resolvedMethod, vector<set<PAGNode *>> actual_params, int bci, TR::Compilation *comp, operandStack *, PAGNode *);
+bool searchForOveridingMethodsInClass(std::string className, std::string method_name, std::string method_signature, PointerAssignmentGraph *pag, TR_J9VMBase *fej9, TR_ResolvedMethod *resolvedMethod, vector<set<PAGNode *>> actual_params, int bci, TR::Compilation *comp, operandStack *, PAGNode *,PAGNode*);
 void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph *pag, operandStack *stack, TR_ResolvedMethod *resolvedMethod,
                      J9Method *currentMethod, int methodIndex, int bci, std::unordered_map<int, PAGNode *> &variableMap, bool hasReturnType, TR::Compilation *comp, J9Class *, PAGNode *primitive_node);
 void traverse_bytecode(J9Method *method, PointerAssignmentGraph *pag, int methodIndex, TR::Compilation *comp);
@@ -1850,7 +1850,7 @@ void printLPAG(PointerAssignmentGraph *lpag)
    }
    // }
 }
-
+static std::unordered_set<std::string> methodsSS;
 int32_t OMR::Optimizer::performOptimization(const OptimizationStrategy *optimization, int32_t firstOptIndex, int32_t lastOptIndex, int32_t doTiming)
 {
 
@@ -7499,7 +7499,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       int index = pc[1];
       set<PAGNode *> stack_top = stack->popRef(); // pop from operand stack
       for (PAGNode *obj_ref : stack_top)
-      {  
+      {
          if (!variableMap[index])
          {
             variableMap[index] = new PAGNode(VARIABLE, globalIndex_, nullptr, method_block, bci, methodIndex);
@@ -7739,7 +7739,11 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       std::cout << "  -> fieldName= " << fieldName << std::endl;
       std::string fullName = className + "." + fieldName;
       set<PAGNode *> value_set = stack->popRef();
-
+      set<PAGNode *> objs_set;
+      if(bytecode != J9BCputstatic)
+      {
+         objs_set = stack->popRef();
+      }
       for (PAGNode *value : value_set)
       {
          if (bytecode == J9BCputstatic)
@@ -7757,8 +7761,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
             pag->LeakyNodes.insert(value);
          }
          else
-         {
-            set<PAGNode *> objs_set = stack->popRef();
+         {  
             for (PAGNode *obj_ref : objs_set)
             {
                pag->addEdge(value, obj_ref, PUTFIELD, fieldName);
@@ -7838,6 +7841,9 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
          // }
       }
       std::reverse(actual_params.begin(), actual_params.end());
+      std::string rst;
+      bool calleeReturnsReference = returnsObject(signature, rst);
+      bool calleeReturnsPrimitive = returnsPrimitive(signature);
 
       if (isStatic)
       {
@@ -7873,12 +7879,16 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
          // char * classNameChars = (char*) J9UTF8_DATA(classNameWrapper);
          // std::string className(classNameChars, classNameLength);
          std::cout << "  ->invokestatic className  " << className << std::endl;
+         PAGNode *rNode = new PAGNode(VARIABLE, 0, nullptr, method_block, -1, methodIndex, className);
 
-         bool found = searchForOveridingMethodsInClass(className, name, signature, pag, ((TR_J9VMBase *)comp->fe()), resolvedMethod, actual_params, bci, comp, stack, primitive_node);
+         bool found = searchForOveridingMethodsInClass(className, name, signature, pag, ((TR_J9VMBase *)comp->fe()), resolvedMethod, actual_params, bci, comp, stack, primitive_node,rNode);
+         if(calleeReturnsReference || calleeReturnsPrimitive) 
+            stack->pushRef(rNode);
       }
       else
       {
          set<PAGNode *> receiver_obj_ptr_set = stack->popRef();
+         PAGNode *rNode = new PAGNode(VARIABLE, 0, nullptr, method_block, -1, methodIndex);
 
          actual_params.insert(actual_params.begin(), receiver_obj_ptr_set); // (this,arg1,arg2,...)
 
@@ -7896,31 +7906,42 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
          {
             // if (receiver_obj_ptr->pointee_class_names.size() == 0)
             // {
-               // CHA
-               //  if(receiver_obj_ptr->static_type.rfind("no static type")==std::string::npos)
-               //     classNames.insert(receiver_obj_ptr->static_type);
-               // if (!isInterfaceInvoke)
-               //    classNames.insert(staticClassName);
-               // std::unordered_set<std::string> subclasses = getAllPossibleCHA_TargetNames(staticClassName);
+            // CHA
+            //  if(receiver_obj_ptr->static_type.rfind("no static type")==std::string::npos)
+            //     classNames.insert(receiver_obj_ptr->static_type);
+            // if (!isInterfaceInvoke)
+            //    classNames.insert(staticClassName);
+            // std::unordered_set<std::string> subclasses = getAllPossibleCHA_TargetNames(staticClassName);
 
-               // classNames.insert(subclasses.begin(), subclasses.end());
+            // classNames.insert(subclasses.begin(), subclasses.end());
             // }
             // else
             // {
-               if (!isInterfaceInvoke)
-                  classNames.insert(staticClassName);
-               std::unordered_set<std::string> subclasses = getAllPossibleCHA_TargetNames(staticClassName);
+            if (!isInterfaceInvoke)
+               classNames.insert(staticClassName);
+            std::unordered_set<std::string> subclasses = getAllPossibleCHA_TargetNames(staticClassName);
 
-               classNames.insert(subclasses.begin(), subclasses.end());
-               classNames.insert(receiver_obj_ptr->pointee_class_names.begin(), receiver_obj_ptr->pointee_class_names.end());
+            std::set<std::string> intersection;
+
+            std::set_intersection(
+                receiver_obj_ptr->pointee_class_names.begin(),
+                receiver_obj_ptr->pointee_class_names.end(),
+                subclasses.begin(),
+                subclasses.end(),
+                std::inserter(intersection, intersection.begin()));
+
+            classNames.insert(intersection.begin(), intersection.end());
+            classNames.insert(subclasses.begin(), subclasses.end());
+
+
             // }
 
             if (isInterfaceInvoke && classNames.find(staticClassName) != classNames.end())
                classNames.erase(staticClassName);
-            
+
             bool search = false;
             for (auto className : classNames)
-            {  
+            {
                search = true;
                if (threadExtendingClasses.find(className) != threadExtendingClasses.end() && name == "start")
                {
@@ -7965,14 +7986,14 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
                   }
                }
 
-               bool found = searchForOveridingMethodsInClass(className, name, signature, pag, ((TR_J9VMBase *)comp->fe()), resolvedMethod, actual_params, bci, comp, stack, primitive_node);
+               bool found = searchForOveridingMethodsInClass(className, name, signature, pag, ((TR_J9VMBase *)comp->fe()), resolvedMethod, actual_params, bci, comp, stack, primitive_node,rNode);
                if (!found)
                {
                   bool found_in_superClass = false;
 
                   // TR_OpaqueClassBlock *type = comp->fe()->getClassFromSignature(className.c_str(), className.length(), comp->getCurrentMethod(), true);
                   J9Class *j9Class = findClassAcrossAllLoaders(comp, className, ((TR_J9VMBase *)comp->fe()), resolvedMethod);
-                  TR_OpaqueClassBlock *type = reinterpret_cast<TR_OpaqueClassBlock*>(j9Class);
+                  TR_OpaqueClassBlock *type = reinterpret_cast<TR_OpaqueClassBlock *>(j9Class);
                   J9Class **superClasses = TR::Compiler->cls.superClassesOf(type);
                   int classDepth = TR::Compiler->cls.classDepthOf(type);
 
@@ -7982,7 +8003,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
                      char *name_chars = (char *)J9UTF8_DATA(superClassName_utf8);
                      std::string superClassName(name_chars, superClassName_utf8->length);
 
-                     found = searchForOveridingMethodsInClass(superClassName, name, signature, pag, ((TR_J9VMBase *)comp->fe()), resolvedMethod, actual_params, bci, comp, stack, primitive_node);
+                     found = searchForOveridingMethodsInClass(superClassName, name, signature, pag, ((TR_J9VMBase *)comp->fe()), resolvedMethod, actual_params, bci, comp, stack, primitive_node,rNode);
                      if (found)
                         break;
                   }
@@ -7996,13 +8017,12 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
                   the method to be invoked.*/
                }
             }
-            if(!search)
-            {  
-               //To balance the stack operations if we are not able to find the method 
-               std::string rst;
-               bool calleeReturnsReference = returnsObject(signature, rst);
-               bool calleeReturnsPrimitive = returnsPrimitive(signature);
-               
+            
+            if(search && (calleeReturnsReference || calleeReturnsPrimitive))
+               stack->pushRef(rNode);
+            if (!search)
+            {
+               // To balance the stack operations if we are not able to find the method
                if (calleeReturnsReference)
                {
                   pag->bottom_node->pointee_class_names.insert(rst);
@@ -8014,7 +8034,6 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
                {
                   stack->pushRef(primitive_node);
                }
-               
             }
          }
       }
@@ -8133,7 +8152,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    }
 }
 
-bool searchForOveridingMethodsInClass(std::string className, std::string method_name, std::string method_signature, PointerAssignmentGraph *pag, TR_J9VMBase *fej9, TR_ResolvedMethod *resolvedMethod, vector<set<PAGNode *>> actual_params, int bci, TR::Compilation *comp, operandStack *stack, PAGNode *primitive_node)
+bool searchForOveridingMethodsInClass(std::string className, std::string method_name, std::string method_signature, PointerAssignmentGraph *pag, TR_J9VMBase *fej9, TR_ResolvedMethod *resolvedMethod, vector<set<PAGNode *>> actual_params, int bci, TR::Compilation *comp, operandStack *stack, PAGNode *primitive_node,PAGNode* returnNode)
 {
    // TR_OpaqueClassBlock *clazz = fej9->getClassFromSignature(className.c_str(), className.length(), resolvedMethod, true);
    // J9VMThread *vmThread = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
@@ -8160,13 +8179,13 @@ bool searchForOveridingMethodsInClass(std::string className, std::string method_
       if (calleeReturnsReference)
       {
          pag->bottom_node->pointee_class_names.insert(returnStaticType);
-         stack->pushRef(pag->bottom_node);
+          pag->addEdge(pag->bottom_node, returnNode, ASSIGN, bci);
          // else
          //    stack->pushRef(pag->getReturnNode(getOrInsertMethodIndexByName(full_method_name, pag)));
       }
       else if (calleeReturnsPrimitive)
       {
-         stack->pushRef(primitive_node);
+         pag->addEdge(primitive_node, returnNode, ASSIGN, bci);
       }
       return true;
    }
@@ -8218,13 +8237,13 @@ bool searchForOveridingMethodsInClass(std::string className, std::string method_
          if (calleeReturnsReference)
          {
             if (isLibraryMethod(full_method_name))
-               stack->pushRef(pag->bottom_node);
+                pag->addEdge(pag->bottom_node, returnNode, ASSIGN, bci);
             else
-               stack->pushRef(pag->getReturnNode(getOrInsertMethodIndexByName(full_method_name, pag)));
+               pag->addEdge(pag->getReturnNode(getOrInsertMethodIndexByName(full_method_name, pag)), returnNode, ASSIGN, bci);
          }
          else if (calleeReturnsPrimitive)
          {
-            stack->pushRef(primitive_node);
+            pag->addEdge(primitive_node, returnNode, ASSIGN, bci);
          }
          return true;
       }
@@ -9750,7 +9769,11 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
          else
          {
             operandStack *succStack = inStacks[succ];
-            std::cout <<"Succ BCI = "<<succBci << std::endl; 
+            std::cout << "Succ BCI = " << succBci << std::endl;
+            if(succBci==72)
+            {
+               std::cout << succBci << std::endl;
+            }
             if (succStack->merge(*stack) && worklist_bb_bci.find(succBci) == worklist_bb_bci.end()) // if successor is already in the worklist then don't add it again.
             {
                worklist_bb_bci.insert(succBci);
@@ -9769,6 +9792,11 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
    analysedMethodNames.insert(fully_qualified_name);
    std::cout << "##############Done traversing the Bytecode of the method " << className << "." << name << signature << "##############" << std::endl;
    _methodsNamesBeingAnalyzed.erase(className + "." + name + signature);
+   if (className.rfind("org/sunflow/core/light/TriangleMeshLight$TriangleLight") == 0)
+   {
+      std::cout << className << "." << name << signature << "$$$$%%%$$$$$" << std::endl;
+   }
+
 }
 
 std::unordered_set<std::string> getAllPossibleCHA_TargetNames(const std::string &className)
