@@ -29,10 +29,13 @@ std::ostream& operator<<(std::ostream& os, const PAGEdge& obj) {
     return os;
 }
 
-PAGNode::PAGNode() : type(NONTYPE), name(0), caller(0), bci(0), clazz_ptr(nullptr) {}
+PAGNode::PAGNode() : type(NONTYPE), name(0), caller(0), bci(0), clazz_ptr(nullptr),static_type("no static type") {}
 
 PAGNode::PAGNode(NodeType t, int n, TR_OpaqueClassBlock* clazz_p, TR_OpaqueMethodBlock* m, int b,int mi)
-    : type(t), name(n), clazz_ptr(clazz_p), caller(m), bci(b),methodIndex(mi) {}
+    : type(t), name(n), clazz_ptr(clazz_p), caller(m), bci(b),methodIndex(mi),static_type("no static type") {}
+
+PAGNode::PAGNode(NodeType t, int n, TR_OpaqueClassBlock* clazz_p, TR_OpaqueMethodBlock* m, int b,int mi,std::string static_type)
+    : type(t), name(n), clazz_ptr(clazz_p), caller(m), bci(b),methodIndex(mi),static_type(static_type) {}
 
 PAGNode::PAGNode(NodeType t,std::string c,int mi): type(t),class_name(c),methodIndex(mi) {}
 
@@ -40,7 +43,7 @@ void PAGNode::printNode() {
         std::cout << "[ Nodetype = " << type ;
         std::cout << ", caller = " << caller;
         std::cout << ", name = " << name ;
-        std::cout << ", bci = " << bci << " ]" ;
+        std::cout << ", bci = " << bci << "static_type = " << static_type << " ]" ;
         std::cout << std::endl;
 }
 

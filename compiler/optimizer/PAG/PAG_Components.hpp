@@ -46,12 +46,13 @@ public:
     std::unordered_set<std::string> pointee_class_names;
     // class_name.varname , For a putfield stmt like `x.f = z` if the class in which f is present is A then store "A.f"
     std::unordered_set<std::string> variableNames;
-
+    std::string static_type;
     int formal_param_index = -924305;
 
     PAGNode();
     PAGNode(NodeType type,std::string c,int mi);
     PAGNode(NodeType type, int name, TR_OpaqueClassBlock* clazz_ptr, TR_OpaqueMethodBlock* caller, int bci, int mi);
+    PAGNode(NodeType t, int n, TR_OpaqueClassBlock* clazz_p, TR_OpaqueMethodBlock* m, int b,int mi,std::string static_type);
     void printNode();
 
     friend std::ostream& operator<<(std::ostream& os, const PAGNode& obj);
