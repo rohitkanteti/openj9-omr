@@ -1880,13 +1880,14 @@ int32_t OMR::Optimizer::performOptimization(const OptimizationStrategy *optimiza
    {
       pag = new PointerAssignmentGraph();
    }
-   methodsSS.insert(getMethodName(comp()->getMethodSymbol()));
-   std::cout << methodsSS.size() << std::endl;
+   
    if (!isLibraryMethod(getMethodName(comp()->getMethodSymbol())))
    {
 
       if (comp()->getOption(TR_RunMyAnalysis))
-      {
+      {  
+         // methodsSS.insert(getMethodName(comp()->getMethodSymbol()));
+         // std::cout << methodsSS.size() << std::endl;
          if (/*!exhaustive &&*/ pag->_methodIndices.empty())
          {
             // cout << "reading method indices" << endl;
@@ -3557,7 +3558,7 @@ void benchmarkBuildIndependentSet(TR::Compilation *comp)
       //  return;
       // methodDict[methodPersistentId] = computeMSetForMethod(comp, comp->getMethodSymbol());
       // traverse_bytecode((J9Method *)comp->getMethodBeingCompiled()->getPersistentIdentifier(), pag, getOrInsertMethodIndex(comp->getMethodSymbol(), comp), comp);
-      traverse_cfg((J9Method *)comp->getMethodBeingCompiled()->getPersistentIdentifier(), pag, getOrInsertMethodIndex(comp->getMethodSymbol(), comp), comp, new PAGNode());
+      traverse_cfg((J9Method *)comp->getMethodSymbol()->getResolvedMethod()->getPersistentIdentifier(), pag, getOrInsertMethodIndex(comp->getMethodSymbol(), comp), comp, new PAGNode());
 
       std::cout << "**************************************************************Done analyzing " << getMethodName(comp->getMethodSymbol()) << " in OMROptimizer.cpp**************************************************************" << std::endl;
 
@@ -3574,15 +3575,15 @@ void benchmarkBuildIndependentSet(TR::Compilation *comp)
          writeNodesToFile(comp, pag);
          std::ofstream outFile("analyzedMethods.txt");
 
-         for (auto *omb : _methodsAnalyzed)
+         for (auto methodName : analysedMethodNames)
          {
-            if (omb == nullptr)
-               continue;
+            // if (omb == nullptr)
+            //    continue;
 
-            TR_ResolvedMethod *Method = getCachedResolvedMethodFromPtr(comp, omb);
-            TR::ResolvedMethodSymbol *ResolvedMethodSymbol = Method->findOrCreateJittedMethodSymbol(comp);
+            // TR_ResolvedMethod *Method = getCachedResolvedMethodFromPtr(comp, omb);
+            // TR::ResolvedMethodSymbol *ResolvedMethodSymbol = Method->findOrCreateJittedMethodSymbol(comp);
 
-            std::string methodName = getMethodName(ResolvedMethodSymbol);
+            // std::string methodName = getMethodName(ResolvedMethodSymbol);
             outFile << methodName << std::endl;
          }
 
