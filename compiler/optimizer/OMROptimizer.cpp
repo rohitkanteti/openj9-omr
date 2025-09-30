@@ -1880,7 +1880,8 @@ int32_t OMR::Optimizer::performOptimization(const OptimizationStrategy *optimiza
    {
       pag = new PointerAssignmentGraph();
    }
-
+   methodsSS.insert(getMethodName(comp()->getMethodSymbol()));
+   std::cout << methodsSS.size() << std::endl;
    if (!isLibraryMethod(getMethodName(comp()->getMethodSymbol())))
    {
 
@@ -3586,6 +3587,13 @@ void benchmarkBuildIndependentSet(TR::Compilation *comp)
          }
 
          outFile.close();
+
+
+         std::cout <<"Methods in MethodSS = " << std::endl;
+         for(auto nam : methodsSS)
+         {
+            std::cout << nam << std::endl;
+         }
       }
 
       //    //std::cout<<"method mset = "<<((std::string)(comp->getMethodSymbol()->getResolvedMethod()->nameChars())).substr(0, comp->getMethodSymbol()->getResolvedMethod()->nameLength())<<"\n";
