@@ -9801,10 +9801,7 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
    analysedMethodNames.insert(fully_qualified_name);
    std::cout << "##############Done traversing the Bytecode of the method " << className << "." << name << signature << "##############" << std::endl;
    _methodsNamesBeingAnalyzed.erase(className + "." + name + signature);
-   if (className.rfind("org/sunflow/core/light/TriangleMeshLight$TriangleLight") == 0)
-   {
-      std::cout << className << "." << name << signature << "$$$$%%%$$$$$" << std::endl;
-   }
+   
 
 }
 
