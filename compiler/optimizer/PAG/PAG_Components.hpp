@@ -48,6 +48,7 @@ public:
     std::unordered_set<std::string> variableNames;
     std::string static_type;
     int formal_param_index = -924305;
+    std::string comp_type = "type1";
 
     PAGNode();
     PAGNode(NodeType type,std::string c,int mi);

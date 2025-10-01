@@ -173,7 +173,7 @@ public:
 
 static PointerAssignmentGraph *pag = nullptr;
 extern PointerAssignmentGraph *pag_to_use;
-void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex, TR::Compilation *comp, PAGNode *primitive_node);
+void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex, TR::Compilation *comp, PAGNode *primitive_node, PAGNode *);
 std::string getParameterReferenceType(const char *signature, int parameterIndex);
 std::unordered_set<std::string> getAllPossibleCHA_TargetNames(const std::string &className);
 
@@ -431,9 +431,9 @@ void getall_loaded_classes(TR::Compilation *comp);
 void updateMatchEdges(PointerAssignmentGraph *pag);
 bool is_reference_type(const char *signature, int argumentIndex);
 int count_parameters(const char *signature);
-bool searchForOveridingMethodsInClass(std::string className, std::string method_name, std::string method_signature, PointerAssignmentGraph *pag, TR_J9VMBase *fej9, TR_ResolvedMethod *resolvedMethod, vector<set<PAGNode *>> actual_params, int bci, TR::Compilation *comp, operandStack *, PAGNode *,PAGNode*);
+bool searchForOveridingMethodsInClass(std::string className, std::string method_name, std::string method_signature, PointerAssignmentGraph *pag, TR_J9VMBase *fej9, TR_ResolvedMethod *resolvedMethod, vector<set<PAGNode *>> actual_params, int bci, TR::Compilation *comp, operandStack *, PAGNode *, PAGNode *, std::string);
 void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph *pag, operandStack *stack, TR_ResolvedMethod *resolvedMethod,
-                     J9Method *currentMethod, int methodIndex, int bci, std::unordered_map<int, PAGNode *> &variableMap, bool hasReturnType, TR::Compilation *comp, J9Class *, PAGNode *primitive_node);
+                     J9Method *currentMethod, int methodIndex, int bci, std::unordered_map<int, PAGNode *> &variableMap, bool hasReturnType, TR::Compilation *comp, J9Class *, PAGNode *primitive_node, PAGNode *);
 void traverse_bytecode(J9Method *method, PointerAssignmentGraph *pag, int methodIndex, TR::Compilation *comp);
 int globalIndex_ = 0;
 // **** end ****
@@ -1581,6 +1581,10 @@ int getNodeIndex(PAGNode *node, std::unordered_map<string, int> nodeIndices)
 {
    return nodeIndices[std::to_string(node->bci) + "," + std::to_string(node->methodIndex) + "," + std::to_string(node->type) + "," + std::to_string(node->name)];
 }
+// Callgraph data structures
+static std::unordered_map<int, std::unordered_set<int>> callsiteBCI_to_targets;   // BCI -> target method indices
+static std::unordered_map<int, std::set<PAGNode *>> callsiteBCI_to_actual_params; // BCI -> actual parameter PAG nodes
+static std::unordered_map<int, PAGNode *> callsiteBCI_to_return_node;             // BCI -> return receiver node (or nullptr for void)
 
 void writeNodesToFile(TR::Compilation *comp, PointerAssignmentGraph *pag)
 {
@@ -1685,29 +1689,43 @@ void writeNodesToFile(TR::Compilation *comp, PointerAssignmentGraph *pag)
 
    mToNodesfile.close();
 
-   std::ofstream callgraphfile("callgraph.txt"); // (CallsiteBCI,receiverIndex):[methodIndex1,comma seperated list of actual paramter PAGNode*,];[methodIndex2,comma seperated list of actual paramter PAGNode*,]
+   std::ofstream callgraphfile("callgraph.txt");
+   // (CallsiteBCI,returnNodeIndex):[methodIndex1,comma separated list of actual parameter PAGNode*];[methodIndex2,comma separated list of actual parameter PAGNode*];
 
-   for (auto entry = callsite_to_targets.begin(); entry != callsite_to_targets.end(); entry++)
+   for (auto &entry : callsiteBCI_to_targets)
    {
-      TR::Node *callsite = entry->first;
-      const std::unordered_set<TR_OpaqueMethodBlock *> &targets = entry->second;
-      int callsite_bci = callsite->getByteCodeIndex();
-      int nodeindex = callsite_to_storeNode[callsite_bci] ? getNodeIndex(callsite_to_storeNode[callsite_bci], nodeIndices) : -90898;
-      callgraphfile << "(" << callsite_bci << "," << nodeindex << "):";
-      for (auto *target : targets)
+      int callsite_bci = entry.first;
+      const std::unordered_set<int> &targets = entry.second;
+
+      // Get return node index - use RETURN_NODE_NAME (-56765) for void returns
+      int returnNodeIndex = RETURN_NODE_NAME; // Default for void
+      if (callsiteBCI_to_return_node.find(callsite_bci) != callsiteBCI_to_return_node.end() && callsiteBCI_to_return_node[callsite_bci] != nullptr)
       {
-         int targetIndex = getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, target), comp);
+         returnNodeIndex = getNodeIndex(callsiteBCI_to_return_node[callsite_bci], nodeIndices);
+      }
+
+      callgraphfile << "(" << callsite_bci << "," << returnNodeIndex << "):";
+
+      // Output each target with its actual parameters
+      for (int targetIndex : targets)
+      {
          callgraphfile << "[" << targetIndex << ",";
-         for (auto *actual_param : callsite_to_ActualParamPAGNodes[callsite_bci])
+
+         // Output actual parameter PAG node indices
+         if (callsiteBCI_to_actual_params.find(callsite_bci) != callsiteBCI_to_actual_params.end())
          {
-            int node_index = getNodeIndex(actual_param, nodeIndices);
-            callgraphfile << node_index << ",";
+            for (PAGNode *actualParam : callsiteBCI_to_actual_params[callsite_bci])
+            {
+               int paramNodeIndex = getNodeIndex(actualParam, nodeIndices);
+               callgraphfile << paramNodeIndex << ",";
+            }
          }
+
          callgraphfile << "];";
       }
+
       callgraphfile << "\n";
    }
-
    callgraphfile.close();
 
    std::ofstream tf("threadAccesible.txt");
@@ -1880,12 +1898,12 @@ int32_t OMR::Optimizer::performOptimization(const OptimizationStrategy *optimiza
    {
       pag = new PointerAssignmentGraph();
    }
-   
+
    if (!isLibraryMethod(getMethodName(comp()->getMethodSymbol())))
    {
 
       if (comp()->getOption(TR_RunMyAnalysis))
-      {  
+      {
          // methodsSS.insert(getMethodName(comp()->getMethodSymbol()));
          // std::cout << methodsSS.size() << std::endl;
          if (/*!exhaustive &&*/ pag->_methodIndices.empty())
@@ -3558,7 +3576,9 @@ void benchmarkBuildIndependentSet(TR::Compilation *comp)
       //  return;
       // methodDict[methodPersistentId] = computeMSetForMethod(comp, comp->getMethodSymbol());
       // traverse_bytecode((J9Method *)comp->getMethodBeingCompiled()->getPersistentIdentifier(), pag, getOrInsertMethodIndex(comp->getMethodSymbol(), comp), comp);
-      traverse_cfg((J9Method *)comp->getMethodSymbol()->getResolvedMethod()->getPersistentIdentifier(), pag, getOrInsertMethodIndex(comp->getMethodSymbol(), comp), comp, new PAGNode());
+      PAGNode *comp_type_2 = new PAGNode();
+      comp_type_2->static_type = "COMP TYPE 2";
+      traverse_cfg((J9Method *)comp->getMethodSymbol()->getResolvedMethod()->getPersistentIdentifier(), pag, getOrInsertMethodIndex(comp->getMethodSymbol(), comp), comp, new PAGNode(), comp_type_2);
 
       std::cout << "**************************************************************Done analyzing " << getMethodName(comp->getMethodSymbol()) << " in OMROptimizer.cpp**************************************************************" << std::endl;
 
@@ -3589,9 +3609,8 @@ void benchmarkBuildIndependentSet(TR::Compilation *comp)
 
          outFile.close();
 
-
-         std::cout <<"Methods in MethodSS = " << std::endl;
-         for(auto nam : methodsSS)
+         std::cout << "Methods in MethodSS = " << std::endl;
+         for (auto nam : methodsSS)
          {
             std::cout << nam << std::endl;
          }
@@ -4237,8 +4256,8 @@ MethodSet computeMSetForMethod(TR::Compilation *comp, TR::ResolvedMethodSymbol *
    // we begin from the start node of the CFG
    // TODO: perform the topological sort of the CFG here, to identify the order in which the basic blocks are to be processed
    TR::CFG *cfg = methodSymbol->getFlowGraph();
-   if (!cfg)
-      std::cout << "cfg is null!" << std::endl;
+   // if (!cfg)
+   std::cout << "cfg is null!" << std::endl;
    TR::Block *start = cfg->getStart()->asBlock();
    TR_LinkHead1<TR::CFGNode> nodeList = cfg->getNodes();
 
@@ -5012,11 +5031,11 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
          // // we need a way to identify if the symref is a static or no
 
          // Regex explanation: FOR entries like "aload <callSite entry @0        0x1212ef4a0>" -> SKIP THEM
-         // ^<callSite entry @  → must start with this
-         // \\d+               → one or more digits
-         // \\s+               → one or more spaces
-         // 0x[0-9a-fA-F]+     → hex address
-         // >$                 → must end with '>'
+         // ^<callSite entry @  -> must start with this
+         // \\d+               -> one or more digits
+         // \\s+               -> one or more spaces
+         // 0x[0-9a-fA-F]+     -> hex address
+         // >$                 -> must end with '>'
          std::regex pattern("^<callSite entry @\\d+\\s+0x[0-9a-fA-F]+>$");
          std::string nm = usefulNode->getSymbolReference()->getName(comp->getDebug());
          bool isNotFieldNode = std::regex_match(nm, pattern);
@@ -6570,6 +6589,12 @@ void traverse_bytecode(J9Method *method, PointerAssignmentGraph *pag, int method
    }
 
    std::cout << "############## Traversing the Bytecode of the method " << className << "." << name << signature << "##############" << std::endl;
+
+   if (name.rfind("findFirstNonZeroValueVirtualIndexStartingAt") == 0)
+   {
+      std::cout << methodIndex << className << "." << name << signature << std::endl;
+   }
+
    int num_params = count_parameters(methodSignature); // resolvedMethod->numberOfParameterSlots(); double or long takes 2 slots
    std::unordered_map<int, PAGNode *> variableMap;
    int reference_params = 0;
@@ -6657,7 +6682,7 @@ void traverse_bytecode(J9Method *method, PointerAssignmentGraph *pag, int method
       J9VMThread *vm = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
       TR_OpaqueClassBlock *opaqueCurrentClass = resolvedMethod->classOfMethod();
       J9Class *currentClass = reinterpret_cast<J9Class *>(opaqueCurrentClass);
-      executeBytecode(bytecode, pc, pag, stack, resolvedMethod, method, methodIndex, currentIndex, variableMap, hasReturnType, comp, currentClass, new PAGNode());
+      executeBytecode(bytecode, pc, pag, stack, resolvedMethod, method, methodIndex, currentIndex, variableMap, hasReturnType, comp, currentClass, new PAGNode(), new PAGNode());
 
       // if (bytecode == J9BCnew)
       // {
@@ -6705,7 +6730,7 @@ void traverse_bytecode(J9Method *method, PointerAssignmentGraph *pag, int method
 
 // refernce https://en.wikipedia.org/wiki/List_of_Java_bytecode_instructions , https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-6.html
 void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph *pag, operandStack *stack, TR_ResolvedMethod *resolvedMethod,
-                     J9Method *currentMethod, int methodIndex, int bci, std::unordered_map<int, PAGNode *> &variableMap, bool hasReturnType, TR::Compilation *comp, J9Class *J9currentClass, PAGNode *primitive_node)
+                     J9Method *currentMethod, int methodIndex, int bci, std::unordered_map<int, PAGNode *> &variableMap, bool hasReturnType, TR::Compilation *comp, J9Class *J9currentClass, PAGNode *primitive_node, PAGNode *comp_type_2)
 {
    TR_OpaqueMethodBlock *method_block = reinterpret_cast<TR_OpaqueMethodBlock *>(currentMethod);
    uint16_t cpIndex = (pc[2] << 8) | pc[1];
@@ -6748,10 +6773,10 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       break;
 
    case J9BClconst0:
-      stack->pushRef(primitive_node);
+      stack->pushRef(comp_type_2);
       break;
    case J9BClconst1:
-      stack->pushRef(primitive_node);
+      stack->pushRef(comp_type_2);
       break;
 
    case J9BCfconst0:
@@ -6765,10 +6790,10 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       break;
 
    case J9BCdconst0:
-      stack->pushRef(primitive_node);
+      stack->pushRef(comp_type_2);
       break;
    case J9BCdconst1:
-      stack->pushRef(primitive_node);
+      stack->pushRef(comp_type_2);
       break;
 
    // PRIMITIVE LOADS
@@ -6783,7 +6808,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    case J9BClload1:
    case J9BClload2:
    case J9BClload3:
-      stack->pushRef(primitive_node); // Push dummy long
+      stack->pushRef(comp_type_2); // Push dummy long
       break;
 
    case J9BCfload0:
@@ -6797,7 +6822,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    case J9BCdload1:
    case J9BCdload2:
    case J9BCdload3:
-      stack->pushRef(primitive_node);
+      stack->pushRef(comp_type_2);
       ; // Push dummy double
       break;
 
@@ -6838,7 +6863,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    {
       stack->pop();
       stack->popRef();
-      stack->pushRef(primitive_node); // push result
+      stack->pushRef(comp_type_2); // push result
       break;
    }
    case J9BCfaload:
@@ -6852,7 +6877,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    {
       stack->pop();
       stack->popRef();
-      stack->pushRef(primitive_node);
+      stack->pushRef(comp_type_2);
       break;
    }
 
@@ -6912,25 +6937,25 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    case J9BClstore0:
    {
       stack->pop(); // pop long value
-      variableMap[0] = primitive_node;
+      variableMap[0] = comp_type_2;
       break;
    }
    case J9BClstore1:
    {
       stack->pop(); // pop long value
-      variableMap[1] = primitive_node;
+      variableMap[1] = comp_type_2;
       break;
    }
    case J9BClstore2:
    {
       stack->pop(); // pop long value
-      variableMap[2] = primitive_node;
+      variableMap[2] = comp_type_2;
       break;
    }
    case J9BClstore3:
    {
       stack->pop(); // pop long value
-      variableMap[3] = primitive_node;
+      variableMap[3] = comp_type_2;
       break;
    }
 
@@ -6962,25 +6987,25 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    case J9BCdstore0:
    {
       stack->pop();
-      variableMap[0] = primitive_node;
+      variableMap[0] = comp_type_2;
       break;
    }
    case J9BCdstore1:
    {
       stack->pop();
-      variableMap[1] = primitive_node;
+      variableMap[1] = comp_type_2;
       break;
    }
    case J9BCdstore2:
    {
       stack->pop();
-      variableMap[2] = primitive_node;
+      variableMap[2] = comp_type_2;
       break;
    }
    case J9BCdstore3:
    {
       stack->pop();
-      variableMap[3] = primitive_node;
+      variableMap[3] = comp_type_2;
       break;
    }
 
@@ -7147,12 +7172,36 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    {
       set<StackFrame> value1 = stack->pop();
       set<StackFrame> value2 = stack->pop();
-      set<StackFrame> value3 = stack->pop();
 
-      stack->push(value1);
-      stack->push(value3);
-      stack->push(value2);
-      stack->push(value1);
+      // Check if value2 is category 2
+      bool value2IsCategory2 = false;
+      for (auto frame : value2)
+      {
+         if (frame.isRefOfClass("COMP_TYPE_2"))
+         {
+            value2IsCategory2 = true;
+            break;
+         }
+      }
+
+      if (value2IsCategory2)
+      {
+         // Form 2: ..., value2, value1 -> ..., value1, value2, value1
+         // where value2 is category 2 and value1 is category 1
+         stack->push(value1);
+         stack->push(value2);
+         stack->push(value1);
+      }
+      else
+      {
+         // Form 1: ..., value3, value2, value1 -> ..., value1, value3, value2, value1
+         // where all values are category 1
+         set<StackFrame> value3 = stack->pop();
+         stack->push(value1);
+         stack->push(value3);
+         stack->push(value2);
+         stack->push(value1);
+      }
       break;
    }
 
@@ -7171,30 +7220,132 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    case J9BCdup2x1:
    {
       set<StackFrame> value1 = stack->pop();
-      set<StackFrame> value2 = stack->pop();
-      set<StackFrame> value3 = stack->pop();
 
-      stack->push(value2);
-      stack->push(value1);
-      stack->push(value3);
-      stack->push(value2);
-      stack->push(value1);
+      // Check if value1 is category 2
+      bool value1IsCategory2 = false;
+      for (auto frame : value1)
+      {
+         if (frame.isRefOfClass("COMP_TYPE_2"))
+         {
+            value1IsCategory2 = true;
+            break;
+         }
+      }
+
+      if (value1IsCategory2)
+      {
+         // Form 2: ..., value2, value1 -> ..., value1, value2, value1
+         // where value1 is category 2 and value2 is category 1
+         set<StackFrame> value2 = stack->pop();
+         stack->push(value1);
+         stack->push(value2);
+         stack->push(value1);
+      }
+      else
+      {
+         // Form 1: ..., value3, value2, value1 -> ..., value2, value1, value3, value2, value1
+         // where all values are category 1
+         set<StackFrame> value2 = stack->pop();
+         set<StackFrame> value3 = stack->pop();
+         stack->push(value2);
+         stack->push(value1);
+         stack->push(value3);
+         stack->push(value2);
+         stack->push(value1);
+      }
       break;
    }
 
    case J9BCdup2x2:
    {
       set<StackFrame> value1 = stack->pop();
-      set<StackFrame> value2 = stack->pop();
-      set<StackFrame> value3 = stack->pop();
-      set<StackFrame> value4 = stack->pop();
 
-      stack->push(value2);
-      stack->push(value1);
-      stack->push(value4);
-      stack->push(value3);
-      stack->push(value2);
-      stack->push(value1);
+      // Check if value1 is category 2
+      bool value1IsCategory2 = false;
+      for (auto frame : value1)
+      {
+         if (frame.isRefOfClass("COMP_TYPE_2"))
+         {
+            value1IsCategory2 = true;
+            break;
+         }
+      }
+
+      if (value1IsCategory2)
+      {
+         // Forms 2 or 4: value1 is category 2
+         set<StackFrame> value2 = stack->pop();
+
+         // Check if value2 is category 2
+         bool value2IsCategory2 = false;
+         for (auto frame : value2)
+         {
+            if (frame.isRefOfClass("COMP_TYPE_2"))
+            {
+               value2IsCategory2 = true;
+               break;
+            }
+         }
+
+         if (value2IsCategory2)
+         {
+            // Form 4: ..., value2, value1 -> ..., value1, value2, value1
+            // where value1 and value2 are both category 2
+            stack->push(value1);
+            stack->push(value2);
+            stack->push(value1);
+         }
+         else
+         {
+            // Form 2: ..., value3, value2, value1 -> ..., value1, value3, value2, value1
+            // where value1 is category 2 and value2, value3 are category 1
+            set<StackFrame> value3 = stack->pop();
+            stack->push(value1);
+            stack->push(value3);
+            stack->push(value2);
+            stack->push(value1);
+         }
+      }
+      else
+      {
+         // Forms 1 or 3: value1 is category 1
+         set<StackFrame> value2 = stack->pop();
+         set<StackFrame> value3 = stack->pop();
+
+         // Check if value3 is category 2
+         bool value3IsCategory2 = false;
+         for (auto frame : value3)
+         {
+            if (frame.isRefOfClass("COMP_TYPE_2"))
+            {
+               value3IsCategory2 = true;
+               break;
+            }
+         }
+
+         if (value3IsCategory2)
+         {
+            // Form 3: ..., value3, value2, value1 -> ..., value2, value1, value3, value2, value1
+            // where value1, value2 are category 1 and value3 is category 2
+            stack->push(value2);
+            stack->push(value1);
+            stack->push(value3);
+            stack->push(value2);
+            stack->push(value1);
+         }
+         else
+         {
+            // Form 1: ..., value4, value3, value2, value1 -> ..., value2, value1, value4, value3, value2, value1
+            // where all values are category 1
+            set<StackFrame> value4 = stack->pop();
+            stack->push(value2);
+            stack->push(value1);
+            stack->push(value4);
+            stack->push(value3);
+            stack->push(value2);
+            stack->push(value1);
+         }
+      }
       break;
    }
 
@@ -7236,9 +7387,9 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    case J9BClor:
    case J9BClxor:
    {
-      stack->pop();                   // pop operand 2 (long)
-      stack->pop();                   // pop operand 1 (long)
-      stack->pushRef(primitive_node); // push result
+      stack->pop();                // pop operand 2 (long)
+      stack->pop();                // pop operand 1 (long)
+      stack->pushRef(comp_type_2); // push result
       break;
    }
 
@@ -7246,9 +7397,9 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    case J9BClshr:
    case J9BClushr:
    {
-      stack->pop();                   // pop shift amount (int)
-      stack->pop();                   // pop value (long)
-      stack->pushRef(primitive_node); // push result
+      stack->pop();                // pop shift amount (int)
+      stack->pop();                // pop value (long)
+      stack->pushRef(comp_type_2); // push result
       break;
    }
 
@@ -7270,9 +7421,9 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    case J9BCddiv:
    case J9BCdrem:
    {
-      stack->pop();                   // pop operand 2
-      stack->pop();                   // pop operand 1
-      stack->pushRef(primitive_node); // push result
+      stack->pop();                // pop operand 2
+      stack->pop();                // pop operand 1
+      stack->pushRef(comp_type_2); // push result
       break;
    }
 
@@ -7285,8 +7436,8 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    }
    case J9BClneg:
    {
-      stack->pop();                   // pop long
-      stack->pushRef(primitive_node); // push result
+      stack->pop();                // pop long
+      stack->pushRef(comp_type_2); // push result
       break;
    }
    case J9BCfneg:
@@ -7297,8 +7448,8 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    }
    case J9BCdneg:
    {
-      stack->pop();                   // pop double
-      stack->pushRef(primitive_node); // push result
+      stack->pop();                // pop double
+      stack->pushRef(comp_type_2); // push result
       break;
    }
 
@@ -7335,8 +7486,8 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    }
    case J9BCl2d:
    {
-      stack->pop();                   // pop long
-      stack->pushRef(primitive_node); // push double
+      stack->pop();                // pop long
+      stack->pushRef(comp_type_2); // push double
       break;
    }
    case J9BCf2i:
@@ -7347,14 +7498,14 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    }
    case J9BCf2l:
    {
-      stack->pop();                   // pop float
-      stack->pushRef(primitive_node); // push long
+      stack->pop();                // pop float
+      stack->pushRef(comp_type_2); // push long
       break;
    }
    case J9BCf2d:
    {
-      stack->pop();                   // pop float
-      stack->pushRef(primitive_node); // push double
+      stack->pop();                // pop float
+      stack->pushRef(comp_type_2); // push double
       break;
    }
    case J9BCd2i:
@@ -7365,8 +7516,8 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    }
    case J9BCd2l:
    {
-      stack->pop();                   // pop double
-      stack->pushRef(primitive_node); // push long
+      stack->pop();                // pop double
+      stack->pushRef(comp_type_2); // push long
       break;
    }
    case J9BCd2f:
@@ -7603,7 +7754,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       }
       case J9CPTYPE_LONG:
       {
-         stack->pushRef(primitive_node); // push dummy long constant
+         stack->pushRef(comp_type_2); // push dummy long constant
          break;
       }
       case J9CPTYPE_FLOAT:
@@ -7613,7 +7764,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       }
       case J9CPTYPE_DOUBLE:
       {
-         stack->pushRef(primitive_node); // push dummy double constant
+         stack->pushRef(comp_type_2); // push dummy double constant
          break;
       }
       default:
@@ -7683,7 +7834,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       const char *fieldStaticType = resolvedMethod->classNameOfFieldOrStatic(cpIndex, len);
       std::string fieldName(fieldNameChars, fieldNameLength);
       std::string fieldType(fieldSig, signatureLength);
-      std::cout << "  -> fieldName= " << fieldName << "###" << fieldSig << " #### " << fieldStaticType << std::endl;
+      std::cout << "  -> fieldName= " << fieldName << " ### " << fieldSig << " #### " << fieldStaticType << std::endl;
 
       PAGNode *temp_node_ptr = new PAGNode(VARIABLE, globalIndex_, nullptr, method_block, bci, methodIndex, fieldType);
       pag->PAG_nodes.insert(temp_node_ptr);
@@ -7749,7 +7900,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       std::string fullName = className + "." + fieldName;
       set<PAGNode *> value_set = stack->popRef();
       set<PAGNode *> objs_set;
-      if(bytecode != J9BCputstatic)
+      if (bytecode != J9BCputstatic)
       {
          objs_set = stack->popRef();
       }
@@ -7770,7 +7921,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
             pag->LeakyNodes.insert(value);
          }
          else
-         {  
+         {
             for (PAGNode *obj_ref : objs_set)
             {
                pag->addEdge(value, obj_ref, PUTFIELD, fieldName);
@@ -7846,14 +7997,18 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       {
          // if (is_reference_type(sigChars, i))
          // {
-         actual_params.push_back(stack->popRef());
+         set<PAGNode *> param = stack->popRef();
+         actual_params.push_back(param);
+         for (auto *p : param)
+            callsiteBCI_to_actual_params[bci].insert(p);
          // }
       }
+
       std::reverse(actual_params.begin(), actual_params.end());
       std::string rst;
       bool calleeReturnsReference = returnsObject(signature, rst);
       bool calleeReturnsPrimitive = returnsPrimitive(signature);
-
+      std::unordered_set<int> targets;
       if (isStatic)
       {
          J9ConstantPool *cp = J9_CP_FROM_METHOD(currentMethod);
@@ -7889,15 +8044,27 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
          // std::string className(classNameChars, classNameLength);
          std::cout << "  ->invokestatic className  " << className << std::endl;
          PAGNode *rNode = new PAGNode(VARIABLE, 0, nullptr, method_block, -1, methodIndex, className);
-
-         bool found = searchForOveridingMethodsInClass(className, name, signature, pag, ((TR_J9VMBase *)comp->fe()), resolvedMethod, actual_params, bci, comp, stack, primitive_node,rNode);
-         if(calleeReturnsReference || calleeReturnsPrimitive) 
+         if (rst == "J" || rst == "D")
+         {
+            rNode->comp_type = "COMP_TYPE_2";
+         }
+         bool found = searchForOveridingMethodsInClass(className, name, signature, pag, ((TR_J9VMBase *)comp->fe()), resolvedMethod, actual_params, bci, comp, stack, primitive_node, rNode, className);
+         if (found)
+         {
+            int targetIndex = getOrInsertMethodIndexByName((className + "." + name + signature), pag);
+            targets.insert(targetIndex);
+         }
+         if (calleeReturnsReference || calleeReturnsPrimitive)
             stack->pushRef(rNode);
       }
       else
       {
          set<PAGNode *> receiver_obj_ptr_set = stack->popRef();
          PAGNode *rNode = new PAGNode(VARIABLE, 0, nullptr, method_block, -1, methodIndex);
+         if (rst == "J" || rst == "D")
+         {
+            rNode->comp_type = "COMP_TYPE_2";
+         }
 
          actual_params.insert(actual_params.begin(), receiver_obj_ptr_set); // (this,arg1,arg2,...)
 
@@ -7942,7 +8109,6 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
             classNames.insert(intersection.begin(), intersection.end());
             classNames.insert(subclasses.begin(), subclasses.end());
 
-
             // }
 
             if (isInterfaceInvoke && classNames.find(staticClassName) != classNames.end())
@@ -7959,7 +8125,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
 
                std::string full_name = className + "." + name + signature;
                std::string staticName = staticClassName + "." + name + signature;
-               std::cout << "full_name = " << full_name << "Stt = " << staticName << std::endl;
+               std::cout << "full_name = " << full_name << " Stt = " << staticName << std::endl;
                if (staticName.rfind("java/lang/Object.<init>()") == 0)
                   break;
 
@@ -7995,7 +8161,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
                   }
                }
 
-               bool found = searchForOveridingMethodsInClass(className, name, signature, pag, ((TR_J9VMBase *)comp->fe()), resolvedMethod, actual_params, bci, comp, stack, primitive_node,rNode);
+               bool found = searchForOveridingMethodsInClass(className, name, signature, pag, ((TR_J9VMBase *)comp->fe()), resolvedMethod, actual_params, bci, comp, stack, primitive_node, rNode, staticClassName);
                if (!found)
                {
                   bool found_in_superClass = false;
@@ -8012,12 +8178,20 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
                      char *name_chars = (char *)J9UTF8_DATA(superClassName_utf8);
                      std::string superClassName(name_chars, superClassName_utf8->length);
 
-                     found = searchForOveridingMethodsInClass(superClassName, name, signature, pag, ((TR_J9VMBase *)comp->fe()), resolvedMethod, actual_params, bci, comp, stack, primitive_node,rNode);
+                     found = searchForOveridingMethodsInClass(superClassName, name, signature, pag, ((TR_J9VMBase *)comp->fe()), resolvedMethod, actual_params, bci, comp, stack, primitive_node, rNode, staticClassName);
                      if (found)
+                     {
+                        int targetIndex = getOrInsertMethodIndexByName((superClassName + "." + name + signature), pag);
+                        targets.insert(targetIndex);
                         break;
+                     }
                   }
                }
-
+               if (found)
+               {
+                  int targetIndex = getOrInsertMethodIndexByName((className + "." + name + signature), pag);
+                  targets.insert(targetIndex);
+               }
                if (!found)
                {
                   /*check if there is exactly one maximally-specific method
@@ -8026,9 +8200,12 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
                   the method to be invoked.*/
                }
             }
-            
-            if(search && (calleeReturnsReference || calleeReturnsPrimitive))
+
+            if (search && (calleeReturnsReference || calleeReturnsPrimitive))
+            {
                stack->pushRef(rNode);
+               callsiteBCI_to_return_node[bci] = rNode;
+            }
             if (!search)
             {
                // To balance the stack operations if we are not able to find the method
@@ -8036,17 +8213,21 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
                {
                   pag->bottom_node->pointee_class_names.insert(rst);
                   stack->pushRef(pag->bottom_node);
+                  callsiteBCI_to_return_node[bci] = pag->bottom_node;
                   // else
                   //    stack->pushRef(pag->getReturnNode(getOrInsertMethodIndexByName(full_method_name, pag)));
                }
                else if (calleeReturnsPrimitive)
                {
                   stack->pushRef(primitive_node);
+                  callsiteBCI_to_return_node[bci] = primitive_node;
                }
+               else
+                  callsiteBCI_to_return_node[bci] = nullptr;
             }
          }
       }
-
+      callsiteBCI_to_targets[bci] = targets;
       break;
    }
 
@@ -8120,13 +8301,13 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
 
    case J9BCldc2lw:
    {
-      stack->pushRef(primitive_node); // push long constant
+      stack->pushRef(comp_type_2); // push long constant
       break;
    }
 
    case J9BCldc2dw:
    {
-      stack->pushRef(primitive_node); // push double constant
+      stack->pushRef(comp_type_2); // push double constant
       break;
    }
 
@@ -8161,7 +8342,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    }
 }
 
-bool searchForOveridingMethodsInClass(std::string className, std::string method_name, std::string method_signature, PointerAssignmentGraph *pag, TR_J9VMBase *fej9, TR_ResolvedMethod *resolvedMethod, vector<set<PAGNode *>> actual_params, int bci, TR::Compilation *comp, operandStack *stack, PAGNode *primitive_node,PAGNode* returnNode)
+bool searchForOveridingMethodsInClass(std::string className, std::string method_name, std::string method_signature, PointerAssignmentGraph *pag, TR_J9VMBase *fej9, TR_ResolvedMethod *resolvedMethod, vector<set<PAGNode *>> actual_params, int bci, TR::Compilation *comp, operandStack *stack, PAGNode *primitive_node, PAGNode *returnNode, std::string StaticClassName)
 {
    // TR_OpaqueClassBlock *clazz = fej9->getClassFromSignature(className.c_str(), className.length(), resolvedMethod, true);
    // J9VMThread *vmThread = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
@@ -8188,7 +8369,7 @@ bool searchForOveridingMethodsInClass(std::string className, std::string method_
       if (calleeReturnsReference)
       {
          pag->bottom_node->pointee_class_names.insert(returnStaticType);
-          pag->addEdge(pag->bottom_node, returnNode, ASSIGN, bci);
+         pag->addEdge(pag->bottom_node, returnNode, ASSIGN, bci);
          // else
          //    stack->pushRef(pag->getReturnNode(getOrInsertMethodIndexByName(full_method_name, pag)));
       }
@@ -8221,6 +8402,31 @@ bool searchForOveridingMethodsInClass(std::string className, std::string method_
       std::string full_method_name = className + "." + method_name + method_signature;
       if (method_signature == signature_name && method_name == target_method_name)
       {
+         bool isAbstractMethod = resolved_Method->isAbstract();
+
+         if (isAbstractMethod && className.rfind(StaticClassName) == 0)
+         {
+            if (calleeReturnsReference)
+            {
+               if (isLibraryMethod(full_method_name))
+                  pag->addEdge(pag->bottom_node, returnNode, ASSIGN, bci);
+               else
+                  pag->addEdge(pag->getReturnNode(getOrInsertMethodIndexByName(full_method_name, pag)), returnNode, ASSIGN, bci);
+            }
+            else if (calleeReturnsPrimitive)
+            {
+               pag->addEdge(primitive_node, returnNode, ASSIGN, bci);
+            }
+            return false;
+         }
+
+         // if not a library method, not anbalyzed earlier, not in the curently being analyzed methods then traverse it first
+         if (!isLibraryMethod(full_method_name) && analysedMethodNames.find(full_method_name) == analysedMethodNames.end() && _methodsNamesBeingAnalyzed.find(full_method_name) == _methodsNamesBeingAnalyzed.end()) //&& changedMethodNames.find(full_method_name) == changedMethodNames.end())
+         {
+            PAGNode *comp_type_2 = new PAGNode();
+            comp_type_2->comp_type = "COMP_TYPE_2";
+            traverse_cfg(ramMethod, pag, getOrInsertMethodIndexByName(full_method_name, pag), comp, new PAGNode(), comp_type_2);
+         }
 
          vector<PAGNode *> f_params = pag->getFormalParameterNodes(getOrInsertMethodIndexByName(full_method_name, pag));
          if (isLibraryMethod(full_method_name))
@@ -8228,25 +8434,15 @@ bool searchForOveridingMethodsInClass(std::string className, std::string method_
             for (int f_ind = 0; f_ind < f_params.size(); f_ind++)
                f_params[f_ind] = pag->bottom_node;
          }
-         if (isLibraryMethod(full_method_name) || analysedMethodNames.find(full_method_name) != analysedMethodNames.end()) //&& changedMethodNames.find(full_method_name) == changedMethodNames.end())
+         for (int f_ind = 0; f_ind < f_params.size(); f_ind++)
          {
-
-            for (int f_ind = 0; f_ind < f_params.size(); f_ind++)
-            {
-               for (PAGNode *a_param : actual_params[f_ind])
-                  pag->addEdge(a_param, f_params[f_ind], ASSIGN, bci);
-            }
-         }
-         else // if (changedMethodNames.find(full_method_name) == changedMethodNames.end())
-         {
-            // traverse_bytecode(ramMethod, pag, getOrInsertMethodIndexByName(full_method_name, pag), comp);
-
-            traverse_cfg(ramMethod, pag, getOrInsertMethodIndexByName(full_method_name, pag), comp, new PAGNode());
+            for (PAGNode *a_param : actual_params[f_ind])
+               pag->addEdge(a_param, f_params[f_ind], ASSIGN, bci);
          }
          if (calleeReturnsReference)
          {
             if (isLibraryMethod(full_method_name))
-                pag->addEdge(pag->bottom_node, returnNode, ASSIGN, bci);
+               pag->addEdge(pag->bottom_node, returnNode, ASSIGN, bci);
             else
                pag->addEdge(pag->getReturnNode(getOrInsertMethodIndexByName(full_method_name, pag)), returnNode, ASSIGN, bci);
          }
@@ -9571,8 +9767,7 @@ TR::CFG *buildCFG(TR_OpaqueMethodBlock *method_block, TR::Compilation *comp, std
 
       uint8_t *lastPc = (uint8_t *)(methodStart + lastInstrStart);
 
-      std::cout << "BASIC BLOCK START BCI=" << block->getEntry()->getNode()->getByteCodeIndex() << " Last Instruction= " << lastInstrStart
-                << " - " << getBytecodeString(lastBc) << std::endl;
+      std::cout << "BASIC BLOCK START BCI=" << block->getEntry()->getNode()->getByteCodeIndex() << " Last Instruction= " << lastInstrStart << " - " << getBytecodeString(lastBc) << std::endl;
 
       // Add edges based on the last instruction of the block
       if (isBranch(lastBc))
@@ -9610,7 +9805,7 @@ TR::CFG *buildCFG(TR_OpaqueMethodBlock *method_block, TR::Compilation *comp, std
    return cfg;
 }
 
-void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex, TR::Compilation *comp, PAGNode *primitive_node)
+void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex, TR::Compilation *comp, PAGNode *primitive_node, PAGNode *comp_type2_primitiveNode)
 {
    TR_OpaqueMethodBlock *method_block = reinterpret_cast<TR_OpaqueMethodBlock *>(method);
    int32_t methodSize = TR::Compiler->mtd.bytecodeSize(method_block);
@@ -9692,7 +9887,7 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
    std::cout << "Formal params size = " << formal_param_nodes.size() << std::endl;
    if (reference_params != formal_param_nodes.size() || ((hasReturnType && !returnNode) || (!hasReturnType && returnNode)))
    {
-      throw std::runtime_error("There is a mismatch in the size of paramters maybe the method signature changed.");
+      TR_ASSERT_FATAL(0, "There is a mismatch in the size of paramters maybe the method signature changed.");
    }
 
    for (int i = 0; i < reference_params; i++)
@@ -9755,7 +9950,7 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
          J9VMThread *vm = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
          TR_OpaqueClassBlock *opaqueCurrentClass = resolvedMethod->classOfMethod();
          J9Class *currentClass = reinterpret_cast<J9Class *>(opaqueCurrentClass);
-         executeBytecode(bytecode, pc, pag, stack, resolvedMethod, method, methodIndex, pcIndex, variableMap, hasReturnType, comp, currentClass, primitive_node);
+         executeBytecode(bytecode, pc, pag, stack, resolvedMethod, method, methodIndex, pcIndex, variableMap, hasReturnType, comp, currentClass, primitive_node, comp_type2_primitiveNode);
 
          pcIndex += instructionLength;
          globalIndex_++;
@@ -9779,7 +9974,7 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
          {
             operandStack *succStack = inStacks[succ];
             std::cout << "Succ BCI = " << succBci << std::endl;
-            if(succBci==72)
+            if (succBci == 72)
             {
                std::cout << succBci << std::endl;
             }
@@ -9793,16 +9988,16 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
       }
    }
 
-   std::string fully_qualified_name = className + "." + name + signature;
-   // if (changedMethodNames.find(fully_qualified_name) != changedMethodNames.end())
-   // {
-   //    changedMethodNames.erase(fully_qualified_name);
-   // }
-   analysedMethodNames.insert(fully_qualified_name);
+   // std::string fully_qualified_name = className + "." + name + signature;
+   // // if (changedMethodNames.find(fully_qualified_name) != changedMethodNames.end())
+   // // {
+   // //    changedMethodNames.erase(fully_qualified_name);
+   // // }
+   // analysedMethodNames.insert(fully_qualified_name);
    std::cout << "##############Done traversing the Bytecode of the method " << className << "." << name << signature << "##############" << std::endl;
    _methodsNamesBeingAnalyzed.erase(className + "." + name + signature);
-   
-
+   std::string fully_qualified_name = className + "." + name + signature;
+   analysedMethodNames.insert(fully_qualified_name);
 }
 
 std::unordered_set<std::string> getAllPossibleCHA_TargetNames(const std::string &className)
