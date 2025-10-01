@@ -7208,12 +7208,35 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    case J9BCdup2:
    {
       set<StackFrame> value1 = stack->pop();
-      set<StackFrame> value2 = stack->pop();
 
-      stack->push(value2);
-      stack->push(value1);
-      stack->push(value2);
-      stack->push(value1);
+      // Check if value1 is category 2
+      bool value1IsCategory2 = false;
+      for (auto frame : value1)
+      {
+         if (frame.isRefOfClass("COMP_TYPE_2"))
+         {
+            value1IsCategory2 = true;
+            break;
+         }
+      }
+
+      if (value1IsCategory2)
+      {
+         // Form 2: ..., value1 -> ..., value1, value1
+         // where value1 is category 2
+         stack->push(value1);
+         stack->push(value1);
+      }
+      else
+      {
+         // Form 1: ..., value2, value1 -> ..., value2, value1, value2, value1
+         // where both values are category 1
+         set<StackFrame> value2 = stack->pop();
+         stack->push(value2);
+         stack->push(value1);
+         stack->push(value2);
+         stack->push(value1);
+      }
       break;
    }
 
