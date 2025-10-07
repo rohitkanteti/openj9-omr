@@ -3503,6 +3503,59 @@ OMR_InlinerUtil *OMR::Optimizer::getInlinerUtil()
 
 /***** The newly added methods begins below *****/
 
+void processClinits(TR::Compilation* comp)
+{
+    std::ifstream inputFile("ci.txt");
+
+    if (!inputFile.is_open())
+    {
+       TR_ASSERT_FATAL(0,"Error: Could not open file ci.txt");
+        return;
+    }
+
+    std::string class_name;
+    int i = 0;
+    while (std::getline(inputFile, class_name))
+    {    
+         i++;
+        if (class_name.empty() || isLibraryMethod((class_name + ".<clinit>()V")))
+        {
+            continue;
+        }
+
+        int len = class_name.length();
+
+      //   TR_OpaqueClassBlock *type = getCachedClass(comp, class_name.c_str(), len);
+        J9Class *j9Class = findClassAcrossAllLoaders(comp, class_name, ((TR_J9VMBase *)comp->fe()), nullptr);
+        TR_OpaqueClassBlock *type = reinterpret_cast<TR_OpaqueClassBlock*>(j9Class);
+        
+        if (type != nullptr)
+        {
+            TR_ResolvedMethod * m = getCachedResolvedMethod(comp, type, "<clinit>", "()V");
+            
+            if (m != nullptr)
+            {
+               std::cout << i << ": Found <clinit> for class: " << class_name << std::endl;
+               PAGNode *comp_type_2 = new PAGNode();
+               comp_type_2->static_type = "COMP TYPE 2";
+               traverse_cfg((J9Method *)m->getPersistentIdentifier(), pag, getOrInsertMethodIndexByName((class_name + ".<clinit>()V"), pag), comp, new PAGNode(), comp_type_2);
+
+            }
+            else
+            {
+               std::cout << i << ": NOT Found <clinit> for class: " << class_name << std::endl;
+
+            }
+        }
+        else
+        {
+            std::cout << "Warning: Could not resolve class: " << class_name << std::endl;
+        }
+    }
+   inputFile.close();
+
+}
+
 // (performOptimization) -> benchmarkBuildIndependentSet -> computeMSetForMethod -> evaluateNode
 //       ^                                                                             ^
 //       |                                                                             |
@@ -3524,6 +3577,7 @@ void benchmarkBuildIndependentSet(TR::Compilation *comp)
       getAlreadyAnalyzedMethodNames();
       getResolvedReflectiveCalls();
       getall_loaded_classes(comp);
+      processClinits(comp);
       // printf("=== Class Hierarchy Analysis (CHA) ===\n");
       // printf("Total parent classes: %zu\n", CHA.size());
 
@@ -6325,6 +6379,7 @@ bool isLibraryMethod(std::string methodName)
                             methodName.rfind("java", 0) == 0 ||
                         methodName.rfind("ForNameAgent", 0) == 0 ||
                         methodName.rfind("com/ibm/", 0) == 0 ||
+                        methodName.rfind("com/sun/", 0) == 0 ||
                         methodName.rfind("sun/", 0) == 0 ||
                         methodName.rfind("openj9/", 0) == 0 ||
                         methodName.rfind("jdk/", 0) == 0 ||
@@ -6332,6 +6387,7 @@ bool isLibraryMethod(std::string methodName)
                         methodName.find("org/slf4j", 0) == 0 ||
                         methodName.rfind("soot", 0) == 0 ||
                         methodName.rfind("org/jfree", 0) == 0 ||
+                        methodName.rfind("org/jcp", 0) == 0 ||
                         methodName.rfind("org/codehaus", 0) == 0;
 
    return isLibraryMethod;
@@ -6376,6 +6432,7 @@ TR_ResolvedMethod *getCachedResolvedMethod(TR::Compilation *comp, TR_OpaqueClass
          // std::cout<<"rm was null at: "<<meth<<" class pointer "<<TR::Compiler->cls.classSignature(comp, classPointer, comp->trMemory())<<std::endl;
       }
       cachedResolvedMethod[classPointer][meth] = rm;
+      
    }
    return cachedResolvedMethod[classPointer][meth];
 }
@@ -10053,11 +10110,13 @@ std::unordered_set<std::string> getAllPossibleCHA_TargetNames(const std::string 
 
 J9Class *findClassAcrossAllLoaders(TR::Compilation *comp, const std::string &className, TR_J9VMBase *fej9, TR_ResolvedMethod *resolvedMethod)
 {
+   if(resolvedMethod)
+   {
+      TR_OpaqueClassBlock *omb = fej9->getClassFromSignature(className.c_str(), className.length(), resolvedMethod, true);
+      if (omb)
+         return (J9Class *)omb;
 
-   TR_OpaqueClassBlock *omb = fej9->getClassFromSignature(className.c_str(), className.length(), resolvedMethod, true);
-   if (omb)
-      return (J9Class *)omb;
-
+   }
    J9VMThread *vmThread = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
    J9JavaVM *javaVM = vmThread->javaVM;
 
