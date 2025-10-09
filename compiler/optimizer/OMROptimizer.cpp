@@ -3503,57 +3503,54 @@ OMR_InlinerUtil *OMR::Optimizer::getInlinerUtil()
 
 /***** The newly added methods begins below *****/
 
-void processClinits(TR::Compilation* comp)
+void processClinits(TR::Compilation *comp)
 {
-    std::ifstream inputFile("ci.txt");
+   std::ifstream inputFile("ci.txt");
 
-    if (!inputFile.is_open())
-    {
-       TR_ASSERT_FATAL(0,"Error: Could not open file ci.txt");
-        return;
-    }
+   if (!inputFile.is_open())
+   {
+      TR_ASSERT_FATAL(0, "Error: Could not open file ci.txt");
+      return;
+   }
 
-    std::string class_name;
-    int i = 0;
-    while (std::getline(inputFile, class_name))
-    {    
-         i++;
-        if (class_name.empty() || isLibraryMethod((class_name + ".<clinit>()V")))
-        {
-            continue;
-        }
+   std::string class_name;
+   int i = 0;
+   while (std::getline(inputFile, class_name))
+   {
+      i++;
+      if (class_name.empty() || isLibraryMethod((class_name + ".<clinit>()V")))
+      {
+         continue;
+      }
 
-        int len = class_name.length();
+      int len = class_name.length();
 
       //   TR_OpaqueClassBlock *type = getCachedClass(comp, class_name.c_str(), len);
-        J9Class *j9Class = findClassAcrossAllLoaders(comp, class_name, ((TR_J9VMBase *)comp->fe()), nullptr);
-        TR_OpaqueClassBlock *type = reinterpret_cast<TR_OpaqueClassBlock*>(j9Class);
-        
-        if (type != nullptr)
-        {
-            TR_ResolvedMethod * m = getCachedResolvedMethod(comp, type, "<clinit>", "()V");
-            
-            if (m != nullptr)
-            {
-               std::cout << i << ": Found <clinit> for class: " << class_name << std::endl;
-               PAGNode *comp_type_2 = new PAGNode();
-               comp_type_2->static_type = "COMP TYPE 2";
-               traverse_cfg((J9Method *)m->getPersistentIdentifier(), pag, getOrInsertMethodIndexByName((class_name + ".<clinit>()V"), pag), comp, new PAGNode(), comp_type_2);
+      J9Class *j9Class = findClassAcrossAllLoaders(comp, class_name, ((TR_J9VMBase *)comp->fe()), nullptr);
+      TR_OpaqueClassBlock *type = reinterpret_cast<TR_OpaqueClassBlock *>(j9Class);
 
-            }
-            else
-            {
-               std::cout << i << ": NOT Found <clinit> for class: " << class_name << std::endl;
+      if (type != nullptr)
+      {
+         TR_ResolvedMethod *m = getCachedResolvedMethod(comp, type, "<clinit>", "()V");
 
-            }
-        }
-        else
-        {
-            std::cout << "Warning: Could not resolve class: " << class_name << std::endl;
-        }
-    }
+         if (m != nullptr)
+         {
+            std::cout << i << ": Found <clinit> for class: " << class_name << std::endl;
+            PAGNode *comp_type_2 = new PAGNode();
+            comp_type_2->static_type = "COMP TYPE 2";
+            traverse_cfg((J9Method *)m->getPersistentIdentifier(), pag, getOrInsertMethodIndexByName((class_name + ".<clinit>()V"), pag), comp, new PAGNode(), comp_type_2);
+         }
+         else
+         {
+            std::cout << i << ": NOT Found <clinit> for class: " << class_name << std::endl;
+         }
+      }
+      else
+      {
+         std::cout << "Warning: Could not resolve class: " << class_name << std::endl;
+      }
+   }
    inputFile.close();
-
 }
 
 // (performOptimization) -> benchmarkBuildIndependentSet -> computeMSetForMethod -> evaluateNode
@@ -6432,7 +6429,6 @@ TR_ResolvedMethod *getCachedResolvedMethod(TR::Compilation *comp, TR_OpaqueClass
          // std::cout<<"rm was null at: "<<meth<<" class pointer "<<TR::Compiler->cls.classSignature(comp, classPointer, comp->trMemory())<<std::endl;
       }
       cachedResolvedMethod[classPointer][meth] = rm;
-      
    }
    return cachedResolvedMethod[classPointer][meth];
 }
@@ -8028,7 +8024,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
 
    // METHOD INVOCATIONS
    case J9BCinvokedynamic:
-      break;
+      // break;
 
    case J9BCinvokeinterface:
    case J9BCinvokeinterface2:
@@ -8048,268 +8044,275 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       {
          cpIndex = pc[3];
       }
-      J9ConstantPool *cp = J9_CP_FROM_METHOD(currentMethod);
-      J9VMThread *j9vm = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
-      J9RAMSpecialMethodRef *ramSpecialMethodRef = (J9RAMSpecialMethodRef *)&cp[cpIndex];
 
-      J9ROMConstantPoolItem *romCPItem = &(J9_ROM_CP_FROM_CP(J9_CP_FROM_METHOD(currentMethod))[cpIndex]);
-      J9ROMMethodRef *romMethodRef = (J9ROMMethodRef *)romCPItem;
-      J9ROMNameAndSignature *nameAndSig = J9ROMMETHODREF_NAMEANDSIGNATURE(romMethodRef);
-      J9UTF8 *signature_utf8 = J9ROMNAMEANDSIGNATURE_SIGNATURE(nameAndSig);
-      J9UTF8 *name_utf8 = J9ROMNAMEANDSIGNATURE_NAME(nameAndSig);
-
-      char *sigChars = (char *)J9UTF8_DATA(signature_utf8);
-      U_16 sigLength = J9UTF8_LENGTH(signature_utf8);
-      std::string signature(sigChars, sigLength);
-
-      char *nameChars = (char *)J9UTF8_DATA(name_utf8);
-      U_16 nameLength = J9UTF8_LENGTH(name_utf8);
-      std::string name(nameChars, nameLength);
-
-      std::cout << "   -> " << name << signature << " is the method!!!" << std::endl;
-      // methodName along with signature;
-      string methodName = name + signature;
-
-      vector<set<PAGNode *>> actual_params;
-      // get number of parameters
-      int parameter_count = count_parameters(sigChars);
-      for (int i = parameter_count - 1; i >= 0; i--)
-      {
-         // if (is_reference_type(sigChars, i))
-         // {
-         set<PAGNode *> param = stack->popRef();
-         actual_params.push_back(param);
-         for (auto *p : param)
-            callsiteBCI_to_actual_params[bci].insert(p);
-         // }
-      }
-
-      std::reverse(actual_params.begin(), actual_params.end());
-      std::string rst;
-      bool calleeReturnsReference = returnsObject(signature, rst);
-      bool calleeReturnsPrimitive = returnsPrimitive(signature);
-      std::unordered_set<int> targets;
-      if (isStatic)
-      {
+      
          J9ConstantPool *cp = J9_CP_FROM_METHOD(currentMethod);
-         J9ROMMethodRef *romMethodRef = (J9ROMMethodRef *)(cp->romConstantPool + cpIndex);
-         U_32 classRefIndex = romMethodRef->classRefCPIndex;
-         J9ROMStringRef *romStringRef = (J9ROMStringRef *)&cp->romConstantPool[classRefIndex];
-         J9UTF8 *classNameWrapper = J9ROMSTRINGREF_UTF8DATA(romStringRef);
-         int classNameLength = J9UTF8_LENGTH(classNameWrapper);
-         char *classNameChars = (char *)J9UTF8_DATA(classNameWrapper);
-         std::string className(classNameChars, classNameLength);
+         J9VMThread *j9vm = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
+         J9RAMSpecialMethodRef *ramSpecialMethodRef = (J9RAMSpecialMethodRef *)&cp[cpIndex];
 
-         // U_32 classRefIndex = romMethodRef->classRefCPIndex;
-         // std::cout << "classRefIndex = " << classRefIndex << std::endl;
-         // // J9ROMClassRef *romClassRef = (J9ROMClassRef *)(cp + classRefIndex);
-         // J9ROMConstantPoolItem *romCPItem_class = &(J9_ROM_CP_FROM_CP(J9_CP_FROM_METHOD(currentMethod))[classRefIndex]);
-
-         // int32_t classNameLength;
-         // char *classNameChars = utf8Data(J9ROMCLASSREF_NAME((J9ROMClassRef *)&(((J9ROMConstantPoolItem *)cp->romConstantPool)[classRefIndex])));
-         // J9ROMConstantPoolItem *romClassCPItem = &(cp->romConstantPool[classRefIndex]);
-         // J9ROMClassRef *romClassRef = (J9ROMClassRef *)romClassCPItem;
-
-         // U_16 nameIndex = romClassRef->name;
-         // J9ROMConstantPoolItem *classNameUtf8CPItem = &(cp->romConstantPool[nameIndex]);
-         // J9UTF8 *classNameUtf8 = (J9UTF8 *)classNameUtf8CPItem;
-
-         // Now extract as before
-         // char *classNameChars = (char *)J9UTF8_DATA(classNameUtf8);
-         // U_16 classNameLength = J9UTF8_LENGTH(classNameUtf8);
-         // J9ROMStringRef *romStringRef = (J9ROMStringRef *)&cp->romConstantPool[classRefIndex];
-         // J9UTF8 * classNameWrapper = J9ROMSTRINGREF_UTF8DATA(romStringRef);
-         // int classNameLength = J9UTF8_LENGTH(classNameWrapper);
-         // char * classNameChars = (char*) J9UTF8_DATA(classNameWrapper);
-         // std::string className(classNameChars, classNameLength);
-         std::cout << "  ->invokestatic className  " << className << std::endl;
-         PAGNode *rNode = new PAGNode(VARIABLE, 0, nullptr, method_block, -1, methodIndex, className);
-         if (rst == "J" || rst == "D")
-         {
-            rNode->comp_type = "COMP_TYPE_2";
+         J9ROMConstantPoolItem *romCPItem = &(J9_ROM_CP_FROM_CP(J9_CP_FROM_METHOD(currentMethod))[cpIndex]);
+         J9ROMMethodRef *romMethodRef = (J9ROMMethodRef *)romCPItem;
+         J9ROMNameAndSignature *nameAndSig = J9ROMMETHODREF_NAMEANDSIGNATURE(romMethodRef);
+         if (bytecode == J9BCinvokedynamic)
+         {  
+            J9SRP *callSiteData = (J9SRP *)J9ROMCLASS_CALLSITEDATA(J9currentClass->romClass);
+            nameAndSig = SRP_PTR_GET(callSiteData + pc[1], J9ROMNameAndSignature *);
          }
-         bool found = searchForOveridingMethodsInClass(className, name, signature, pag, ((TR_J9VMBase *)comp->fe()), resolvedMethod, actual_params, bci, comp, stack, primitive_node, rNode, className);
-         if (found)
-         {
-            int targetIndex = getOrInsertMethodIndexByName((className + "." + name + signature), pag);
-            targets.insert(targetIndex);
-         }
-         if (calleeReturnsReference || calleeReturnsPrimitive)
-            stack->pushRef(rNode);
-      }
-      else
-      {
-         set<PAGNode *> receiver_obj_ptr_set = stack->popRef();
-         PAGNode *rNode = new PAGNode(VARIABLE, 0, nullptr, method_block, -1, methodIndex);
-         if (rst == "J" || rst == "D")
-         {
-            rNode->comp_type = "COMP_TYPE_2";
-         }
+         J9UTF8 *signature_utf8 = J9ROMNAMEANDSIGNATURE_SIGNATURE(nameAndSig);
+         J9UTF8 *name_utf8 = J9ROMNAMEANDSIGNATURE_NAME(nameAndSig);
 
-         actual_params.insert(actual_params.begin(), receiver_obj_ptr_set); // (this,arg1,arg2,...)
+         char *sigChars = (char *)J9UTF8_DATA(signature_utf8);
+         U_16 sigLength = J9UTF8_LENGTH(signature_utf8);
+         std::string signature(sigChars, sigLength);
 
-         J9ConstantPool *cp = J9_CP_FROM_METHOD(currentMethod);
-         J9ROMMethodRef *romMethodRef = (J9ROMMethodRef *)(cp->romConstantPool + cpIndex);
-         U_32 classRefIndex = romMethodRef->classRefCPIndex;
-         J9ROMStringRef *romStringRef = (J9ROMStringRef *)&cp->romConstantPool[classRefIndex];
-         J9UTF8 *classNameWrapper = J9ROMSTRINGREF_UTF8DATA(romStringRef);
-         int classNameLength = J9UTF8_LENGTH(classNameWrapper);
-         char *classNameChars = (char *)J9UTF8_DATA(classNameWrapper);
-         std::string staticClassName(classNameChars, classNameLength);
-         unordered_set<std::string> classNames;
+         char *nameChars = (char *)J9UTF8_DATA(name_utf8);
+         U_16 nameLength = J9UTF8_LENGTH(name_utf8);
+         std::string name(nameChars, nameLength);
 
-         for (PAGNode *receiver_obj_ptr : receiver_obj_ptr_set)
+         std::cout << "   -> " << name << signature << " is the method!!!" << std::endl;
+         // methodName along with signature;
+         string methodName = name + signature;
+
+         vector<set<PAGNode *>> actual_params;
+         // get number of parameters
+         int parameter_count = count_parameters(sigChars);
+         for (int i = parameter_count - 1; i >= 0; i--)
          {
-            // if (receiver_obj_ptr->pointee_class_names.size() == 0)
+            // if (is_reference_type(sigChars, i))
             // {
-            // CHA
-            //  if(receiver_obj_ptr->static_type.rfind("no static type")==std::string::npos)
-            //     classNames.insert(receiver_obj_ptr->static_type);
-            // if (!isInterfaceInvoke)
-            //    classNames.insert(staticClassName);
-            // std::unordered_set<std::string> subclasses = getAllPossibleCHA_TargetNames(staticClassName);
-
-            // classNames.insert(subclasses.begin(), subclasses.end());
+            set<PAGNode *> param = stack->popRef();
+            actual_params.push_back(param);
+            for (auto *p : param)
+               callsiteBCI_to_actual_params[bci].insert(p);
             // }
-            // else
-            // {
-            if (!isInterfaceInvoke)
-               classNames.insert(staticClassName);
-            std::unordered_set<std::string> subclasses = getAllPossibleCHA_TargetNames(staticClassName);
+         }
 
-            std::set<std::string> intersection;
+         std::reverse(actual_params.begin(), actual_params.end());
+         std::string rst;
+         bool calleeReturnsReference = returnsObject(signature, rst);
+         bool calleeReturnsPrimitive = returnsPrimitive(signature);
+         std::unordered_set<int> targets;
+         if (isStatic)
+         {
+            J9ConstantPool *cp = J9_CP_FROM_METHOD(currentMethod);
+            J9ROMMethodRef *romMethodRef = (J9ROMMethodRef *)(cp->romConstantPool + cpIndex);
+            U_32 classRefIndex = romMethodRef->classRefCPIndex;
+            J9ROMStringRef *romStringRef = (J9ROMStringRef *)&cp->romConstantPool[classRefIndex];
+            J9UTF8 *classNameWrapper = J9ROMSTRINGREF_UTF8DATA(romStringRef);
+            int classNameLength = J9UTF8_LENGTH(classNameWrapper);
+            char *classNameChars = (char *)J9UTF8_DATA(classNameWrapper);
+            std::string className(classNameChars, classNameLength);
 
-            std::set_intersection(
-                receiver_obj_ptr->pointee_class_names.begin(),
-                receiver_obj_ptr->pointee_class_names.end(),
-                subclasses.begin(),
-                subclasses.end(),
-                std::inserter(intersection, intersection.begin()));
+            // U_32 classRefIndex = romMethodRef->classRefCPIndex;
+            // std::cout << "classRefIndex = " << classRefIndex << std::endl;
+            // // J9ROMClassRef *romClassRef = (J9ROMClassRef *)(cp + classRefIndex);
+            // J9ROMConstantPoolItem *romCPItem_class = &(J9_ROM_CP_FROM_CP(J9_CP_FROM_METHOD(currentMethod))[classRefIndex]);
 
-            classNames.insert(intersection.begin(), intersection.end());
-            classNames.insert(subclasses.begin(), subclasses.end());
+            // int32_t classNameLength;
+            // char *classNameChars = utf8Data(J9ROMCLASSREF_NAME((J9ROMClassRef *)&(((J9ROMConstantPoolItem *)cp->romConstantPool)[classRefIndex])));
+            // J9ROMConstantPoolItem *romClassCPItem = &(cp->romConstantPool[classRefIndex]);
+            // J9ROMClassRef *romClassRef = (J9ROMClassRef *)romClassCPItem;
 
-            // }
+            // U_16 nameIndex = romClassRef->name;
+            // J9ROMConstantPoolItem *classNameUtf8CPItem = &(cp->romConstantPool[nameIndex]);
+            // J9UTF8 *classNameUtf8 = (J9UTF8 *)classNameUtf8CPItem;
 
-            if (isInterfaceInvoke && classNames.find(staticClassName) != classNames.end())
-               classNames.erase(staticClassName);
-
-            bool search = false;
-            for (auto className : classNames)
+            // Now extract as before
+            // char *classNameChars = (char *)J9UTF8_DATA(classNameUtf8);
+            // U_16 classNameLength = J9UTF8_LENGTH(classNameUtf8);
+            // J9ROMStringRef *romStringRef = (J9ROMStringRef *)&cp->romConstantPool[classRefIndex];
+            // J9UTF8 * classNameWrapper = J9ROMSTRINGREF_UTF8DATA(romStringRef);
+            // int classNameLength = J9UTF8_LENGTH(classNameWrapper);
+            // char * classNameChars = (char*) J9UTF8_DATA(classNameWrapper);
+            // std::string className(classNameChars, classNameLength);
+            std::cout << "  ->invokestatic className  " << className << std::endl;
+            PAGNode *rNode = new PAGNode(VARIABLE, 0, nullptr, method_block, -1, methodIndex, className);
+            if (rst == "J" || rst == "D")
             {
-               search = true;
-               if (threadExtendingClasses.find(className) != threadExtendingClasses.end() && name == "start")
+               rNode->comp_type = "COMP_TYPE_2";
+            }
+            bool found = searchForOveridingMethodsInClass(className, name, signature, pag, ((TR_J9VMBase *)comp->fe()), resolvedMethod, actual_params, bci, comp, stack, primitive_node, rNode, className);
+            if (found)
+            {
+               int targetIndex = getOrInsertMethodIndexByName((className + "." + name + signature), pag);
+               targets.insert(targetIndex);
+            }
+            if (calleeReturnsReference || calleeReturnsPrimitive)
+               stack->pushRef(rNode);
+         }
+         else
+         {
+            set<PAGNode *> receiver_obj_ptr_set = stack->popRef();
+            PAGNode *rNode = new PAGNode(VARIABLE, 0, nullptr, method_block, -1, methodIndex);
+            if (rst == "J" || rst == "D")
+            {
+               rNode->comp_type = "COMP_TYPE_2";
+            }
+
+            actual_params.insert(actual_params.begin(), receiver_obj_ptr_set); // (this,arg1,arg2,...)
+
+            J9ConstantPool *cp = J9_CP_FROM_METHOD(currentMethod);
+            J9ROMMethodRef *romMethodRef = (J9ROMMethodRef *)(cp->romConstantPool + cpIndex);
+            U_32 classRefIndex = romMethodRef->classRefCPIndex;
+            J9ROMStringRef *romStringRef = (J9ROMStringRef *)&cp->romConstantPool[classRefIndex];
+            J9UTF8 *classNameWrapper = J9ROMSTRINGREF_UTF8DATA(romStringRef);
+            int classNameLength = J9UTF8_LENGTH(classNameWrapper);
+            char *classNameChars = (char *)J9UTF8_DATA(classNameWrapper);
+            std::string staticClassName(classNameChars, classNameLength);
+            unordered_set<std::string> classNames;
+
+            for (PAGNode *receiver_obj_ptr : receiver_obj_ptr_set)
+            {
+               // if (receiver_obj_ptr->pointee_class_names.size() == 0)
+               // {
+               // CHA
+               //  if(receiver_obj_ptr->static_type.rfind("no static type")==std::string::npos)
+               //     classNames.insert(receiver_obj_ptr->static_type);
+               // if (!isInterfaceInvoke)
+               //    classNames.insert(staticClassName);
+               // std::unordered_set<std::string> subclasses = getAllPossibleCHA_TargetNames(staticClassName);
+
+               // classNames.insert(subclasses.begin(), subclasses.end());
+               // }
+               // else
+               // {
+               if (!isInterfaceInvoke)
+                  classNames.insert(staticClassName);
+               std::unordered_set<std::string> subclasses = getAllPossibleCHA_TargetNames(staticClassName);
+
+               std::set<std::string> intersection;
+
+               std::set_intersection(
+                   receiver_obj_ptr->pointee_class_names.begin(),
+                   receiver_obj_ptr->pointee_class_names.end(),
+                   subclasses.begin(),
+                   subclasses.end(),
+                   std::inserter(intersection, intersection.begin()));
+
+               classNames.insert(intersection.begin(), intersection.end());
+               classNames.insert(subclasses.begin(), subclasses.end());
+
+               // }
+
+               if (isInterfaceInvoke && classNames.find(staticClassName) != classNames.end())
+                  classNames.erase(staticClassName);
+
+               bool search = false;
+               for (auto className : classNames)
                {
-                  name = "run";
-               }
-
-               std::string full_name = className + "." + name + signature;
-               std::string staticName = staticClassName + "." + name + signature;
-               std::cout << "full_name = " << full_name << " Stt = " << staticName << std::endl;
-               if (staticName.rfind("java/lang/Object.<init>()") == 0)
-                  break;
-
-               if (name.find("java/lang/reflect/Constructor.newInstance([Ljava/lang/Object;)Ljava/lang/Object") != std::string::npos || name.find("java/lang/reflect/Method.invoke(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;") != std::string::npos)
-               {
-
-                  TR_OpaqueMethodBlock *method_block = reinterpret_cast<TR_OpaqueMethodBlock *>(currentMethod);
-                  TR_ResolvedMethod *resolved_Method = comp->fe()->createResolvedMethod(comp->trMemory(), method_block, 0);
-
-                  // int classNameLength = resolvedMethod->classNameLength();
-                  // const char* className = resolvedMethod->classNameChars();
-                  int methodNameLength = resolved_Method->nameLength();
-                  const char *methodName = resolved_Method->nameChars();
-                  int signatureLength = resolved_Method->signatureLength();
-                  const char *callerSignature = resolved_Method->signatureChars();
-
-                  std::string signature_name(callerSignature, signatureLength);
-                  std::string caller_method_name(methodName, methodNameLength);
-                  std::string full_caller_name = caller_method_name + "." + signature_name;
-                  J9VMThread *vmThread = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
-                  J9JavaVM *javaVM = vmThread->javaVM;
-                  int32_t lineNumber = (int32_t)getLineNumberForROMClass(javaVM, currentMethod, bci);
-                  ;
-
-                  std::unordered_set<std::string> targets = getReflectiveTargets(full_caller_name, lineNumber);
-                  for (std::string fullName : targets)
+                  search = true;
+                  if (threadExtendingClasses.find(className) != threadExtendingClasses.end() && name == "start")
                   {
-                     auto dotPos = fullName.find('.');
-                     auto parenPos = fullName.find('(');
-
-                     className = fullName.substr(0, dotPos);
-                     name = fullName.substr(dotPos + 1, parenPos - dotPos - 1) + "." + fullName.substr(parenPos);
+                     name = "run";
                   }
-               }
 
-               bool found = searchForOveridingMethodsInClass(className, name, signature, pag, ((TR_J9VMBase *)comp->fe()), resolvedMethod, actual_params, bci, comp, stack, primitive_node, rNode, staticClassName);
-               if (!found)
-               {
-                  bool found_in_superClass = false;
+                  std::string full_name = className + "." + name + signature;
+                  std::string staticName = staticClassName + "." + name + signature;
+                  std::cout << "full_name = " << full_name << " Stt = " << staticName << std::endl;
+                  if (staticName.rfind("java/lang/Object.<init>()") == 0)
+                     break;
 
-                  // TR_OpaqueClassBlock *type = comp->fe()->getClassFromSignature(className.c_str(), className.length(), comp->getCurrentMethod(), true);
-                  J9Class *j9Class = findClassAcrossAllLoaders(comp, className, ((TR_J9VMBase *)comp->fe()), resolvedMethod);
-                  TR_OpaqueClassBlock *type = reinterpret_cast<TR_OpaqueClassBlock *>(j9Class);
-                  J9Class **superClasses = TR::Compiler->cls.superClassesOf(type);
-                  int classDepth = TR::Compiler->cls.classDepthOf(type);
-
-                  for (int i = classDepth - 1; i >= 0; i--)
+                  if (name.find("java/lang/reflect/Constructor.newInstance([Ljava/lang/Object;)Ljava/lang/Object") != std::string::npos || name.find("java/lang/reflect/Method.invoke(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;") != std::string::npos)
                   {
-                     J9UTF8 *superClassName_utf8 = J9ROMCLASS_CLASSNAME(superClasses[i]->romClass);
-                     char *name_chars = (char *)J9UTF8_DATA(superClassName_utf8);
-                     std::string superClassName(name_chars, superClassName_utf8->length);
 
-                     found = searchForOveridingMethodsInClass(superClassName, name, signature, pag, ((TR_J9VMBase *)comp->fe()), resolvedMethod, actual_params, bci, comp, stack, primitive_node, rNode, staticClassName);
-                     if (found)
+                     TR_OpaqueMethodBlock *method_block = reinterpret_cast<TR_OpaqueMethodBlock *>(currentMethod);
+                     TR_ResolvedMethod *resolved_Method = comp->fe()->createResolvedMethod(comp->trMemory(), method_block, 0);
+
+                     // int classNameLength = resolvedMethod->classNameLength();
+                     // const char* className = resolvedMethod->classNameChars();
+                     int methodNameLength = resolved_Method->nameLength();
+                     const char *methodName = resolved_Method->nameChars();
+                     int signatureLength = resolved_Method->signatureLength();
+                     const char *callerSignature = resolved_Method->signatureChars();
+
+                     std::string signature_name(callerSignature, signatureLength);
+                     std::string caller_method_name(methodName, methodNameLength);
+                     std::string full_caller_name = caller_method_name + "." + signature_name;
+                     J9VMThread *vmThread = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
+                     J9JavaVM *javaVM = vmThread->javaVM;
+                     int32_t lineNumber = (int32_t)getLineNumberForROMClass(javaVM, currentMethod, bci);
+                     ;
+
+                     std::unordered_set<std::string> targets = getReflectiveTargets(full_caller_name, lineNumber);
+                     for (std::string fullName : targets)
                      {
-                        int targetIndex = getOrInsertMethodIndexByName((superClassName + "." + name + signature), pag);
-                        targets.insert(targetIndex);
-                        break;
+                        auto dotPos = fullName.find('.');
+                        auto parenPos = fullName.find('(');
+
+                        className = fullName.substr(0, dotPos);
+                        name = fullName.substr(dotPos + 1, parenPos - dotPos - 1) + "." + fullName.substr(parenPos);
                      }
                   }
-               }
-               if (found)
-               {
-                  int targetIndex = getOrInsertMethodIndexByName((className + "." + name + signature), pag);
-                  targets.insert(targetIndex);
-               }
-               if (!found)
-               {
-                  /*check if there is exactly one maximally-specific method
-                  (§5.4.3.3) in the superinterfaces of C that matches the resolved
-                  method's name and descriptor and is not abstract, then it is
-                  the method to be invoked.*/
-               }
-            }
 
-            if (search && (calleeReturnsReference || calleeReturnsPrimitive))
-            {
-               stack->pushRef(rNode);
-               callsiteBCI_to_return_node[bci] = rNode;
-            }
-            if (!search)
-            {
-               // To balance the stack operations if we are not able to find the method
-               if (calleeReturnsReference)
-               {
-                  pag->bottom_node->pointee_class_names.insert(rst);
-                  stack->pushRef(pag->bottom_node);
-                  callsiteBCI_to_return_node[bci] = pag->bottom_node;
-                  // else
-                  //    stack->pushRef(pag->getReturnNode(getOrInsertMethodIndexByName(full_method_name, pag)));
+                  bool found = searchForOveridingMethodsInClass(className, name, signature, pag, ((TR_J9VMBase *)comp->fe()), resolvedMethod, actual_params, bci, comp, stack, primitive_node, rNode, staticClassName);
+                  if (!found)
+                  {
+                     bool found_in_superClass = false;
+
+                     // TR_OpaqueClassBlock *type = comp->fe()->getClassFromSignature(className.c_str(), className.length(), comp->getCurrentMethod(), true);
+                     J9Class *j9Class = findClassAcrossAllLoaders(comp, className, ((TR_J9VMBase *)comp->fe()), resolvedMethod);
+                     TR_OpaqueClassBlock *type = reinterpret_cast<TR_OpaqueClassBlock *>(j9Class);
+                     J9Class **superClasses = TR::Compiler->cls.superClassesOf(type);
+                     int classDepth = TR::Compiler->cls.classDepthOf(type);
+
+                     for (int i = classDepth - 1; i >= 0; i--)
+                     {
+                        J9UTF8 *superClassName_utf8 = J9ROMCLASS_CLASSNAME(superClasses[i]->romClass);
+                        char *name_chars = (char *)J9UTF8_DATA(superClassName_utf8);
+                        std::string superClassName(name_chars, superClassName_utf8->length);
+
+                        found = searchForOveridingMethodsInClass(superClassName, name, signature, pag, ((TR_J9VMBase *)comp->fe()), resolvedMethod, actual_params, bci, comp, stack, primitive_node, rNode, staticClassName);
+                        if (found)
+                        {
+                           int targetIndex = getOrInsertMethodIndexByName((superClassName + "." + name + signature), pag);
+                           targets.insert(targetIndex);
+                           break;
+                        }
+                     }
+                  }
+                  if (found)
+                  {
+                     int targetIndex = getOrInsertMethodIndexByName((className + "." + name + signature), pag);
+                     targets.insert(targetIndex);
+                  }
+                  if (!found)
+                  {
+                     /*check if there is exactly one maximally-specific method
+                     (§5.4.3.3) in the superinterfaces of C that matches the resolved
+                     method's name and descriptor and is not abstract, then it is
+                     the method to be invoked.*/
+                  }
                }
-               else if (calleeReturnsPrimitive)
+
+               if (search && (calleeReturnsReference || calleeReturnsPrimitive))
                {
-                  stack->pushRef(primitive_node);
-                  callsiteBCI_to_return_node[bci] = primitive_node;
+                  stack->pushRef(rNode);
+                  callsiteBCI_to_return_node[bci] = rNode;
                }
-               else
-                  callsiteBCI_to_return_node[bci] = nullptr;
+               if (!search)
+               {
+                  // To balance the stack operations if we are not able to find the method
+                  if (calleeReturnsReference)
+                  {
+                     pag->bottom_node->pointee_class_names.insert(rst);
+                     stack->pushRef(pag->bottom_node);
+                     callsiteBCI_to_return_node[bci] = pag->bottom_node;
+                     // else
+                     //    stack->pushRef(pag->getReturnNode(getOrInsertMethodIndexByName(full_method_name, pag)));
+                  }
+                  else if (calleeReturnsPrimitive)
+                  {
+                     stack->pushRef(primitive_node);
+                     callsiteBCI_to_return_node[bci] = primitive_node;
+                  }
+                  else
+                     callsiteBCI_to_return_node[bci] = nullptr;
+               }
             }
          }
+         callsiteBCI_to_targets[bci] = targets;
+         break;
       }
-      callsiteBCI_to_targets[bci] = targets;
-      break;
-   }
 
    // OBJECT CREATION
    case J9BCnewarray:
@@ -8420,72 +8423,105 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       std::cout << "Unhandled bytecode in executeBytecode: " << getBytecodeString(bytecode) << std::endl;
       break;
    }
-}
-
-bool searchForOveridingMethodsInClass(std::string className, std::string method_name, std::string method_signature, PointerAssignmentGraph *pag, TR_J9VMBase *fej9, TR_ResolvedMethod *resolvedMethod, vector<set<PAGNode *>> actual_params, int bci, TR::Compilation *comp, operandStack *stack, PAGNode *primitive_node, PAGNode *returnNode, std::string StaticClassName)
-{
-   // TR_OpaqueClassBlock *clazz = fej9->getClassFromSignature(className.c_str(), className.length(), resolvedMethod, true);
-   // J9VMThread *vmThread = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
-   // J9Class *ramClass = jitGetClassInClassloaderFromUTF8(vmThread,
-   //                                                      vmThread->javaVM->systemClassLoader,
-   //                                                      (void *)className.c_str(),
-   //                                                      className.length());
-   // // TR_OpaqueClassBlock *clazz = (TR_OpaqueClassBlock *)ramClass;
-   // J9Class *j9Class = ramClass; //(J9Class *)clazz;
-   // if(!j9Class || !j9Class->romClass)
-   // {
-   //    TR_OpaqueClassBlock *clazz = fej9->getClassFromSignature(className.c_str(), className.length(), resolvedMethod, true);
-   //    j9Class = (J9Class *)clazz;
-   //    std::cout << "j9Class->romClass = " <<j9Class->romClass <<std::endl;
-   // }
-   // J9ROMClass *romClass = j9Class->romClass;
-   // J9ROMMethod *romMethod = J9ROMCLASS_ROMMETHODS(romClass);
-   // J9Class* j9Class = findClassByName(comp,className,fej9,resolvedMethod);
-   std::string returnStaticType;
-   bool calleeReturnsReference = returnsObject(method_signature, returnStaticType);
-   bool calleeReturnsPrimitive = returnsPrimitive(method_signature);
-   if (loaded_classes.find(className) == loaded_classes.end())
-   {
-      if (calleeReturnsReference)
-      {
-         pag->bottom_node->pointee_class_names.insert(returnStaticType);
-         pag->addEdge(pag->bottom_node, returnNode, ASSIGN, bci);
-         // else
-         //    stack->pushRef(pag->getReturnNode(getOrInsertMethodIndexByName(full_method_name, pag)));
-      }
-      else if (calleeReturnsPrimitive)
-      {
-         pag->addEdge(primitive_node, returnNode, ASSIGN, bci);
-      }
-      return true;
    }
-   J9Class *j9Class = findClassAcrossAllLoaders(comp, className, fej9, resolvedMethod);
-   TR_ASSERT_FATAL(j9Class, "Could not load the class by name");
-   J9ROMClass *romClass = j9Class->romClass;
 
-   for (U_32 i = 0; i < romClass->romMethodCount; i++)
+   bool searchForOveridingMethodsInClass(std::string className, std::string method_name, std::string method_signature, PointerAssignmentGraph * pag, TR_J9VMBase * fej9, TR_ResolvedMethod * resolvedMethod, vector<set<PAGNode *>> actual_params, int bci, TR::Compilation *comp, operandStack *stack, PAGNode *primitive_node, PAGNode *returnNode, std::string StaticClassName)
    {
-      J9Method *ramMethod = &j9Class->ramMethods[i];
-      // std::cout << "Method added is: " ;
-      TR_OpaqueMethodBlock *method_block = reinterpret_cast<TR_OpaqueMethodBlock *>(ramMethod);
-      TR_ResolvedMethod *resolved_Method = comp->fe()->createResolvedMethod(comp->trMemory(), method_block, 0);
-
-      // int classNameLength = resolvedMethod->classNameLength();
-      // const char* className = resolvedMethod->classNameChars();
-      int methodNameLength = resolved_Method->nameLength();
-      const char *methodName = resolved_Method->nameChars();
-      int signatureLength = resolved_Method->signatureLength();
-      const char *signature = resolved_Method->signatureChars();
-
-      std::string signature_name(signature, signatureLength);
-      std::string target_method_name(methodName, methodNameLength);
-      std::string full_method_name = className + "." + method_name + method_signature;
-      if (method_signature == signature_name && method_name == target_method_name)
+      // TR_OpaqueClassBlock *clazz = fej9->getClassFromSignature(className.c_str(), className.length(), resolvedMethod, true);
+      // J9VMThread *vmThread = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
+      // J9Class *ramClass = jitGetClassInClassloaderFromUTF8(vmThread,
+      //                                                      vmThread->javaVM->systemClassLoader,
+      //                                                      (void *)className.c_str(),
+      //                                                      className.length());
+      // // TR_OpaqueClassBlock *clazz = (TR_OpaqueClassBlock *)ramClass;
+      // J9Class *j9Class = ramClass; //(J9Class *)clazz;
+      // if(!j9Class || !j9Class->romClass)
+      // {
+      //    TR_OpaqueClassBlock *clazz = fej9->getClassFromSignature(className.c_str(), className.length(), resolvedMethod, true);
+      //    j9Class = (J9Class *)clazz;
+      //    std::cout << "j9Class->romClass = " <<j9Class->romClass <<std::endl;
+      // }
+      // J9ROMClass *romClass = j9Class->romClass;
+      // J9ROMMethod *romMethod = J9ROMCLASS_ROMMETHODS(romClass);
+      // J9Class* j9Class = findClassByName(comp,className,fej9,resolvedMethod);
+      std::string returnStaticType;
+      bool calleeReturnsReference = returnsObject(method_signature, returnStaticType);
+      bool calleeReturnsPrimitive = returnsPrimitive(method_signature);
+      if (loaded_classes.find(className) == loaded_classes.end())
       {
-         bool isAbstractMethod = resolved_Method->isAbstract();
-
-         if (isAbstractMethod && className.rfind(StaticClassName) == 0)
+         if (calleeReturnsReference)
          {
+            pag->bottom_node->pointee_class_names.insert(returnStaticType);
+            pag->addEdge(pag->bottom_node, returnNode, ASSIGN, bci);
+            // else
+            //    stack->pushRef(pag->getReturnNode(getOrInsertMethodIndexByName(full_method_name, pag)));
+         }
+         else if (calleeReturnsPrimitive)
+         {
+            pag->addEdge(primitive_node, returnNode, ASSIGN, bci);
+         }
+         return true;
+      }
+      J9Class *j9Class = findClassAcrossAllLoaders(comp, className, fej9, resolvedMethod);
+      TR_ASSERT_FATAL(j9Class, "Could not load the class by name");
+      J9ROMClass *romClass = j9Class->romClass;
+
+      for (U_32 i = 0; i < romClass->romMethodCount; i++)
+      {
+         J9Method *ramMethod = &j9Class->ramMethods[i];
+         // std::cout << "Method added is: " ;
+         TR_OpaqueMethodBlock *method_block = reinterpret_cast<TR_OpaqueMethodBlock *>(ramMethod);
+         TR_ResolvedMethod *resolved_Method = comp->fe()->createResolvedMethod(comp->trMemory(), method_block, 0);
+
+         // int classNameLength = resolvedMethod->classNameLength();
+         // const char* className = resolvedMethod->classNameChars();
+         int methodNameLength = resolved_Method->nameLength();
+         const char *methodName = resolved_Method->nameChars();
+         int signatureLength = resolved_Method->signatureLength();
+         const char *signature = resolved_Method->signatureChars();
+
+         std::string signature_name(signature, signatureLength);
+         std::string target_method_name(methodName, methodNameLength);
+         std::string full_method_name = className + "." + method_name + method_signature;
+         if (method_signature == signature_name && method_name == target_method_name)
+         {
+            bool isAbstractMethod = resolved_Method->isAbstract();
+
+            if (isAbstractMethod && className.rfind(StaticClassName) == 0)
+            {
+               if (calleeReturnsReference)
+               {
+                  if (isLibraryMethod(full_method_name))
+                     pag->addEdge(pag->bottom_node, returnNode, ASSIGN, bci);
+                  else
+                     pag->addEdge(pag->getReturnNode(getOrInsertMethodIndexByName(full_method_name, pag)), returnNode, ASSIGN, bci);
+               }
+               else if (calleeReturnsPrimitive)
+               {
+                  pag->addEdge(primitive_node, returnNode, ASSIGN, bci);
+               }
+               return false;
+            }
+
+            // if not a library method, not anbalyzed earlier, not in the curently being analyzed methods then traverse it first
+            if (!isLibraryMethod(full_method_name) && analysedMethodNames.find(full_method_name) == analysedMethodNames.end() && _methodsNamesBeingAnalyzed.find(full_method_name) == _methodsNamesBeingAnalyzed.end()) //&& changedMethodNames.find(full_method_name) == changedMethodNames.end())
+            {
+               PAGNode *comp_type_2 = new PAGNode();
+               comp_type_2->comp_type = "COMP_TYPE_2";
+               traverse_cfg(ramMethod, pag, getOrInsertMethodIndexByName(full_method_name, pag), comp, new PAGNode(), comp_type_2);
+            }
+
+            vector<PAGNode *> f_params = pag->getFormalParameterNodes(getOrInsertMethodIndexByName(full_method_name, pag));
+            if (isLibraryMethod(full_method_name))
+            {
+               for (int f_ind = 0; f_ind < f_params.size(); f_ind++)
+                  f_params[f_ind] = pag->bottom_node;
+            }
+            for (int f_ind = 0; f_ind < f_params.size(); f_ind++)
+            {
+               for (PAGNode *a_param : actual_params[f_ind])
+                  pag->addEdge(a_param, f_params[f_ind], ASSIGN, bci);
+            }
             if (calleeReturnsReference)
             {
                if (isLibraryMethod(full_method_name))
@@ -8497,1686 +8533,1652 @@ bool searchForOveridingMethodsInClass(std::string className, std::string method_
             {
                pag->addEdge(primitive_node, returnNode, ASSIGN, bci);
             }
-            return false;
+            return true;
          }
+         // else
+         // {
+         //    std::cout << "Could not find the method " << method_name << " in class " << className << std::endl;
+         // }
 
-         // if not a library method, not anbalyzed earlier, not in the curently being analyzed methods then traverse it first
-         if (!isLibraryMethod(full_method_name) && analysedMethodNames.find(full_method_name) == analysedMethodNames.end() && _methodsNamesBeingAnalyzed.find(full_method_name) == _methodsNamesBeingAnalyzed.end()) //&& changedMethodNames.find(full_method_name) == changedMethodNames.end())
-         {
-            PAGNode *comp_type_2 = new PAGNode();
-            comp_type_2->comp_type = "COMP_TYPE_2";
-            traverse_cfg(ramMethod, pag, getOrInsertMethodIndexByName(full_method_name, pag), comp, new PAGNode(), comp_type_2);
-         }
-
-         vector<PAGNode *> f_params = pag->getFormalParameterNodes(getOrInsertMethodIndexByName(full_method_name, pag));
-         if (isLibraryMethod(full_method_name))
-         {
-            for (int f_ind = 0; f_ind < f_params.size(); f_ind++)
-               f_params[f_ind] = pag->bottom_node;
-         }
-         for (int f_ind = 0; f_ind < f_params.size(); f_ind++)
-         {
-            for (PAGNode *a_param : actual_params[f_ind])
-               pag->addEdge(a_param, f_params[f_ind], ASSIGN, bci);
-         }
-         if (calleeReturnsReference)
-         {
-            if (isLibraryMethod(full_method_name))
-               pag->addEdge(pag->bottom_node, returnNode, ASSIGN, bci);
-            else
-               pag->addEdge(pag->getReturnNode(getOrInsertMethodIndexByName(full_method_name, pag)), returnNode, ASSIGN, bci);
-         }
-         else if (calleeReturnsPrimitive)
-         {
-            pag->addEdge(primitive_node, returnNode, ASSIGN, bci);
-         }
-         return true;
+         // std::cout << std::string(className, classNameLength)
+         //         << "." << std::string(methodName, methodNameLength)
+         //         << std::string(signature, signatureLength) << std::endl;
       }
-      // else
-      // {
-      //    std::cout << "Could not find the method " << method_name << " in class " << className << std::endl;
-      // }
 
-      // std::cout << std::string(className, classNameLength)
-      //         << "." << std::string(methodName, methodNameLength)
-      //         << std::string(signature, signatureLength) << std::endl;
+      return false;
    }
 
-   return false;
-}
-
-int count_parameters(const char *signature)
-{
-   int count = 0;
-   const char *p = strchr(signature, '(') + 1;
-   while (*p && *p != ')')
+   int count_parameters(const char *signature)
    {
-      switch (*p)
+      int count = 0;
+      const char *p = strchr(signature, '(') + 1;
+      while (*p && *p != ')')
       {
-      case 'B':
-      case 'C':
-      case 'D':
-      case 'F':
-      case 'I':
-      case 'J':
-      case 'S':
-      case 'Z':
-         ++count;
-         ++p;
-         break;
-      case 'L':
-         ++count;
-         p = strchr(p, ';') + 1;
-         break;
-      case '[':
-         while (*p == '[')
+         switch (*p)
+         {
+         case 'B':
+         case 'C':
+         case 'D':
+         case 'F':
+         case 'I':
+         case 'J':
+         case 'S':
+         case 'Z':
+            ++count;
             ++p;
-         if (*p == 'L')
+            break;
+         case 'L':
+            ++count;
             p = strchr(p, ';') + 1;
-         else
-            ++p;
-         ++count;
-         break;
-      default:
-         ++p;
-      }
-   }
-   return count;
-}
-std::string getParameterReferenceType(const char *signature, int parameterIndex)
-{
-   if (!signature || parameterIndex < 0)
-      return "";
-
-   const char *p = signature;
-
-   // Skip opening parenthesis
-   if (*p != '(')
-      return "";
-   p++;
-
-   int currentParam = 0;
-
-   while (*p && *p != ')')
-   {
-      if (currentParam == parameterIndex)
-      {
-         // Found our target parameter
-         if (*p == 'L')
-         {
-            // Reference type: Lcom/example/Class;
-            p++; // Skip 'L'
-            const char *start = p;
-            while (*p && *p != ';')
-               p++;
-            return std::string(start, p - start);
-         }
-         else if (*p == '[')
-         {
-            // Array type: [Lcom/example/Class; or [[[I etc.
+            break;
+         case '[':
             while (*p == '[')
-               p++; // Skip all array dimensions
+               ++p;
+            if (*p == 'L')
+               p = strchr(p, ';') + 1;
+            else
+               ++p;
+            ++count;
+            break;
+         default:
+            ++p;
+         }
+      }
+      return count;
+   }
+   std::string getParameterReferenceType(const char *signature, int parameterIndex)
+   {
+      if (!signature || parameterIndex < 0)
+         return "";
 
+      const char *p = signature;
+
+      // Skip opening parenthesis
+      if (*p != '(')
+         return "";
+      p++;
+
+      int currentParam = 0;
+
+      while (*p && *p != ')')
+      {
+         if (currentParam == parameterIndex)
+         {
+            // Found our target parameter
             if (*p == 'L')
             {
-               // Reference array: [Lcom/example/Class;
+               // Reference type: Lcom/example/Class;
                p++; // Skip 'L'
                const char *start = p;
                while (*p && *p != ';')
                   p++;
                return std::string(start, p - start);
             }
+            else if (*p == '[')
+            {
+               // Array type: [Lcom/example/Class; or [[[I etc.
+               while (*p == '[')
+                  p++; // Skip all array dimensions
+
+               if (*p == 'L')
+               {
+                  // Reference array: [Lcom/example/Class;
+                  p++; // Skip 'L'
+                  const char *start = p;
+                  while (*p && *p != ';')
+                     p++;
+                  return std::string(start, p - start);
+               }
+               else
+               {
+                  // Primitive array: [I, [D etc.
+                  return ""; // Not a reference type
+               }
+            }
             else
             {
-               // Primitive array: [I, [D etc.
+               // Primitive type
                return ""; // Not a reference type
             }
          }
-         else
-         {
-            // Primitive type
-            return ""; // Not a reference type
-         }
-      }
 
-      if (*p == 'L')
-      {
-         // Skip reference type
-         while (*p && *p != ';')
-            p++;
-         if (*p == ';')
-            p++;
-      }
-      else if (*p == '[')
-      {
-         // Skip array type
-         while (*p == '[')
-            p++;
          if (*p == 'L')
          {
+            // Skip reference type
             while (*p && *p != ';')
                p++;
             if (*p == ';')
                p++;
          }
+         else if (*p == '[')
+         {
+            // Skip array type
+            while (*p == '[')
+               p++;
+            if (*p == 'L')
+            {
+               while (*p && *p != ';')
+                  p++;
+               if (*p == ';')
+                  p++;
+            }
+            else
+            {
+               p++; // Skip primitive element type
+            }
+         }
          else
          {
-            p++; // Skip primitive element type
+            // Skip primitive type
+            p++;
          }
-      }
-      else
-      {
-         // Skip primitive type
-         p++;
+
+         currentParam++;
       }
 
-      currentParam++;
+      return ""; // Parameter index not found
    }
 
-   return ""; // Parameter index not found
-}
-
-bool is_reference_type(const char *signature, int argumentIndex)
-{
-   int idx = 0;
-   // std::cout << "Argument index is : " << argumentIndex << std::endl;
-   const char *p = strchr(signature, '(') + 1;
-   while (*p && *p != ')')
+   bool is_reference_type(const char *signature, int argumentIndex)
    {
-
-      if (idx == argumentIndex)
+      int idx = 0;
+      // std::cout << "Argument index is : " << argumentIndex << std::endl;
+      const char *p = strchr(signature, '(') + 1;
+      while (*p && *p != ')')
       {
-         if (*p == 'L')
+
+         if (idx == argumentIndex)
          {
-            // Object reference
-            return true;
+            if (*p == 'L')
+            {
+               // Object reference
+               return true;
+            }
+            if (*p == '[')
+            {
+
+               return true;
+            }
+
+            return false;
          }
-         if (*p == '[')
-         {
 
-            return true;
-         }
-
-         return false;
-      }
-
-      if (*p == 'L')
-      {
-         p = strchr(p, ';') + 1;
-      }
-      else if (*p == '[')
-      {
-
-         while (*p == '[')
-            ++p;
          if (*p == 'L')
          {
             p = strchr(p, ';') + 1;
          }
+         else if (*p == '[')
+         {
+
+            while (*p == '[')
+               ++p;
+            if (*p == 'L')
+            {
+               p = strchr(p, ';') + 1;
+            }
+            else
+            {
+               ++p;
+            }
+         }
          else
          {
             ++p;
          }
+         ++idx;
       }
-      else
-      {
-         ++p;
-      }
-      ++idx;
-   }
-   return false;
-}
-
-void updateMatchEdges(PointerAssignmentGraph *pag)
-{
-   for (PAGEdge *e1 : pag->getStoreEdges())
-   {
-      for (PAGEdge *e2 : pag->getLoadEdges())
-      {
-         if (e1->field == e2->field)
-         {
-            bool exists = false;
-            for (PAGEdge *outEdge : e1->src->outgoing)
-            {
-               if (outEdge->dest == e2->dest && outEdge->type == MATCH)
-               {
-                  exists = true;
-                  break;
-               }
-            }
-            if (!exists)
-            {
-               pag->addEdge(e1->src, e2->dest, MATCH);
-            }
-         }
-      }
-   }
-}
-
-void getall_loaded_classes(TR::Compilation *comp)
-{
-   // std::cout << "All the loaded classes are: " << std::endl;
-   // loaded by myagent
-   std::ifstream file("ci.txt");
-   std::string line;
-   int index = 1;
-
-   while (std::getline(file, line))
-   {
-      loaded_classes.insert(line);
-   }
-   file.close();
-
-   J9VMThread *vmThread = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
-   J9JavaVM *javaVM = vmThread->javaVM;
-   TR::VMAccessCriticalSection criticalSection(comp);
-
-   J9ClassLoader *classLoader = NULL;
-   GC_PoolIterator classLoaderIterator(javaVM->classLoaderBlocks);
-   while (NULL != (classLoader = (J9ClassLoader *)classLoaderIterator.nextSlot()))
-   {
-      J9HashTableState walkState;
-      J9Class *clazz = javaVM->internalVMFunctions->hashClassTableStartDo(classLoader, &walkState, 0);
-      while (clazz)
-      {
-         if (!J9ROMCLASS_IS_ARRAY(clazz->romClass))
-         {
-            // std::string className1 = TR::Compiler->cls.classSignature(comp, reinterpret_cast<TR_OpaqueClassBlock *>(clazz), comp->trMemory());
-            // TR_ASSERT_FATAL(className.size() != 0, "unable to get class name for type");
-
-            J9Class *j9clazz = (J9Class *)clazz;
-            J9UTF8 *nameUTF8 = J9ROMCLASS_CLASSNAME(j9clazz->romClass);
-            std::string className((char *)J9UTF8_DATA(nameUTF8), J9UTF8_LENGTH(nameUTF8));
-
-            if (!(className.rfind("java/") == 0 || className.rfind("sun") == 0 || className.rfind("jdk") == 0 || className.rfind("openj9") == 0 || className.rfind("com") == 0))
-            {
-               //    std :: cout << className <<std::endl;
-               all_loaded_classes.insert(className);
-               className_to_fields[className] = getClassFields(clazz, comp->j9VMThread());
-            }
-         }
-         clazz = javaVM->internalVMFunctions->hashClassTableNextDo(&walkState);
-      }
-   }
-   ////
-}
-
-void getThreadRelatedClasses(TR::Compilation *comp)
-{
-   for (std::string class_name : all_loaded_classes)
-   {
-
-      TR_OpaqueClassBlock *type = comp->fe()->getClassFromSignature(class_name.c_str(), class_name.length(), comp->getCurrentMethod(), true);
-      J9Class **superClasses = TR::Compiler->cls.superClassesOf(type);
-
-      int classDepth = TR::Compiler->cls.classDepthOf(type);
-      // printf("Superclasses of %s:\n", TR::Compiler->cls.classSignature(comp, type, comp->trMemory()));
-
-      // ignore java/lang/Object (at index i=0)
-      for (int32_t i = 1; i < classDepth; ++i)
-      {
-         J9Class *superClass = superClasses[i];
-         // CHA[(TR_OpaqueClassBlock *)superClass].insert(type);
-
-         std::string superClassName = TR::Compiler->cls.classSignature(comp, (TR_OpaqueClassBlock *)superClass, comp->trMemory());
-         if (superClassName.rfind("Ljava/lang/Thread;") == 0)
-         {
-            threadExtendingClasses.insert(class_name);
-         }
-      }
-
-      std::string tpName = TR::Compiler->cls.classSignature(comp, type, comp->trMemory());
-      // std::cout<< "tpName: "<<tpName<<std::endl;
-      for (J9ITable *iTableCur = TR::Compiler->cls.iTableOf(type); iTableCur; iTableCur = iTableCur->next)
-      {
-         // CHA[(TR_OpaqueClassBlock *)iTableCur->interfaceClass].insert(type);
-         // std::cout << TR::Compiler->cls.classSignature(comp, (TR_OpaqueClassBlock *)iTableCur->interfaceClass, comp->trMemory()) << "---->" << TR::Compiler->cls.classSignature(comp, type, comp->trMemory()) << std::endl;
-         std::string superClassName = TR::Compiler->cls.classSignature(comp, (TR_OpaqueClassBlock *)iTableCur->interfaceClass, comp->trMemory());
-         if (superClassName.rfind("Ljava/lang/Runnable") == 0)
-         {
-            threadExtendingClasses.insert(class_name);
-         }
-      }
-   }
-}
-
-int32_t getInstructionLength(TR_J9ByteCode bytecode, uint8_t *pc)
-{
-   switch (bytecode)
-   {
-   case J9BCnop:
-   case J9BCaconstnull:
-   case J9BCiconstm1:
-   case J9BCiconst0:
-   case J9BCiconst1:
-   case J9BCiconst2:
-   case J9BCiconst3:
-   case J9BCiconst4:
-   case J9BCiconst5:
-   case J9BClconst0:
-   case J9BClconst1:
-   case J9BCfconst0:
-   case J9BCfconst1:
-   case J9BCfconst2:
-   case J9BCdconst0:
-   case J9BCdconst1:
-   case J9BCiload0:
-   case J9BCiload1:
-   case J9BCiload2:
-   case J9BCiload3:
-   case J9BClload0:
-   case J9BClload1:
-   case J9BClload2:
-   case J9BClload3:
-   case J9BCfload0:
-   case J9BCfload1:
-   case J9BCfload2:
-   case J9BCfload3:
-   case J9BCdload0:
-   case J9BCdload1:
-   case J9BCdload2:
-   case J9BCdload3:
-   case J9BCaload0:
-   case J9BCaload1:
-   case J9BCaload2:
-   case J9BCaload3:
-   case J9BCiaload:
-   case J9BClaload:
-   case J9BCfaload:
-   case J9BCdaload:
-   case J9BCaaload:
-   case J9BCbaload:
-   case J9BCcaload:
-   case J9BCsaload:
-   case J9BCistore0:
-   case J9BCistore1:
-   case J9BCistore2:
-   case J9BCistore3:
-   case J9BClstore0:
-   case J9BClstore1:
-   case J9BClstore2:
-   case J9BClstore3:
-   case J9BCfstore0:
-   case J9BCfstore1:
-   case J9BCfstore2:
-   case J9BCfstore3:
-   case J9BCdstore0:
-   case J9BCdstore1:
-   case J9BCdstore2:
-   case J9BCdstore3:
-   case J9BCastore0:
-   case J9BCastore1:
-   case J9BCastore2:
-   case J9BCastore3:
-   case J9BCiastore:
-   case J9BClastore:
-   case J9BCfastore:
-   case J9BCdastore:
-   case J9BCaastore:
-   case J9BCbastore:
-   case J9BCcastore:
-   case J9BCsastore:
-   case J9BCpop:
-   case J9BCpop2:
-   case J9BCdup:
-   case J9BCdupx1:
-   case J9BCdupx2:
-   case J9BCdup2:
-   case J9BCdup2x1:
-   case J9BCdup2x2:
-   case J9BCswap:
-   case J9BCiadd:
-   case J9BCladd:
-   case J9BCfadd:
-   case J9BCdadd:
-   case J9BCisub:
-   case J9BClsub:
-   case J9BCfsub:
-   case J9BCdsub:
-   case J9BCimul:
-   case J9BClmul:
-   case J9BCfmul:
-   case J9BCdmul:
-   case J9BCidiv:
-   case J9BCldiv:
-   case J9BCfdiv:
-   case J9BCddiv:
-   case J9BCirem:
-   case J9BClrem:
-   case J9BCfrem:
-   case J9BCdrem:
-   case J9BCineg:
-   case J9BClneg:
-   case J9BCfneg:
-   case J9BCdneg:
-   case J9BCishl:
-   case J9BClshl:
-   case J9BCishr:
-   case J9BClshr:
-   case J9BCiushr:
-   case J9BClushr:
-   case J9BCiand:
-   case J9BCland:
-   case J9BCior:
-   case J9BClor:
-   case J9BCixor:
-   case J9BClxor:
-   case J9BCi2l:
-   case J9BCi2f:
-   case J9BCi2d:
-   case J9BCl2i:
-   case J9BCl2f:
-   case J9BCl2d:
-   case J9BCf2i:
-   case J9BCf2l:
-   case J9BCf2d:
-   case J9BCd2i:
-   case J9BCd2l:
-   case J9BCd2f:
-   case J9BCi2b:
-   case J9BCi2c:
-   case J9BCi2s:
-   case J9BClcmp:
-   case J9BCfcmpl:
-   case J9BCfcmpg:
-   case J9BCdcmpl:
-   case J9BCdcmpg:
-   case J9BCgenericReturn:
-   case J9BCReturnC:
-   case J9BCReturnS:
-   case J9BCReturnB:
-   case J9BCReturnZ:
-   case J9BCarraylength:
-   case J9BCathrow:
-   case J9BCmonitorenter:
-   case J9BCmonitorexit:
-   case J9BCasyncCheck:
-   case J9BCbreakpoint:
-      return 1;
-   case J9BCbipush:
-   case J9BCnewarray:
-   case J9BCaload:
-   case J9BCldc:
-   case J9BCiload:
-   case J9BClload:
-   case J9BCfload:
-   case J9BCdload:
-   case J9BCistore:
-   case J9BClstore:
-   case J9BCfstore:
-   case J9BCdstore:
-   case J9BCastore:
-      return 2;
-   case J9BCsipush:
-   case J9BCldcw:
-   case J9BCldc2lw:
-   case J9BCldc2dw:
-   case J9BCifeq:
-   case J9BCifne:
-   case J9BCiflt:
-   case J9BCifge:
-   case J9BCifgt:
-   case J9BCifle:
-   case J9BCificmpeq:
-   case J9BCificmpne:
-   case J9BCificmplt:
-   case J9BCificmpge:
-   case J9BCificmpgt:
-   case J9BCificmple:
-   case J9BCifacmpeq:
-   case J9BCifacmpne:
-   case J9BCifnull:
-   case J9BCifnonnull:
-   case J9BCgoto:
-   case J9BCgetstatic:
-   case J9BCputstatic:
-   case J9BCgetfield:
-   case J9BCputfield:
-   case J9BCinvokevirtual:
-   case J9BCinvokespecial:
-   case J9BCinvokestatic:
-   case J9BCnew:
-   case J9BCanewarray:
-   case J9BCcheckcast:
-   case J9BCinstanceof:
-   case J9BCiinc:
-      return 3;
-   case J9BCmultianewarray:
-      return 4;
-   case J9BCinvokeinterface:
-   case J9BCinvokeinterface2:
-   case J9BCinvokedynamic:
-   case J9BCgotow:
-      return 5;
-   case J9BCtableswitch:
-      return calculateTableswitchLength(pc);
-   case J9BClookupswitch:
-      return calculateLookupswitchLength(pc);
-   case J9BCwide:
-      return calculateWideInstructionLength(pc);
-   default:
-      return -1;
-   }
-}
-
-int getOrInsertMethodIndexByName(std::string methodName, PointerAssignmentGraph *pag)
-{
-   // TR_OpaqueMethodBlock *methodPersistentId = methodSymbol->getResolvedMethod()->getPersistentIdentifier();
-   // // no need of assert, guaranteed to be available
-
-   if (pag->_methodIndices.find(methodName) != pag->_methodIndices.end())
-   {
-      std::cout << "Found in the method indices " << methodName << std::endl;
-      return pag->_methodIndices[methodName];
-   }
-
-   int index = pag->_methodIndices.size() + 1;
-   pag->_methodIndices[methodName] = index;
-   std::cout << "Inserted in the method indices " << methodName << std::endl;
-
-   return index;
-}
-
-const char *getBytecodeString(TR_J9ByteCode bytecode)
-{
-   switch (bytecode)
-   {
-   case J9BCnop:
-      return "nop";
-   case J9BCaconstnull:
-      return "aconst_null";
-   case J9BCiconstm1:
-      return "iconst_m1";
-   case J9BCiconst0:
-      return "iconst_0";
-   case J9BCiconst1:
-      return "iconst_1";
-   case J9BCiconst2:
-      return "iconst_2";
-   case J9BCiconst3:
-      return "iconst_3";
-   case J9BCiconst4:
-      return "iconst_4";
-   case J9BCiconst5:
-      return "iconst_5";
-   case J9BClconst0:
-      return "lconst_0";
-   case J9BClconst1:
-      return "lconst_1";
-   case J9BCfconst0:
-      return "fconst_0";
-   case J9BCfconst1:
-      return "fconst_1";
-   case J9BCfconst2:
-      return "fconst_2";
-   case J9BCdconst0:
-      return "dconst_0";
-   case J9BCdconst1:
-      return "dconst_1";
-   case J9BCiload:
-      return "iload";
-   case J9BClload:
-      return "lload";
-   case J9BCfload:
-      return "fload";
-   case J9BCdload:
-      return "dload";
-   case J9BCaload:
-      return "aload";
-
-   case J9BCiload0:
-      return "iload_0";
-   case J9BCiload1:
-      return "iload_1";
-   case J9BCiload2:
-      return "iload_2";
-   case J9BCiload3:
-      return "iload_3";
-   case J9BClload0:
-      return "lload_0";
-   case J9BClload1:
-      return "lload_1";
-   case J9BClload2:
-      return "lload_2";
-   case J9BClload3:
-      return "lload_3";
-   case J9BCfload0:
-      return "fload_0";
-   case J9BCfload1:
-      return "fload_1";
-   case J9BCfload2:
-      return "fload_2";
-   case J9BCfload3:
-      return "fload_3";
-   case J9BCdload0:
-      return "dload_0";
-   case J9BCdload1:
-      return "dload_1";
-   case J9BCdload2:
-      return "dload_2";
-   case J9BCdload3:
-      return "dload_3";
-   case J9BCaload0:
-      return "aload_0";
-   case J9BCaload1:
-      return "aload_1";
-   case J9BCaload2:
-      return "aload_2";
-   case J9BCaload3:
-      return "aload_3";
-
-   case J9BCiaload:
-      return "iaload";
-   case J9BClaload:
-      return "laload";
-   case J9BCfaload:
-      return "faload";
-   case J9BCdaload:
-      return "daload";
-   case J9BCaaload:
-      return "aaload";
-   case J9BCbaload:
-      return "baload";
-   case J9BCcaload:
-      return "caload";
-   case J9BCsaload:
-      return "saload";
-
-   case J9BCistore:
-      return "istore";
-   case J9BClstore:
-      return "lstore";
-   case J9BCfstore:
-      return "fstore";
-   case J9BCdstore:
-      return "dstore";
-   case J9BCastore:
-      return "astore";
-
-   case J9BCistore0:
-      return "istore_0";
-   case J9BCistore1:
-      return "istore_1";
-   case J9BCistore2:
-      return "istore_2";
-   case J9BCistore3:
-      return "istore_3";
-   case J9BClstore0:
-      return "lstore_0";
-   case J9BClstore1:
-      return "lstore_1";
-   case J9BClstore2:
-      return "lstore_2";
-   case J9BClstore3:
-      return "lstore_3";
-   case J9BCfstore0:
-      return "fstore_0";
-   case J9BCfstore1:
-      return "fstore_1";
-   case J9BCfstore2:
-      return "fstore_2";
-   case J9BCfstore3:
-      return "fstore_3";
-   case J9BCdstore0:
-      return "dstore_0";
-   case J9BCdstore1:
-      return "dstore_1";
-   case J9BCdstore2:
-      return "dstore_2";
-   case J9BCdstore3:
-      return "dstore_3";
-   case J9BCastore0:
-      return "astore_0";
-   case J9BCastore1:
-      return "astore_1";
-   case J9BCastore2:
-      return "astore_2";
-   case J9BCastore3:
-      return "astore_3";
-   case J9BCiastore:
-      return "iastore";
-   case J9BClastore:
-      return "lastore";
-   case J9BCfastore:
-      return "fastore";
-   case J9BCdastore:
-      return "dastore";
-   case J9BCaastore:
-      return "aastore";
-   case J9BCbastore:
-      return "bastore";
-   case J9BCcastore:
-      return "castore";
-   case J9BCsastore:
-      return "sastore";
-
-   case J9BCpop:
-      return "pop";
-   case J9BCpop2:
-      return "pop2";
-   case J9BCdup:
-      return "dup";
-   case J9BCdupx1:
-      return "dup_x1";
-   case J9BCdupx2:
-      return "dup_x2";
-   case J9BCdup2:
-      return "dup2";
-   case J9BCdup2x1:
-      return "dup2_x1";
-   case J9BCdup2x2:
-      return "dup2_x2";
-   case J9BCswap:
-      return "swap";
-
-   case J9BCiadd:
-      return "iadd";
-   case J9BCladd:
-      return "ladd";
-   case J9BCfadd:
-      return "fadd";
-   case J9BCdadd:
-      return "dadd";
-   case J9BCisub:
-      return "isub";
-   case J9BClsub:
-      return "lsub";
-   case J9BCfsub:
-      return "fsub";
-   case J9BCdsub:
-      return "dsub";
-   case J9BCimul:
-      return "imul";
-   case J9BClmul:
-      return "lmul";
-   case J9BCfmul:
-      return "fmul";
-   case J9BCdmul:
-      return "dmul";
-   case J9BCidiv:
-      return "idiv";
-   case J9BCldiv:
-      return "ldiv";
-   case J9BCfdiv:
-      return "fdiv";
-   case J9BCddiv:
-      return "ddiv";
-   case J9BCirem:
-      return "irem";
-   case J9BClrem:
-      return "lrem";
-   case J9BCfrem:
-      return "frem";
-   case J9BCdrem:
-      return "drem";
-   case J9BCineg:
-      return "ineg";
-   case J9BClneg:
-      return "lneg";
-   case J9BCfneg:
-      return "fneg";
-   case J9BCdneg:
-      return "dneg";
-
-   // Bit operations
-   case J9BCishl:
-      return "ishl";
-   case J9BClshl:
-      return "lshl";
-   case J9BCishr:
-      return "ishr";
-   case J9BClshr:
-      return "lshr";
-   case J9BCiushr:
-      return "iushr";
-   case J9BClushr:
-      return "lushr";
-   case J9BCiand:
-      return "iand";
-   case J9BCland:
-      return "land";
-   case J9BCior:
-      return "ior";
-   case J9BClor:
-      return "lor";
-   case J9BCixor:
-      return "ixor";
-   case J9BClxor:
-      return "lxor";
-
-   // Control flow
-   case J9BCifeq:
-      return "ifeq";
-   case J9BCifne:
-      return "ifne";
-   case J9BCiflt:
-      return "iflt";
-   case J9BCifge:
-      return "ifge";
-   case J9BCifgt:
-      return "ifgt";
-   case J9BCifle:
-      return "ifle";
-   case J9BCificmpeq:
-      return "if_icmpeq";
-   case J9BCificmpne:
-      return "if_icmpne";
-   case J9BCificmplt:
-      return "if_icmplt";
-   case J9BCificmpge:
-      return "if_icmpge";
-   case J9BCificmpgt:
-      return "if_icmpgt";
-   case J9BCificmple:
-      return "if_icmple";
-   case J9BCifacmpeq:
-      return "if_acmpeq";
-   case J9BCifacmpne:
-      return "if_acmpne";
-   case J9BCifnull:
-      return "ifnull";
-   case J9BCifnonnull:
-      return "ifnonnull";
-   case J9BCgoto:
-      return "goto";
-   case J9BCgotow:
-      return "goto_w";
-   case J9BCtableswitch:
-      return "tableswitch";
-   case J9BClookupswitch:
-      return "lookupswitch";
-
-   // Method invocation
-   case J9BCinvokevirtual:
-      return "invokevirtual";
-   case J9BCinvokespecial:
-      return "invokespecial";
-   case J9BCinvokestatic:
-      return "invokestatic";
-   case J9BCinvokeinterface:
-      return "invokeinterface";
-   case J9BCinvokedynamic:
-      return "invokedynamic";
-   case J9BCinvokehandle:
-      return "invokehandle";
-   case J9BCinvokehandlegeneric:
-      return "invokehandlegeneric";
-   case J9BCinvokespecialsplit:
-      return "invokespecialsplit";
-   case J9BCinvokestaticsplit:
-      return "invokestaticsplit";
-   case J9BCinvokeinterface2:
-      return "invokeinterface2";
-
-   // Field access
-   case J9BCgetstatic:
-      return "getstatic";
-   case J9BCputstatic:
-      return "putstatic";
-   case J9BCgetfield:
-      return "getfield";
-   case J9BCputfield:
-      return "putfield";
-
-   // Object creation and arrays
-   case J9BCnew:
-      return "new";
-   case J9BCnewarray:
-      return "newarray";
-   case J9BCanewarray:
-      return "anewarray";
-   case J9BCmultianewarray:
-      return "multianewarray";
-   case J9BCarraylength:
-      return "arraylength";
-
-   // Type checking
-   case J9BCcheckcast:
-      return "checkcast";
-   case J9BCinstanceof:
-      return "instanceof";
-
-   // Exception handling
-   case J9BCathrow:
-      return "athrow";
-
-   // Synchronization
-   case J9BCmonitorenter:
-      return "monitorenter";
-   case J9BCmonitorexit:
-      return "monitorexit";
-
-   // Returns
-   case J9BCgenericReturn:
-      return "return generic";
-   case J9BCReturnC:
-      return "ReturnC";
-   case J9BCReturnS:
-      return "ReturnS";
-   case J9BCReturnB:
-      return "ReturnB";
-   case J9BCReturnZ:
-      return "ReturnZ";
-
-   // Constants loading
-   case J9BCbipush:
-      return "bipush";
-   case J9BCsipush:
-      return "sipush";
-   case J9BCldc:
-      return "ldc";
-   case J9BCldcw:
-      return "ldc_w";
-   case J9BCldc2lw:
-      return "ldc2_w (long)";
-   case J9BCldc2dw:
-      return "ldc2_w (double)";
-
-   // Conversion instructions
-   case J9BCi2l:
-      return "i2l";
-   case J9BCi2f:
-      return "i2f";
-   case J9BCi2d:
-      return "i2d";
-   case J9BCl2i:
-      return "l2i";
-   case J9BCl2f:
-      return "l2f";
-   case J9BCl2d:
-      return "l2d";
-   case J9BCf2i:
-      return "f2i";
-   case J9BCf2l:
-      return "f2l";
-   case J9BCf2d:
-      return "f2d";
-   case J9BCd2i:
-      return "d2i";
-   case J9BCd2l:
-      return "d2l";
-   case J9BCd2f:
-      return "d2f";
-   case J9BCi2b:
-      return "i2b";
-   case J9BCi2c:
-      return "i2c";
-   case J9BCi2s:
-      return "i2s";
-
-   // Comparison
-   case J9BClcmp:
-      return "lcmp";
-   case J9BCfcmpl:
-      return "fcmpl";
-   case J9BCfcmpg:
-      return "fcmpg";
-   case J9BCdcmpl:
-      return "dcmpl";
-   case J9BCdcmpg:
-      return "dcmpg";
-
-   // Increment
-   case J9BCiinc:
-      return "iinc";
-   case J9BCiincw:
-      return "iinc_w";
-
-   // Wide instructions
-   case J9BCiloadw:
-      return "iload_w";
-   case J9BClloadw:
-      return "lload_w";
-   case J9BCfloadw:
-      return "fload_w";
-   case J9BCdloadw:
-      return "dload_w";
-   case J9BCaloadw:
-      return "aload_w";
-   case J9BCistorew:
-      return "istore_w";
-   case J9BClstorew:
-      return "lstore_w";
-   case J9BCfstorew:
-      return "fstore_w";
-   case J9BCdstorew:
-      return "dstore_w";
-   case J9BCastorew:
-      return "astore_w";
-   case J9BCwide:
-      return "wide";
-
-   // Special instructions
-   case J9BCasyncCheck:
-      return "asyncCheck";
-   case J9BCbreakpoint:
-      return "breakpoint";
-   case J9BCunknown:
-      return "unknown";
-
-   default:
-      return "unrecognized";
-   }
-}
-#include <stdint.h>
-static int32_t read_int32(uint8_t **pc_ptr)
-{
-   int32_t val = ((*pc_ptr)[3] << 24) | ((*pc_ptr)[2] << 16) | ((*pc_ptr)[1] << 8) | (*pc_ptr)[0];
-   *pc_ptr += 4;
-   return val;
-}
-int32_t calculateLookupswitchLength(uint8_t *pc)
-{
-   uint8_t *current_pc = pc + 1; // skip opcode
-   int32_t padding = (4 - ((intptr_t)(current_pc) % 4)) % 4;
-   current_pc += padding;
-
-   int32_t default_offset = read_int32(&current_pc);
-   int32_t npairs = read_int32(&current_pc);
-
-   current_pc += (npairs * 8);
-   return (int32_t)(current_pc - pc);
-}
-
-int32_t calculateTableswitchLength(uint8_t *pc)
-{
-   uint8_t *current_pc = pc + 1;
-   int32_t padding = (4 - ((intptr_t)pc + 1) % 4) % 4;
-   current_pc += padding;
-   int32_t default_offset = read_int32(&current_pc);
-   int32_t low = read_int32(&current_pc);
-   int32_t high = read_int32(&current_pc);
-   int32_t num_jumps = high - low + 1;
-   current_pc += (num_jumps * 4);
-   return (int32_t)(current_pc - pc);
-}
-// int32_t calculateLookupswitchLength(uint8_t *pc)
-// {
-//    uint8_t *current_pc = pc + 1;
-//    int32_t padding = (4 - ((intptr_t)pc + 1) % 4) % 4;
-//    current_pc += padding;
-//    int32_t default_offset = read_int32(&current_pc);
-//    int32_t npairs = read_int32(&current_pc);
-//    current_pc += (npairs * 8);
-//    return (int32_t)(current_pc - pc);
-// }
-int32_t calculateWideInstructionLength(uint8_t *pc)
-{
-   TR_J9ByteCode modified_opcode = (TR_J9ByteCode) * (pc + 1);
-   int32_t length = 1;
-   switch (modified_opcode)
-   {
-   case J9BCiload:
-   case J9BClload:
-   case J9BCfload:
-   case J9BCdload:
-   case J9BCaload:
-   case J9BCistore:
-   case J9BClstore:
-   case J9BCfstore:
-   case J9BCdstore:
-   case J9BCastore:
-      length += 1;
-      length += 2;
-      break;
-   case J9BCiinc:
-      length += 1;
-      length += 2;
-      length += 2;
-      break;
-   default:
-      return -1;
-   }
-   return length;
-}
-
-// === Branch classifiers ===
-inline bool isBranch(TR_J9ByteCode bc)
-{
-   switch (bc)
-   {
-   // conditional branches
-   case J9BCifeq:
-   case J9BCifne:
-   case J9BCiflt:
-   case J9BCifge:
-   case J9BCifgt:
-   case J9BCifle:
-   case J9BCificmpeq:
-   case J9BCificmpne:
-   case J9BCificmplt:
-   case J9BCificmpge:
-   case J9BCificmpgt:
-   case J9BCificmple:
-   case J9BCifacmpeq:
-   case J9BCifacmpne:
-   case J9BCifnull:
-   case J9BCifnonnull:
-   // unconditional
-   case J9BCgoto:
-   case J9BCgotow:
-      return true;
-   default:
       return false;
    }
-}
 
-inline bool isSwitch(TR_J9ByteCode bc)
-{
-   return (bc == J9BCtableswitch || bc == J9BClookupswitch);
-}
-
-inline bool isReturnOrThrow(TR_J9ByteCode bc)
-{
-   switch (bc)
+   void updateMatchEdges(PointerAssignmentGraph * pag)
    {
-   case J9BCgenericReturn: // covers ireturn, lreturn, etc.
-   case J9BCReturnC:
-   case J9BCReturnS:
-   case J9BCReturnB:
-   case J9BCReturnZ:
-   case J9BCathrow:
-      return true;
-   default:
-      break;
-   }
-
-   return false;
-}
-// For branches, compute absolute bytecode index of target
-inline int32_t branchTarget(int32_t pcIndex, TR_J9ByteCode bc, uint8_t *pc)
-{
-   if (bc == J9BCgotow)
-   {
-      int32_t offset = (pc[4] << 24) | (pc[3] << 16) | (pc[2] << 8) | pc[1];
-      return pcIndex + offset;
-   }
-   else if (bc == J9BCgoto ||
-            bc == J9BCifeq || bc == J9BCifne || bc == J9BCiflt ||
-            bc == J9BCifge || bc == J9BCifgt || bc == J9BCifle ||
-            bc == J9BCificmpeq || bc == J9BCificmpne || bc == J9BCificmplt ||
-            bc == J9BCificmpge || bc == J9BCificmpgt || bc == J9BCificmple ||
-            bc == J9BCifacmpeq || bc == J9BCifacmpne ||
-            bc == J9BCifnull || bc == J9BCifnonnull)
-   {
-      int16_t offset = (pc[2] << 8) | pc[1];
-      return pcIndex + offset;
-   }
-
-   return -1; // not a branch
-}
-
-inline std::vector<int32_t> switchTargets(int32_t pcIndex, TR_J9ByteCode bc, uint8_t *pc)
-{
-   std::vector<int32_t> targets;
-
-   // Align to 4-byte boundary
-   int aligned = (pcIndex + 4) & ~0x3;
-   uint8_t *base = pc + (aligned - pcIndex);
-
-   auto readInt32 = [&](uint8_t *p) -> int32_t
-   {
-      return (p[3] << 24) | (p[3] << 16) | (p[1] << 8) | p[0];
-   };
-
-   if (bc == J9BCtableswitch)
-   {
-      int32_t defaultOffset = readInt32(base);
-      int32_t low = readInt32(base + 4);
-      int32_t high = readInt32(base + 8);
-
-      int32_t numOffsets = high - low + 1;
-      uint8_t *p = base + 12;
-
-      for (int i = 0; i < numOffsets; i++)
+      for (PAGEdge *e1 : pag->getStoreEdges())
       {
-         int32_t off = readInt32(p + 4 * i);
-         targets.push_back(pcIndex + off);
+         for (PAGEdge *e2 : pag->getLoadEdges())
+         {
+            if (e1->field == e2->field)
+            {
+               bool exists = false;
+               for (PAGEdge *outEdge : e1->src->outgoing)
+               {
+                  if (outEdge->dest == e2->dest && outEdge->type == MATCH)
+                  {
+                     exists = true;
+                     break;
+                  }
+               }
+               if (!exists)
+               {
+                  pag->addEdge(e1->src, e2->dest, MATCH);
+               }
+            }
+         }
       }
-      targets.push_back(pcIndex + defaultOffset);
    }
-   else if (bc == J9BClookupswitch)
+
+   void getall_loaded_classes(TR::Compilation * comp)
    {
-      int32_t defaultOffset = readInt32(base);
-      int32_t npairs = readInt32(base + 4);
+      // std::cout << "All the loaded classes are: " << std::endl;
+      // loaded by myagent
+      std::ifstream file("ci.txt");
+      std::string line;
+      int index = 1;
 
-      uint8_t *p = base + 8;
-      for (int i = 0; i < npairs; i++)
+      while (std::getline(file, line))
       {
-         // first word is match, second is offset
-         int32_t off = readInt32(p + 8 * i + 4);
-         targets.push_back(pcIndex + off);
+         loaded_classes.insert(line);
       }
-      targets.push_back(pcIndex + defaultOffset);
+      file.close();
+
+      J9VMThread *vmThread = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
+      J9JavaVM *javaVM = vmThread->javaVM;
+      TR::VMAccessCriticalSection criticalSection(comp);
+
+      J9ClassLoader *classLoader = NULL;
+      GC_PoolIterator classLoaderIterator(javaVM->classLoaderBlocks);
+      while (NULL != (classLoader = (J9ClassLoader *)classLoaderIterator.nextSlot()))
+      {
+         J9HashTableState walkState;
+         J9Class *clazz = javaVM->internalVMFunctions->hashClassTableStartDo(classLoader, &walkState, 0);
+         while (clazz)
+         {
+            if (!J9ROMCLASS_IS_ARRAY(clazz->romClass))
+            {
+               // std::string className1 = TR::Compiler->cls.classSignature(comp, reinterpret_cast<TR_OpaqueClassBlock *>(clazz), comp->trMemory());
+               // TR_ASSERT_FATAL(className.size() != 0, "unable to get class name for type");
+
+               J9Class *j9clazz = (J9Class *)clazz;
+               J9UTF8 *nameUTF8 = J9ROMCLASS_CLASSNAME(j9clazz->romClass);
+               std::string className((char *)J9UTF8_DATA(nameUTF8), J9UTF8_LENGTH(nameUTF8));
+
+               if (!(className.rfind("java/") == 0 || className.rfind("sun") == 0 || className.rfind("jdk") == 0 || className.rfind("openj9") == 0 || className.rfind("com") == 0))
+               {
+                  //    std :: cout << className <<std::endl;
+                  all_loaded_classes.insert(className);
+                  className_to_fields[className] = getClassFields(clazz, comp->j9VMThread());
+               }
+            }
+            clazz = javaVM->internalVMFunctions->hashClassTableNextDo(&walkState);
+         }
+      }
+      ////
    }
 
-   return targets;
-}
-bool isUnconditionalBranch(TR_J9ByteCode bc)
-{
-   return (bc == J9BCgoto || bc == J9BCgotow ||
-           bc == J9BCathrow || isReturnOrThrow(bc));
-}
-
-TR::CFG *buildCFG(TR_OpaqueMethodBlock *method_block, TR::Compilation *comp, std::map<int32_t, TR::Block *> &blocks, TR::Block *&entryBlock)
-{
-   int32_t methodSize = TR::Compiler->mtd.bytecodeSize(method_block);
-   uintptr_t methodStart = TR::Compiler->mtd.bytecodeStart(method_block);
-
-   TR::CFG *cfg = new (comp->trHeapMemory()) TR::CFG(comp, comp->getMethodSymbol());
-   std::set<int32_t> leaders;
-
-   leaders.insert(0); // entry always a leader
-
-   // Scan bytecodes to identify leaders
-   for (int32_t pcIndex = 0; pcIndex < methodSize;)
+   void getThreadRelatedClasses(TR::Compilation * comp)
    {
-      uint8_t *pc = (uint8_t *)(methodStart + pcIndex);
-      TR_J9ByteCode bc = TR_J9ByteCodeIterator::convertOpCodeToByteCodeEnum(*pc);
-      int32_t len = getInstructionLength(bc, pc);
+      for (std::string class_name : all_loaded_classes)
+      {
 
-      if (isBranch(bc))
-      {
-         int32_t tgt = branchTarget(pcIndex, bc, pc);
-         leaders.insert(tgt);
-         leaders.insert(pcIndex + len);
-      }
-      else if (isSwitch(bc))
-      {
-         auto tgts = switchTargets(pcIndex, bc, pc);
-         for (auto t : tgts)
-            leaders.insert(t);
-         leaders.insert(pcIndex + len);
-      }
-      else if (isReturnOrThrow(bc))
-      {
-         leaders.insert(pcIndex + len);
-      }
+         TR_OpaqueClassBlock *type = comp->fe()->getClassFromSignature(class_name.c_str(), class_name.length(), comp->getCurrentMethod(), true);
+         J9Class **superClasses = TR::Compiler->cls.superClassesOf(type);
 
-      pcIndex += len;
+         int classDepth = TR::Compiler->cls.classDepthOf(type);
+         // printf("Superclasses of %s:\n", TR::Compiler->cls.classSignature(comp, type, comp->trMemory()));
+
+         // ignore java/lang/Object (at index i=0)
+         for (int32_t i = 1; i < classDepth; ++i)
+         {
+            J9Class *superClass = superClasses[i];
+            // CHA[(TR_OpaqueClassBlock *)superClass].insert(type);
+
+            std::string superClassName = TR::Compiler->cls.classSignature(comp, (TR_OpaqueClassBlock *)superClass, comp->trMemory());
+            if (superClassName.rfind("Ljava/lang/Thread;") == 0)
+            {
+               threadExtendingClasses.insert(class_name);
+            }
+         }
+
+         std::string tpName = TR::Compiler->cls.classSignature(comp, type, comp->trMemory());
+         // std::cout<< "tpName: "<<tpName<<std::endl;
+         for (J9ITable *iTableCur = TR::Compiler->cls.iTableOf(type); iTableCur; iTableCur = iTableCur->next)
+         {
+            // CHA[(TR_OpaqueClassBlock *)iTableCur->interfaceClass].insert(type);
+            // std::cout << TR::Compiler->cls.classSignature(comp, (TR_OpaqueClassBlock *)iTableCur->interfaceClass, comp->trMemory()) << "---->" << TR::Compiler->cls.classSignature(comp, type, comp->trMemory()) << std::endl;
+            std::string superClassName = TR::Compiler->cls.classSignature(comp, (TR_OpaqueClassBlock *)iTableCur->interfaceClass, comp->trMemory());
+            if (superClassName.rfind("Ljava/lang/Runnable") == 0)
+            {
+               threadExtendingClasses.insert(class_name);
+            }
+         }
+      }
    }
 
-   // Add exception handler entries
-   // TR_ResolvedMethod *resolvedMethod = getCachedResolvedMethodFromPtr(comp, method_block);
-   // int numHandlers = resolvedMethod->exceptionTableLength();
-   // for (int i = 0; i < numHandlers; i++)
+   int32_t getInstructionLength(TR_J9ByteCode bytecode, uint8_t *pc)
+   {
+      switch (bytecode)
+      {
+      case J9BCnop:
+      case J9BCaconstnull:
+      case J9BCiconstm1:
+      case J9BCiconst0:
+      case J9BCiconst1:
+      case J9BCiconst2:
+      case J9BCiconst3:
+      case J9BCiconst4:
+      case J9BCiconst5:
+      case J9BClconst0:
+      case J9BClconst1:
+      case J9BCfconst0:
+      case J9BCfconst1:
+      case J9BCfconst2:
+      case J9BCdconst0:
+      case J9BCdconst1:
+      case J9BCiload0:
+      case J9BCiload1:
+      case J9BCiload2:
+      case J9BCiload3:
+      case J9BClload0:
+      case J9BClload1:
+      case J9BClload2:
+      case J9BClload3:
+      case J9BCfload0:
+      case J9BCfload1:
+      case J9BCfload2:
+      case J9BCfload3:
+      case J9BCdload0:
+      case J9BCdload1:
+      case J9BCdload2:
+      case J9BCdload3:
+      case J9BCaload0:
+      case J9BCaload1:
+      case J9BCaload2:
+      case J9BCaload3:
+      case J9BCiaload:
+      case J9BClaload:
+      case J9BCfaload:
+      case J9BCdaload:
+      case J9BCaaload:
+      case J9BCbaload:
+      case J9BCcaload:
+      case J9BCsaload:
+      case J9BCistore0:
+      case J9BCistore1:
+      case J9BCistore2:
+      case J9BCistore3:
+      case J9BClstore0:
+      case J9BClstore1:
+      case J9BClstore2:
+      case J9BClstore3:
+      case J9BCfstore0:
+      case J9BCfstore1:
+      case J9BCfstore2:
+      case J9BCfstore3:
+      case J9BCdstore0:
+      case J9BCdstore1:
+      case J9BCdstore2:
+      case J9BCdstore3:
+      case J9BCastore0:
+      case J9BCastore1:
+      case J9BCastore2:
+      case J9BCastore3:
+      case J9BCiastore:
+      case J9BClastore:
+      case J9BCfastore:
+      case J9BCdastore:
+      case J9BCaastore:
+      case J9BCbastore:
+      case J9BCcastore:
+      case J9BCsastore:
+      case J9BCpop:
+      case J9BCpop2:
+      case J9BCdup:
+      case J9BCdupx1:
+      case J9BCdupx2:
+      case J9BCdup2:
+      case J9BCdup2x1:
+      case J9BCdup2x2:
+      case J9BCswap:
+      case J9BCiadd:
+      case J9BCladd:
+      case J9BCfadd:
+      case J9BCdadd:
+      case J9BCisub:
+      case J9BClsub:
+      case J9BCfsub:
+      case J9BCdsub:
+      case J9BCimul:
+      case J9BClmul:
+      case J9BCfmul:
+      case J9BCdmul:
+      case J9BCidiv:
+      case J9BCldiv:
+      case J9BCfdiv:
+      case J9BCddiv:
+      case J9BCirem:
+      case J9BClrem:
+      case J9BCfrem:
+      case J9BCdrem:
+      case J9BCineg:
+      case J9BClneg:
+      case J9BCfneg:
+      case J9BCdneg:
+      case J9BCishl:
+      case J9BClshl:
+      case J9BCishr:
+      case J9BClshr:
+      case J9BCiushr:
+      case J9BClushr:
+      case J9BCiand:
+      case J9BCland:
+      case J9BCior:
+      case J9BClor:
+      case J9BCixor:
+      case J9BClxor:
+      case J9BCi2l:
+      case J9BCi2f:
+      case J9BCi2d:
+      case J9BCl2i:
+      case J9BCl2f:
+      case J9BCl2d:
+      case J9BCf2i:
+      case J9BCf2l:
+      case J9BCf2d:
+      case J9BCd2i:
+      case J9BCd2l:
+      case J9BCd2f:
+      case J9BCi2b:
+      case J9BCi2c:
+      case J9BCi2s:
+      case J9BClcmp:
+      case J9BCfcmpl:
+      case J9BCfcmpg:
+      case J9BCdcmpl:
+      case J9BCdcmpg:
+      case J9BCgenericReturn:
+      case J9BCReturnC:
+      case J9BCReturnS:
+      case J9BCReturnB:
+      case J9BCReturnZ:
+      case J9BCarraylength:
+      case J9BCathrow:
+      case J9BCmonitorenter:
+      case J9BCmonitorexit:
+      case J9BCasyncCheck:
+      case J9BCbreakpoint:
+         return 1;
+      case J9BCbipush:
+      case J9BCnewarray:
+      case J9BCaload:
+      case J9BCldc:
+      case J9BCiload:
+      case J9BClload:
+      case J9BCfload:
+      case J9BCdload:
+      case J9BCistore:
+      case J9BClstore:
+      case J9BCfstore:
+      case J9BCdstore:
+      case J9BCastore:
+         return 2;
+      case J9BCsipush:
+      case J9BCldcw:
+      case J9BCldc2lw:
+      case J9BCldc2dw:
+      case J9BCifeq:
+      case J9BCifne:
+      case J9BCiflt:
+      case J9BCifge:
+      case J9BCifgt:
+      case J9BCifle:
+      case J9BCificmpeq:
+      case J9BCificmpne:
+      case J9BCificmplt:
+      case J9BCificmpge:
+      case J9BCificmpgt:
+      case J9BCificmple:
+      case J9BCifacmpeq:
+      case J9BCifacmpne:
+      case J9BCifnull:
+      case J9BCifnonnull:
+      case J9BCgoto:
+      case J9BCgetstatic:
+      case J9BCputstatic:
+      case J9BCgetfield:
+      case J9BCputfield:
+      case J9BCinvokevirtual:
+      case J9BCinvokespecial:
+      case J9BCinvokestatic:
+      case J9BCnew:
+      case J9BCanewarray:
+      case J9BCcheckcast:
+      case J9BCinstanceof:
+      case J9BCiinc:
+         return 3;
+      case J9BCmultianewarray:
+         return 4;
+      case J9BCinvokeinterface:
+      case J9BCinvokeinterface2:
+      case J9BCinvokedynamic:
+      case J9BCgotow:
+         return 5;
+      case J9BCtableswitch:
+         return calculateTableswitchLength(pc);
+      case J9BClookupswitch:
+         return calculateLookupswitchLength(pc);
+      case J9BCwide:
+         return calculateWideInstructionLength(pc);
+      default:
+         return -1;
+      }
+   }
+
+   int getOrInsertMethodIndexByName(std::string methodName, PointerAssignmentGraph * pag)
+   {
+      // TR_OpaqueMethodBlock *methodPersistentId = methodSymbol->getResolvedMethod()->getPersistentIdentifier();
+      // // no need of assert, guaranteed to be available
+
+      if (pag->_methodIndices.find(methodName) != pag->_methodIndices.end())
+      {
+         std::cout << "Found in the method indices " << methodName << std::endl;
+         return pag->_methodIndices[methodName];
+      }
+
+      int index = pag->_methodIndices.size() + 1;
+      pag->_methodIndices[methodName] = index;
+      std::cout << "Inserted in the method indices " << methodName << std::endl;
+
+      return index;
+   }
+
+   const char *getBytecodeString(TR_J9ByteCode bytecode)
+   {
+      switch (bytecode)
+      {
+      case J9BCnop:
+         return "nop";
+      case J9BCaconstnull:
+         return "aconst_null";
+      case J9BCiconstm1:
+         return "iconst_m1";
+      case J9BCiconst0:
+         return "iconst_0";
+      case J9BCiconst1:
+         return "iconst_1";
+      case J9BCiconst2:
+         return "iconst_2";
+      case J9BCiconst3:
+         return "iconst_3";
+      case J9BCiconst4:
+         return "iconst_4";
+      case J9BCiconst5:
+         return "iconst_5";
+      case J9BClconst0:
+         return "lconst_0";
+      case J9BClconst1:
+         return "lconst_1";
+      case J9BCfconst0:
+         return "fconst_0";
+      case J9BCfconst1:
+         return "fconst_1";
+      case J9BCfconst2:
+         return "fconst_2";
+      case J9BCdconst0:
+         return "dconst_0";
+      case J9BCdconst1:
+         return "dconst_1";
+      case J9BCiload:
+         return "iload";
+      case J9BClload:
+         return "lload";
+      case J9BCfload:
+         return "fload";
+      case J9BCdload:
+         return "dload";
+      case J9BCaload:
+         return "aload";
+
+      case J9BCiload0:
+         return "iload_0";
+      case J9BCiload1:
+         return "iload_1";
+      case J9BCiload2:
+         return "iload_2";
+      case J9BCiload3:
+         return "iload_3";
+      case J9BClload0:
+         return "lload_0";
+      case J9BClload1:
+         return "lload_1";
+      case J9BClload2:
+         return "lload_2";
+      case J9BClload3:
+         return "lload_3";
+      case J9BCfload0:
+         return "fload_0";
+      case J9BCfload1:
+         return "fload_1";
+      case J9BCfload2:
+         return "fload_2";
+      case J9BCfload3:
+         return "fload_3";
+      case J9BCdload0:
+         return "dload_0";
+      case J9BCdload1:
+         return "dload_1";
+      case J9BCdload2:
+         return "dload_2";
+      case J9BCdload3:
+         return "dload_3";
+      case J9BCaload0:
+         return "aload_0";
+      case J9BCaload1:
+         return "aload_1";
+      case J9BCaload2:
+         return "aload_2";
+      case J9BCaload3:
+         return "aload_3";
+
+      case J9BCiaload:
+         return "iaload";
+      case J9BClaload:
+         return "laload";
+      case J9BCfaload:
+         return "faload";
+      case J9BCdaload:
+         return "daload";
+      case J9BCaaload:
+         return "aaload";
+      case J9BCbaload:
+         return "baload";
+      case J9BCcaload:
+         return "caload";
+      case J9BCsaload:
+         return "saload";
+
+      case J9BCistore:
+         return "istore";
+      case J9BClstore:
+         return "lstore";
+      case J9BCfstore:
+         return "fstore";
+      case J9BCdstore:
+         return "dstore";
+      case J9BCastore:
+         return "astore";
+
+      case J9BCistore0:
+         return "istore_0";
+      case J9BCistore1:
+         return "istore_1";
+      case J9BCistore2:
+         return "istore_2";
+      case J9BCistore3:
+         return "istore_3";
+      case J9BClstore0:
+         return "lstore_0";
+      case J9BClstore1:
+         return "lstore_1";
+      case J9BClstore2:
+         return "lstore_2";
+      case J9BClstore3:
+         return "lstore_3";
+      case J9BCfstore0:
+         return "fstore_0";
+      case J9BCfstore1:
+         return "fstore_1";
+      case J9BCfstore2:
+         return "fstore_2";
+      case J9BCfstore3:
+         return "fstore_3";
+      case J9BCdstore0:
+         return "dstore_0";
+      case J9BCdstore1:
+         return "dstore_1";
+      case J9BCdstore2:
+         return "dstore_2";
+      case J9BCdstore3:
+         return "dstore_3";
+      case J9BCastore0:
+         return "astore_0";
+      case J9BCastore1:
+         return "astore_1";
+      case J9BCastore2:
+         return "astore_2";
+      case J9BCastore3:
+         return "astore_3";
+      case J9BCiastore:
+         return "iastore";
+      case J9BClastore:
+         return "lastore";
+      case J9BCfastore:
+         return "fastore";
+      case J9BCdastore:
+         return "dastore";
+      case J9BCaastore:
+         return "aastore";
+      case J9BCbastore:
+         return "bastore";
+      case J9BCcastore:
+         return "castore";
+      case J9BCsastore:
+         return "sastore";
+
+      case J9BCpop:
+         return "pop";
+      case J9BCpop2:
+         return "pop2";
+      case J9BCdup:
+         return "dup";
+      case J9BCdupx1:
+         return "dup_x1";
+      case J9BCdupx2:
+         return "dup_x2";
+      case J9BCdup2:
+         return "dup2";
+      case J9BCdup2x1:
+         return "dup2_x1";
+      case J9BCdup2x2:
+         return "dup2_x2";
+      case J9BCswap:
+         return "swap";
+
+      case J9BCiadd:
+         return "iadd";
+      case J9BCladd:
+         return "ladd";
+      case J9BCfadd:
+         return "fadd";
+      case J9BCdadd:
+         return "dadd";
+      case J9BCisub:
+         return "isub";
+      case J9BClsub:
+         return "lsub";
+      case J9BCfsub:
+         return "fsub";
+      case J9BCdsub:
+         return "dsub";
+      case J9BCimul:
+         return "imul";
+      case J9BClmul:
+         return "lmul";
+      case J9BCfmul:
+         return "fmul";
+      case J9BCdmul:
+         return "dmul";
+      case J9BCidiv:
+         return "idiv";
+      case J9BCldiv:
+         return "ldiv";
+      case J9BCfdiv:
+         return "fdiv";
+      case J9BCddiv:
+         return "ddiv";
+      case J9BCirem:
+         return "irem";
+      case J9BClrem:
+         return "lrem";
+      case J9BCfrem:
+         return "frem";
+      case J9BCdrem:
+         return "drem";
+      case J9BCineg:
+         return "ineg";
+      case J9BClneg:
+         return "lneg";
+      case J9BCfneg:
+         return "fneg";
+      case J9BCdneg:
+         return "dneg";
+
+      // Bit operations
+      case J9BCishl:
+         return "ishl";
+      case J9BClshl:
+         return "lshl";
+      case J9BCishr:
+         return "ishr";
+      case J9BClshr:
+         return "lshr";
+      case J9BCiushr:
+         return "iushr";
+      case J9BClushr:
+         return "lushr";
+      case J9BCiand:
+         return "iand";
+      case J9BCland:
+         return "land";
+      case J9BCior:
+         return "ior";
+      case J9BClor:
+         return "lor";
+      case J9BCixor:
+         return "ixor";
+      case J9BClxor:
+         return "lxor";
+
+      // Control flow
+      case J9BCifeq:
+         return "ifeq";
+      case J9BCifne:
+         return "ifne";
+      case J9BCiflt:
+         return "iflt";
+      case J9BCifge:
+         return "ifge";
+      case J9BCifgt:
+         return "ifgt";
+      case J9BCifle:
+         return "ifle";
+      case J9BCificmpeq:
+         return "if_icmpeq";
+      case J9BCificmpne:
+         return "if_icmpne";
+      case J9BCificmplt:
+         return "if_icmplt";
+      case J9BCificmpge:
+         return "if_icmpge";
+      case J9BCificmpgt:
+         return "if_icmpgt";
+      case J9BCificmple:
+         return "if_icmple";
+      case J9BCifacmpeq:
+         return "if_acmpeq";
+      case J9BCifacmpne:
+         return "if_acmpne";
+      case J9BCifnull:
+         return "ifnull";
+      case J9BCifnonnull:
+         return "ifnonnull";
+      case J9BCgoto:
+         return "goto";
+      case J9BCgotow:
+         return "goto_w";
+      case J9BCtableswitch:
+         return "tableswitch";
+      case J9BClookupswitch:
+         return "lookupswitch";
+
+      // Method invocation
+      case J9BCinvokevirtual:
+         return "invokevirtual";
+      case J9BCinvokespecial:
+         return "invokespecial";
+      case J9BCinvokestatic:
+         return "invokestatic";
+      case J9BCinvokeinterface:
+         return "invokeinterface";
+      case J9BCinvokedynamic:
+         return "invokedynamic";
+      case J9BCinvokehandle:
+         return "invokehandle";
+      case J9BCinvokehandlegeneric:
+         return "invokehandlegeneric";
+      case J9BCinvokespecialsplit:
+         return "invokespecialsplit";
+      case J9BCinvokestaticsplit:
+         return "invokestaticsplit";
+      case J9BCinvokeinterface2:
+         return "invokeinterface2";
+
+      // Field access
+      case J9BCgetstatic:
+         return "getstatic";
+      case J9BCputstatic:
+         return "putstatic";
+      case J9BCgetfield:
+         return "getfield";
+      case J9BCputfield:
+         return "putfield";
+
+      // Object creation and arrays
+      case J9BCnew:
+         return "new";
+      case J9BCnewarray:
+         return "newarray";
+      case J9BCanewarray:
+         return "anewarray";
+      case J9BCmultianewarray:
+         return "multianewarray";
+      case J9BCarraylength:
+         return "arraylength";
+
+      // Type checking
+      case J9BCcheckcast:
+         return "checkcast";
+      case J9BCinstanceof:
+         return "instanceof";
+
+      // Exception handling
+      case J9BCathrow:
+         return "athrow";
+
+      // Synchronization
+      case J9BCmonitorenter:
+         return "monitorenter";
+      case J9BCmonitorexit:
+         return "monitorexit";
+
+      // Returns
+      case J9BCgenericReturn:
+         return "return generic";
+      case J9BCReturnC:
+         return "ReturnC";
+      case J9BCReturnS:
+         return "ReturnS";
+      case J9BCReturnB:
+         return "ReturnB";
+      case J9BCReturnZ:
+         return "ReturnZ";
+
+      // Constants loading
+      case J9BCbipush:
+         return "bipush";
+      case J9BCsipush:
+         return "sipush";
+      case J9BCldc:
+         return "ldc";
+      case J9BCldcw:
+         return "ldc_w";
+      case J9BCldc2lw:
+         return "ldc2_w (long)";
+      case J9BCldc2dw:
+         return "ldc2_w (double)";
+
+      // Conversion instructions
+      case J9BCi2l:
+         return "i2l";
+      case J9BCi2f:
+         return "i2f";
+      case J9BCi2d:
+         return "i2d";
+      case J9BCl2i:
+         return "l2i";
+      case J9BCl2f:
+         return "l2f";
+      case J9BCl2d:
+         return "l2d";
+      case J9BCf2i:
+         return "f2i";
+      case J9BCf2l:
+         return "f2l";
+      case J9BCf2d:
+         return "f2d";
+      case J9BCd2i:
+         return "d2i";
+      case J9BCd2l:
+         return "d2l";
+      case J9BCd2f:
+         return "d2f";
+      case J9BCi2b:
+         return "i2b";
+      case J9BCi2c:
+         return "i2c";
+      case J9BCi2s:
+         return "i2s";
+
+      // Comparison
+      case J9BClcmp:
+         return "lcmp";
+      case J9BCfcmpl:
+         return "fcmpl";
+      case J9BCfcmpg:
+         return "fcmpg";
+      case J9BCdcmpl:
+         return "dcmpl";
+      case J9BCdcmpg:
+         return "dcmpg";
+
+      // Increment
+      case J9BCiinc:
+         return "iinc";
+      case J9BCiincw:
+         return "iinc_w";
+
+      // Wide instructions
+      case J9BCiloadw:
+         return "iload_w";
+      case J9BClloadw:
+         return "lload_w";
+      case J9BCfloadw:
+         return "fload_w";
+      case J9BCdloadw:
+         return "dload_w";
+      case J9BCaloadw:
+         return "aload_w";
+      case J9BCistorew:
+         return "istore_w";
+      case J9BClstorew:
+         return "lstore_w";
+      case J9BCfstorew:
+         return "fstore_w";
+      case J9BCdstorew:
+         return "dstore_w";
+      case J9BCastorew:
+         return "astore_w";
+      case J9BCwide:
+         return "wide";
+
+      // Special instructions
+      case J9BCasyncCheck:
+         return "asyncCheck";
+      case J9BCbreakpoint:
+         return "breakpoint";
+      case J9BCunknown:
+         return "unknown";
+
+      default:
+         return "unrecognized";
+      }
+   }
+#include <stdint.h>
+   static int32_t read_int32(uint8_t **pc_ptr)
+   {
+      int32_t val = ((*pc_ptr)[3] << 24) | ((*pc_ptr)[2] << 16) | ((*pc_ptr)[1] << 8) | (*pc_ptr)[0];
+      *pc_ptr += 4;
+      return val;
+   }
+   int32_t calculateLookupswitchLength(uint8_t *pc)
+   {
+      uint8_t *current_pc = pc + 1; // skip opcode
+      int32_t padding = (4 - ((intptr_t)(current_pc) % 4)) % 4;
+      current_pc += padding;
+
+      int32_t default_offset = read_int32(&current_pc);
+      int32_t npairs = read_int32(&current_pc);
+
+      current_pc += (npairs * 8);
+      return (int32_t)(current_pc - pc);
+   }
+
+   int32_t calculateTableswitchLength(uint8_t *pc)
+   {
+      uint8_t *current_pc = pc + 1;
+      int32_t padding = (4 - ((intptr_t)pc + 1) % 4) % 4;
+      current_pc += padding;
+      int32_t default_offset = read_int32(&current_pc);
+      int32_t low = read_int32(&current_pc);
+      int32_t high = read_int32(&current_pc);
+      int32_t num_jumps = high - low + 1;
+      current_pc += (num_jumps * 4);
+      return (int32_t)(current_pc - pc);
+   }
+   // int32_t calculateLookupswitchLength(uint8_t *pc)
    // {
-   //    TR_ExceptionTableEntry *h = resolvedMethod->exceptionTableEntry(i);
-   //    leaders.insert(h->getHandlerBCI());
+   //    uint8_t *current_pc = pc + 1;
+   //    int32_t padding = (4 - ((intptr_t)pc + 1) % 4) % 4;
+   //    current_pc += padding;
+   //    int32_t default_offset = read_int32(&current_pc);
+   //    int32_t npairs = read_int32(&current_pc);
+   //    current_pc += (npairs * 8);
+   //    return (int32_t)(current_pc - pc);
    // }
-
-   // Create TR::Block nodes
-   for (int32_t leader : leaders)
+   int32_t calculateWideInstructionLength(uint8_t *pc)
    {
-      TR::Block *b = TR::Block::createEmptyBlock(comp);
-      b->setByteCodeIndex(leader, comp);
-      //   std::cout << b->getEntry()->getNode()->getByteCodeIndex() << std::endl;
-      blocks[leader] = b;
-      cfg->addNode(b);
+      TR_J9ByteCode modified_opcode = (TR_J9ByteCode) * (pc + 1);
+      int32_t length = 1;
+      switch (modified_opcode)
+      {
+      case J9BCiload:
+      case J9BClload:
+      case J9BCfload:
+      case J9BCdload:
+      case J9BCaload:
+      case J9BCistore:
+      case J9BClstore:
+      case J9BCfstore:
+      case J9BCdstore:
+      case J9BCastore:
+         length += 1;
+         length += 2;
+         break;
+      case J9BCiinc:
+         length += 1;
+         length += 2;
+         length += 2;
+         break;
+      default:
+         return -1;
+      }
+      return length;
    }
 
-   std::vector<int32_t> leaderVec(leaders.begin(), leaders.end());
-   sort(leaderVec.begin(), leaderVec.end());
-
-   // Add edges between blocks
-   for (size_t i = 0; i < leaderVec.size(); i++)
+   // === Branch classifiers ===
+   inline bool isBranch(TR_J9ByteCode bc)
    {
-      int32_t start = leaderVec[i];
-      TR::Block *block = blocks[start];
+      switch (bc)
+      {
+      // conditional branches
+      case J9BCifeq:
+      case J9BCifne:
+      case J9BCiflt:
+      case J9BCifge:
+      case J9BCifgt:
+      case J9BCifle:
+      case J9BCificmpeq:
+      case J9BCificmpne:
+      case J9BCificmplt:
+      case J9BCificmpge:
+      case J9BCificmpgt:
+      case J9BCificmple:
+      case J9BCifacmpeq:
+      case J9BCifacmpne:
+      case J9BCifnull:
+      case J9BCifnonnull:
+      // unconditional
+      case J9BCgoto:
+      case J9BCgotow:
+         return true;
+      default:
+         return false;
+      }
+   }
 
-      // Find the end of this block (i.e. next leader or method end)
-      int32_t end = (i + 1 < leaderVec.size()) ? leaderVec[i + 1] : methodSize;
+   inline bool isSwitch(TR_J9ByteCode bc)
+   {
+      return (bc == J9BCtableswitch || bc == J9BClookupswitch);
+   }
 
-      // Find the last instruction in this block
-      int32_t lastInstrStart = start;
-      TR_J9ByteCode lastBc = J9BCnop;
+   inline bool isReturnOrThrow(TR_J9ByteCode bc)
+   {
+      switch (bc)
+      {
+      case J9BCgenericReturn: // covers ireturn, lreturn, etc.
+      case J9BCReturnC:
+      case J9BCReturnS:
+      case J9BCReturnB:
+      case J9BCReturnZ:
+      case J9BCathrow:
+         return true;
+      default:
+         break;
+      }
 
-      for (int32_t pcIndex = start; pcIndex < end;)
+      return false;
+   }
+   // For branches, compute absolute bytecode index of target
+   inline int32_t branchTarget(int32_t pcIndex, TR_J9ByteCode bc, uint8_t *pc)
+   {
+      if (bc == J9BCgotow)
+      {
+         int32_t offset = (pc[4] << 24) | (pc[3] << 16) | (pc[2] << 8) | pc[1];
+         return pcIndex + offset;
+      }
+      else if (bc == J9BCgoto ||
+               bc == J9BCifeq || bc == J9BCifne || bc == J9BCiflt ||
+               bc == J9BCifge || bc == J9BCifgt || bc == J9BCifle ||
+               bc == J9BCificmpeq || bc == J9BCificmpne || bc == J9BCificmplt ||
+               bc == J9BCificmpge || bc == J9BCificmpgt || bc == J9BCificmple ||
+               bc == J9BCifacmpeq || bc == J9BCifacmpne ||
+               bc == J9BCifnull || bc == J9BCifnonnull)
+      {
+         int16_t offset = (pc[2] << 8) | pc[1];
+         return pcIndex + offset;
+      }
+
+      return -1; // not a branch
+   }
+
+   inline std::vector<int32_t> switchTargets(int32_t pcIndex, TR_J9ByteCode bc, uint8_t *pc)
+   {
+      std::vector<int32_t> targets;
+
+      // Align to 4-byte boundary
+      int aligned = (pcIndex + 4) & ~0x3;
+      uint8_t *base = pc + (aligned - pcIndex);
+
+      auto readInt32 = [&](uint8_t *p) -> int32_t
+      {
+         return (p[3] << 24) | (p[3] << 16) | (p[1] << 8) | p[0];
+      };
+
+      if (bc == J9BCtableswitch)
+      {
+         int32_t defaultOffset = readInt32(base);
+         int32_t low = readInt32(base + 4);
+         int32_t high = readInt32(base + 8);
+
+         int32_t numOffsets = high - low + 1;
+         uint8_t *p = base + 12;
+
+         for (int i = 0; i < numOffsets; i++)
+         {
+            int32_t off = readInt32(p + 4 * i);
+            targets.push_back(pcIndex + off);
+         }
+         targets.push_back(pcIndex + defaultOffset);
+      }
+      else if (bc == J9BClookupswitch)
+      {
+         int32_t defaultOffset = readInt32(base);
+         int32_t npairs = readInt32(base + 4);
+
+         uint8_t *p = base + 8;
+         for (int i = 0; i < npairs; i++)
+         {
+            // first word is match, second is offset
+            int32_t off = readInt32(p + 8 * i + 4);
+            targets.push_back(pcIndex + off);
+         }
+         targets.push_back(pcIndex + defaultOffset);
+      }
+
+      return targets;
+   }
+   bool isUnconditionalBranch(TR_J9ByteCode bc)
+   {
+      return (bc == J9BCgoto || bc == J9BCgotow ||
+              bc == J9BCathrow || isReturnOrThrow(bc));
+   }
+
+   TR::CFG *buildCFG(TR_OpaqueMethodBlock * method_block, TR::Compilation * comp, std::map<int32_t, TR::Block *> & blocks, TR::Block * &entryBlock)
+   {
+      int32_t methodSize = TR::Compiler->mtd.bytecodeSize(method_block);
+      uintptr_t methodStart = TR::Compiler->mtd.bytecodeStart(method_block);
+
+      TR::CFG *cfg = new (comp->trHeapMemory()) TR::CFG(comp, comp->getMethodSymbol());
+      std::set<int32_t> leaders;
+
+      leaders.insert(0); // entry always a leader
+
+      // Scan bytecodes to identify leaders
+      for (int32_t pcIndex = 0; pcIndex < methodSize;)
       {
          uint8_t *pc = (uint8_t *)(methodStart + pcIndex);
          TR_J9ByteCode bc = TR_J9ByteCodeIterator::convertOpCodeToByteCodeEnum(*pc);
          int32_t len = getInstructionLength(bc, pc);
 
-         lastInstrStart = pcIndex;
-         lastBc = bc;
+         if (isBranch(bc))
+         {
+            int32_t tgt = branchTarget(pcIndex, bc, pc);
+            leaders.insert(tgt);
+            leaders.insert(pcIndex + len);
+         }
+         else if (isSwitch(bc))
+         {
+            auto tgts = switchTargets(pcIndex, bc, pc);
+            for (auto t : tgts)
+               leaders.insert(t);
+            leaders.insert(pcIndex + len);
+         }
+         else if (isReturnOrThrow(bc))
+         {
+            leaders.insert(pcIndex + len);
+         }
 
          pcIndex += len;
-         if (pcIndex >= end)
-            break;
       }
 
-      uint8_t *lastPc = (uint8_t *)(methodStart + lastInstrStart);
+      // Add exception handler entries
+      // TR_ResolvedMethod *resolvedMethod = getCachedResolvedMethodFromPtr(comp, method_block);
+      // int numHandlers = resolvedMethod->exceptionTableLength();
+      // for (int i = 0; i < numHandlers; i++)
+      // {
+      //    TR_ExceptionTableEntry *h = resolvedMethod->exceptionTableEntry(i);
+      //    leaders.insert(h->getHandlerBCI());
+      // }
 
-      std::cout << "BASIC BLOCK START BCI=" << block->getEntry()->getNode()->getByteCodeIndex() << " Last Instruction= " << lastInstrStart << " - " << getBytecodeString(lastBc) << std::endl;
-
-      // Add edges based on the last instruction of the block
-      if (isBranch(lastBc))
+      // Create TR::Block nodes
+      for (int32_t leader : leaders)
       {
-         int tgt = branchTarget(lastInstrStart, lastBc, lastPc);
-         if (blocks.count(tgt))
-            cfg->addEdge(block, blocks[tgt]);
-
-         if (!isUnconditionalBranch(lastBc) && blocks.count(end))
-            cfg->addEdge(block, blocks[end]);
+         TR::Block *b = TR::Block::createEmptyBlock(comp);
+         b->setByteCodeIndex(leader, comp);
+         //   std::cout << b->getEntry()->getNode()->getByteCodeIndex() << std::endl;
+         blocks[leader] = b;
+         cfg->addNode(b);
       }
-      else if (isSwitch(lastBc))
+
+      std::vector<int32_t> leaderVec(leaders.begin(), leaders.end());
+      sort(leaderVec.begin(), leaderVec.end());
+
+      // Add edges between blocks
+      for (size_t i = 0; i < leaderVec.size(); i++)
       {
-         auto tgts = switchTargets(lastInstrStart, lastBc, lastPc);
-         std::cout << "switch targets = ";
-         for (auto t : tgts)
+         int32_t start = leaderVec[i];
+         TR::Block *block = blocks[start];
+
+         // Find the end of this block (i.e. next leader or method end)
+         int32_t end = (i + 1 < leaderVec.size()) ? leaderVec[i + 1] : methodSize;
+
+         // Find the last instruction in this block
+         int32_t lastInstrStart = start;
+         TR_J9ByteCode lastBc = J9BCnop;
+
+         for (int32_t pcIndex = start; pcIndex < end;)
          {
-            std::cout << t << ",";
-            if (blocks.count(t))
-               cfg->addEdge(block, blocks[t]);
+            uint8_t *pc = (uint8_t *)(methodStart + pcIndex);
+            TR_J9ByteCode bc = TR_J9ByteCodeIterator::convertOpCodeToByteCodeEnum(*pc);
+            int32_t len = getInstructionLength(bc, pc);
+
+            lastInstrStart = pcIndex;
+            lastBc = bc;
+
+            pcIndex += len;
+            if (pcIndex >= end)
+               break;
          }
-         std::cout << std::endl;
-      }
-      else if (!isReturnOrThrow(lastBc))
-      {
-         if (blocks.count(end))
-            cfg->addEdge(block, blocks[end]);
-      }
-   }
 
-   entryBlock = blocks[0];
+         uint8_t *lastPc = (uint8_t *)(methodStart + lastInstrStart);
 
-   cfg->setStart(entryBlock);
+         std::cout << "BASIC BLOCK START BCI=" << block->getEntry()->getNode()->getByteCodeIndex() << " Last Instruction= " << lastInstrStart << " - " << getBytecodeString(lastBc) << std::endl;
 
-   return cfg;
-}
-
-void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex, TR::Compilation *comp, PAGNode *primitive_node, PAGNode *comp_type2_primitiveNode)
-{
-   TR_OpaqueMethodBlock *method_block = reinterpret_cast<TR_OpaqueMethodBlock *>(method);
-   int32_t methodSize = TR::Compiler->mtd.bytecodeSize(method_block);
-   uintptr_t methodStart = TR::Compiler->mtd.bytecodeStart(method_block);
-   TR_ResolvedMethod *resolvedMethod = getCachedResolvedMethodFromPtr(comp, method_block);
-
-   std::map<int32_t, TR::Block *> blocks;
-   TR::Block *entryBlock = nullptr;
-
-   std::cout << "Resolved method ptr: = " << resolvedMethod << std::endl;
-   char *classNameChars = resolvedMethod->classNameChars();
-   int32_t classNameLength = resolvedMethod->classNameLength();
-
-   char *methodName = resolvedMethod->nameChars();
-   int32_t methodNameLength = resolvedMethod->nameLength();
-   char *methodSignature = resolvedMethod->signatureChars();
-   int32_t methodSignatureLength = resolvedMethod->signatureLength();
-
-   std::string name(methodName, methodNameLength);
-   std::string className(classNameChars, classNameLength);
-   std::string signature(methodSignature, methodSignatureLength);
-   std::string returnStaticType;
-   bool hasReturnType = returnsObject(methodSignature, returnStaticType);
-   _methodsNamesBeingAnalyzed.insert(className + "." + name + signature);
-   if (isLibraryMethod((className + "." + name + signature)))
-   {
-      std::cout << "############## SKIPPED Traversing the Bytecode of the method " << className << "." << name << signature << "##############" << std::endl;
-
-      return;
-   }
-
-   std::cout << "############## Traversing the Bytecode of the method " << className << "." << name << signature << "##############" << std::endl;
-   int num_params = count_parameters(methodSignature); // resolvedMethod->numberOfParameterSlots(); double or long takes 2 slots
-   std::unordered_map<int, PAGNode *> variableMap;
-   int reference_params = 0;
-   std::string fullNAME = className + "." + name + signature;
-   // Create entries in the varaible Map for each of the parameters and a PAGNode for return node ;
-   if (analysedMethodNames.find(fullNAME) == analysedMethodNames.end()) // This means that this method 'my' was not analyzed before or called before.
-   {
-      if (!resolvedMethod->isStatic())
-      {
-         PAGNode *param_node_ptr = new PAGNode(VARIABLE, 0, nullptr, method_block, -1, methodIndex, className);
-         std::cout << "FOR recvr Method index = " << methodIndex << std::endl;
-         pag->methodIndex_to_allMethodNodes[methodIndex].push_back(param_node_ptr);
-         pag->PAG_nodes.insert(param_node_ptr);
-         pag->methodIndex_to_formalNodes[methodIndex].push_back(param_node_ptr);
-         reference_params++;
-      }
-      for (int i = 0; i < num_params; i++)
-      {
-         if (is_reference_type(methodSignature, i))
+         // Add edges based on the last instruction of the block
+         if (isBranch(lastBc))
          {
-            reference_params++;
-            std::string static_type = getParameterReferenceType(methodSignature, i);
-            PAGNode *param_node_ptr = new PAGNode(VARIABLE, i + 1, nullptr, method_block, -1, methodIndex, static_type);
-            std::cout << "for is_reference_type Method index = " << methodIndex << std::endl;
+            int tgt = branchTarget(lastInstrStart, lastBc, lastPc);
+            if (blocks.count(tgt))
+               cfg->addEdge(block, blocks[tgt]);
+
+            if (!isUnconditionalBranch(lastBc) && blocks.count(end))
+               cfg->addEdge(block, blocks[end]);
+         }
+         else if (isSwitch(lastBc))
+         {
+            auto tgts = switchTargets(lastInstrStart, lastBc, lastPc);
+            std::cout << "switch targets = ";
+            for (auto t : tgts)
+            {
+               std::cout << t << ",";
+               if (blocks.count(t))
+                  cfg->addEdge(block, blocks[t]);
+            }
+            std::cout << std::endl;
+         }
+         else if (!isReturnOrThrow(lastBc))
+         {
+            if (blocks.count(end))
+               cfg->addEdge(block, blocks[end]);
+         }
+      }
+
+      entryBlock = blocks[0];
+
+      cfg->setStart(entryBlock);
+
+      return cfg;
+   }
+
+   void traverse_cfg(J9Method * method, PointerAssignmentGraph * pag, int methodIndex, TR::Compilation *comp, PAGNode *primitive_node, PAGNode *comp_type2_primitiveNode)
+   {
+      TR_OpaqueMethodBlock *method_block = reinterpret_cast<TR_OpaqueMethodBlock *>(method);
+      int32_t methodSize = TR::Compiler->mtd.bytecodeSize(method_block);
+      uintptr_t methodStart = TR::Compiler->mtd.bytecodeStart(method_block);
+      TR_ResolvedMethod *resolvedMethod = getCachedResolvedMethodFromPtr(comp, method_block);
+
+      std::map<int32_t, TR::Block *> blocks;
+      TR::Block *entryBlock = nullptr;
+
+      std::cout << "Resolved method ptr: = " << resolvedMethod << std::endl;
+      char *classNameChars = resolvedMethod->classNameChars();
+      int32_t classNameLength = resolvedMethod->classNameLength();
+
+      char *methodName = resolvedMethod->nameChars();
+      int32_t methodNameLength = resolvedMethod->nameLength();
+      char *methodSignature = resolvedMethod->signatureChars();
+      int32_t methodSignatureLength = resolvedMethod->signatureLength();
+
+      std::string name(methodName, methodNameLength);
+      std::string className(classNameChars, classNameLength);
+      std::string signature(methodSignature, methodSignatureLength);
+      std::string returnStaticType;
+      bool hasReturnType = returnsObject(methodSignature, returnStaticType);
+      _methodsNamesBeingAnalyzed.insert(className + "." + name + signature);
+      if (isLibraryMethod((className + "." + name + signature)))
+      {
+         std::cout << "############## SKIPPED Traversing the Bytecode of the method " << className << "." << name << signature << "##############" << std::endl;
+
+         return;
+      }
+
+      std::cout << "############## Traversing the Bytecode of the method " << className << "." << name << signature << "##############" << std::endl;
+      int num_params = count_parameters(methodSignature); // resolvedMethod->numberOfParameterSlots(); double or long takes 2 slots
+      std::unordered_map<int, PAGNode *> variableMap;
+      int reference_params = 0;
+      std::string fullNAME = className + "." + name + signature;
+      // Create entries in the varaible Map for each of the parameters and a PAGNode for return node ;
+      if (analysedMethodNames.find(fullNAME) == analysedMethodNames.end()) // This means that this method 'my' was not analyzed before or called before.
+      {
+         if (!resolvedMethod->isStatic())
+         {
+            PAGNode *param_node_ptr = new PAGNode(VARIABLE, 0, nullptr, method_block, -1, methodIndex, className);
+            std::cout << "FOR recvr Method index = " << methodIndex << std::endl;
             pag->methodIndex_to_allMethodNodes[methodIndex].push_back(param_node_ptr);
             pag->PAG_nodes.insert(param_node_ptr);
             pag->methodIndex_to_formalNodes[methodIndex].push_back(param_node_ptr);
+            reference_params++;
+         }
+         for (int i = 0; i < num_params; i++)
+         {
+            if (is_reference_type(methodSignature, i))
+            {
+               reference_params++;
+               std::string static_type = getParameterReferenceType(methodSignature, i);
+               PAGNode *param_node_ptr = new PAGNode(VARIABLE, i + 1, nullptr, method_block, -1, methodIndex, static_type);
+               std::cout << "for is_reference_type Method index = " << methodIndex << std::endl;
+               pag->methodIndex_to_allMethodNodes[methodIndex].push_back(param_node_ptr);
+               pag->PAG_nodes.insert(param_node_ptr);
+               pag->methodIndex_to_formalNodes[methodIndex].push_back(param_node_ptr);
+            }
+         }
+
+         if (hasReturnType)
+         {
+            pag->methodIndex_to_returnNode[methodIndex] = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, method_block, -1, methodIndex);
+            pag->methodIndex_to_returnNode[methodIndex]->static_type = returnStaticType;
+            pag->PAG_nodes.insert(pag->methodIndex_to_returnNode[methodIndex]);
+            pag->methodIndex_to_allMethodNodes[methodIndex].push_back(pag->methodIndex_to_returnNode[methodIndex]);
          }
       }
+      vector<PAGNode *> formal_param_nodes = pag->methodIndex_to_formalNodes[methodIndex];
+      PAGNode *returnNode = nullptr;
+      auto it = pag->methodIndex_to_returnNode.find(methodIndex);
+      if (it != pag->methodIndex_to_returnNode.end())
+      {
+         returnNode = it->second;
+      }
 
+      std::cout << "Formal params size = " << formal_param_nodes.size() << std::endl;
+      if (reference_params != formal_param_nodes.size() || ((hasReturnType && !returnNode) || (!hasReturnType && returnNode)))
+      {
+         TR_ASSERT_FATAL(0, "There is a mismatch in the size of paramters maybe the method signature changed.");
+      }
+
+      for (int i = 0; i < reference_params; i++)
+      {
+         // PAGNode *param_node_ptr = new PAGNode(VARIABLE, i, nullptr, method_block, -1, methodIndex);
+         // pag->methodIndex_to_allMethodNodes[methodIndex].push_back(param_node_ptr);
+         // pag->PAG_nodes.insert(param_node_ptr);
+         // pag->methodIndex_to_formalNodes[methodIndex].push_back(param_node_ptr);
+         if (resolvedMethod->isStatic())
+            variableMap[(formal_param_nodes[i]->name) - 1] = formal_param_nodes[i];
+         else
+            variableMap[formal_param_nodes[i]->name] = formal_param_nodes[i]; // non-static methods, slot 0 -> this
+      }
       if (hasReturnType)
       {
-         pag->methodIndex_to_returnNode[methodIndex] = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, method_block, -1, methodIndex);
-         pag->methodIndex_to_returnNode[methodIndex]->static_type = returnStaticType;
-         pag->PAG_nodes.insert(pag->methodIndex_to_returnNode[methodIndex]);
-         pag->methodIndex_to_allMethodNodes[methodIndex].push_back(pag->methodIndex_to_returnNode[methodIndex]);
-      }
-   }
-   vector<PAGNode *> formal_param_nodes = pag->methodIndex_to_formalNodes[methodIndex];
-   PAGNode *returnNode = nullptr;
-   auto it = pag->methodIndex_to_returnNode.find(methodIndex);
-   if (it != pag->methodIndex_to_returnNode.end())
-   {
-      returnNode = it->second;
-   }
-
-   std::cout << "Formal params size = " << formal_param_nodes.size() << std::endl;
-   if (reference_params != formal_param_nodes.size() || ((hasReturnType && !returnNode) || (!hasReturnType && returnNode)))
-   {
-      TR_ASSERT_FATAL(0, "There is a mismatch in the size of paramters maybe the method signature changed.");
-   }
-
-   for (int i = 0; i < reference_params; i++)
-   {
-      // PAGNode *param_node_ptr = new PAGNode(VARIABLE, i, nullptr, method_block, -1, methodIndex);
-      // pag->methodIndex_to_allMethodNodes[methodIndex].push_back(param_node_ptr);
-      // pag->PAG_nodes.insert(param_node_ptr);
-      // pag->methodIndex_to_formalNodes[methodIndex].push_back(param_node_ptr);
-      if (resolvedMethod->isStatic())
-         variableMap[(formal_param_nodes[i]->name) - 1] = formal_param_nodes[i];
-      else
-         variableMap[formal_param_nodes[i]->name] = formal_param_nodes[i]; // non-static methods, slot 0 -> this
-   }
-   if (hasReturnType)
-   {
-      // pag->methodIndex_to_returnNode[methodIndex] = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, method_block, -1, methodIndex);
-      // pag->PAG_nodes.insert(pag->methodIndex_to_returnNode[methodIndex]);
-      // pag->methodIndex_to_allMethodNodes[methodIndex].push_back(pag->methodIndex_to_returnNode[methodIndex]);
-   }
-
-   int32_t currentIndex = 0;
-   int statementCount = 0;
-   operandStack *stack = new operandStack();
-
-   // build CFG
-   TR::CFG *cfg = buildCFG(method_block, comp, blocks, entryBlock);
-
-   std::unordered_map<TR::Block *, operandStack *> inStacks;
-   std::queue<TR::Block *> worklist;
-
-   inStacks[entryBlock] = new operandStack();
-   worklist.push(entryBlock);
-
-   J9Class *currentClass = reinterpret_cast<J9Class *>(resolvedMethod->classOfMethod());
-   unordered_set<int> worklist_bb_bci;
-   worklist_bb_bci.insert(entryBlock->getEntry()->getNode()->getByteCodeIndex());
-
-   while (!worklist.empty())
-   {
-      TR::Block *bb = worklist.front();
-      worklist.pop();
-
-      operandStack *stack = new operandStack(*inStacks[bb]);
-
-      int pcIndex = bb->getEntry()->getNode()->getByteCodeIndex();
-      worklist_bb_bci.erase(pcIndex);
-
-      while (true)
-      {
-         uint8_t *pc = (uint8_t *)(methodStart + pcIndex);
-         // TR_J9ByteCode bc = TR_J9ByteCodeIterator::convertOpCodeToByteCodeEnum(*pc);
-         // int len = getInstructionLength(bc, pc);
-
-         TR_J9ByteCode bytecode = TR_J9ByteCodeIterator::convertOpCodeToByteCodeEnum(*pc);
-         int32_t instructionLength = getInstructionLength(bytecode, pc);
-
-         std::cout << pcIndex << " - Opcode: 0x" << std::hex << (int)(*pc) << std::dec << " - " << getBytecodeString(bytecode) << " ---> " << instructionLength << std::endl;
-
-         TR::VMAccessCriticalSection vmAccess(comp);
-         J9VMThread *vm = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
-         TR_OpaqueClassBlock *opaqueCurrentClass = resolvedMethod->classOfMethod();
-         J9Class *currentClass = reinterpret_cast<J9Class *>(opaqueCurrentClass);
-         executeBytecode(bytecode, pc, pag, stack, resolvedMethod, method, methodIndex, pcIndex, variableMap, hasReturnType, comp, currentClass, primitive_node, comp_type2_primitiveNode);
-
-         pcIndex += instructionLength;
-         globalIndex_++;
-
-         if (pcIndex >= methodSize || blocks.count(pcIndex)) // stop at end of the current method or at the start of another basic block.
-            break;
+         // pag->methodIndex_to_returnNode[methodIndex] = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, method_block, -1, methodIndex);
+         // pag->PAG_nodes.insert(pag->methodIndex_to_returnNode[methodIndex]);
+         // pag->methodIndex_to_allMethodNodes[methodIndex].push_back(pag->methodIndex_to_returnNode[methodIndex]);
       }
 
-      // propagate to successors
-      for (auto succIter = bb->getSuccessors().begin(); succIter != bb->getSuccessors().end(); ++succIter)
+      int32_t currentIndex = 0;
+      int statementCount = 0;
+      operandStack *stack = new operandStack();
+
+      // build CFG
+      TR::CFG *cfg = buildCFG(method_block, comp, blocks, entryBlock);
+
+      std::unordered_map<TR::Block *, operandStack *> inStacks;
+      std::queue<TR::Block *> worklist;
+
+      inStacks[entryBlock] = new operandStack();
+      worklist.push(entryBlock);
+
+      J9Class *currentClass = reinterpret_cast<J9Class *>(resolvedMethod->classOfMethod());
+      unordered_set<int> worklist_bb_bci;
+      worklist_bb_bci.insert(entryBlock->getEntry()->getNode()->getByteCodeIndex());
+
+      while (!worklist.empty())
       {
-         TR::Block *succ = (*succIter)->getTo()->asBlock();
-         int succBci = succ->getEntry()->getNode()->getByteCodeIndex();
-         if (inStacks.find(succ) == inStacks.end())
+         TR::Block *bb = worklist.front();
+         worklist.pop();
+
+         operandStack *stack = new operandStack(*inStacks[bb]);
+
+         int pcIndex = bb->getEntry()->getNode()->getByteCodeIndex();
+         worklist_bb_bci.erase(pcIndex);
+
+         while (true)
          {
-            inStacks[succ] = new operandStack(*stack); // copy outstack of the predecessor
-            worklist.push(succ);
-            worklist_bb_bci.insert(succBci);
+            uint8_t *pc = (uint8_t *)(methodStart + pcIndex);
+            // TR_J9ByteCode bc = TR_J9ByteCodeIterator::convertOpCodeToByteCodeEnum(*pc);
+            // int len = getInstructionLength(bc, pc);
+
+            TR_J9ByteCode bytecode = TR_J9ByteCodeIterator::convertOpCodeToByteCodeEnum(*pc);
+            int32_t instructionLength = getInstructionLength(bytecode, pc);
+
+            std::cout << pcIndex << " - Opcode: 0x" << std::hex << (int)(*pc) << std::dec << " - " << getBytecodeString(bytecode) << " ---> " << instructionLength << std::endl;
+
+            TR::VMAccessCriticalSection vmAccess(comp);
+            J9VMThread *vm = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
+            TR_OpaqueClassBlock *opaqueCurrentClass = resolvedMethod->classOfMethod();
+            J9Class *currentClass = reinterpret_cast<J9Class *>(opaqueCurrentClass);
+            executeBytecode(bytecode, pc, pag, stack, resolvedMethod, method, methodIndex, pcIndex, variableMap, hasReturnType, comp, currentClass, primitive_node, comp_type2_primitiveNode);
+
+            pcIndex += instructionLength;
+            globalIndex_++;
+
+            if (pcIndex >= methodSize || blocks.count(pcIndex)) // stop at end of the current method or at the start of another basic block.
+               break;
          }
-         else
+
+         // propagate to successors
+         for (auto succIter = bb->getSuccessors().begin(); succIter != bb->getSuccessors().end(); ++succIter)
          {
-            operandStack *succStack = inStacks[succ];
-            std::cout << "Succ BCI = " << succBci << std::endl;
-            if (succBci == 72)
+            TR::Block *succ = (*succIter)->getTo()->asBlock();
+            int succBci = succ->getEntry()->getNode()->getByteCodeIndex();
+            if (inStacks.find(succ) == inStacks.end())
             {
-               std::cout << succBci << std::endl;
-            }
-            if (succStack->merge(*stack) && worklist_bb_bci.find(succBci) == worklist_bb_bci.end()) // if successor is already in the worklist then don't add it again.
-            {
-               worklist_bb_bci.insert(succBci);
-               std::cout << "Reanalysing " << succBci << std::endl;
+               inStacks[succ] = new operandStack(*stack); // copy outstack of the predecessor
                worklist.push(succ);
+               worklist_bb_bci.insert(succBci);
             }
-         }
-      }
-   }
-
-   // std::string fully_qualified_name = className + "." + name + signature;
-   // // if (changedMethodNames.find(fully_qualified_name) != changedMethodNames.end())
-   // // {
-   // //    changedMethodNames.erase(fully_qualified_name);
-   // // }
-   // analysedMethodNames.insert(fully_qualified_name);
-   std::cout << "##############Done traversing the Bytecode of the method " << className << "." << name << signature << "##############" << std::endl;
-   _methodsNamesBeingAnalyzed.erase(className + "." + name + signature);
-   std::string fully_qualified_name = className + "." + name + signature;
-   analysedMethodNames.insert(fully_qualified_name);
-}
-
-std::unordered_set<std::string> getAllPossibleCHA_TargetNames(const std::string &className)
-{
-   std::unordered_set<std::string> result;
-   std::queue<std::string> worklist;
-
-   worklist.push(className);
-
-   while (!worklist.empty())
-   {
-      std::string current = worklist.front();
-      worklist.pop();
-
-      auto it = CHA_names.find(current);
-      if (it != CHA_names.end())
-      {
-         for (const auto &child : it->second)
-         {
-            if (result.insert(child).second)
+            else
             {
-               worklist.push(child);
+               operandStack *succStack = inStacks[succ];
+               std::cout << "Succ BCI = " << succBci << std::endl;
+               if (succBci == 72)
+               {
+                  std::cout << succBci << std::endl;
+               }
+               if (succStack->merge(*stack) && worklist_bb_bci.find(succBci) == worklist_bb_bci.end()) // if successor is already in the worklist then don't add it again.
+               {
+                  worklist_bb_bci.insert(succBci);
+                  std::cout << "Reanalysing " << succBci << std::endl;
+                  worklist.push(succ);
+               }
             }
          }
       }
+
+      // std::string fully_qualified_name = className + "." + name + signature;
+      // // if (changedMethodNames.find(fully_qualified_name) != changedMethodNames.end())
+      // // {
+      // //    changedMethodNames.erase(fully_qualified_name);
+      // // }
+      // analysedMethodNames.insert(fully_qualified_name);
+      std::cout << "##############Done traversing the Bytecode of the method " << className << "." << name << signature << "##############" << std::endl;
+      _methodsNamesBeingAnalyzed.erase(className + "." + name + signature);
+      std::string fully_qualified_name = className + "." + name + signature;
+      analysedMethodNames.insert(fully_qualified_name);
    }
 
-   return result;
-}
-
-J9Class *findClassAcrossAllLoaders(TR::Compilation *comp, const std::string &className, TR_J9VMBase *fej9, TR_ResolvedMethod *resolvedMethod)
-{
-   if(resolvedMethod)
+   std::unordered_set<std::string> getAllPossibleCHA_TargetNames(const std::string &className)
    {
+      std::unordered_set<std::string> result;
+      std::queue<std::string> worklist;
+
+      worklist.push(className);
+
+      while (!worklist.empty())
+      {
+         std::string current = worklist.front();
+         worklist.pop();
+
+         auto it = CHA_names.find(current);
+         if (it != CHA_names.end())
+         {
+            for (const auto &child : it->second)
+            {
+               if (result.insert(child).second)
+               {
+                  worklist.push(child);
+               }
+            }
+         }
+      }
+
+      return result;
+   }
+
+   J9Class *findClassAcrossAllLoaders(TR::Compilation * comp, const std::string &className, TR_J9VMBase *fej9, TR_ResolvedMethod *resolvedMethod)
+   {
+      if (resolvedMethod)
+      {
+         TR_OpaqueClassBlock *omb = fej9->getClassFromSignature(className.c_str(), className.length(), resolvedMethod, true);
+         if (omb)
+            return (J9Class *)omb;
+      }
+      J9VMThread *vmThread = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
+      J9JavaVM *javaVM = vmThread->javaVM;
+
+      // Use a GC-safe iterator to walk through all class loader blocks
+      GC_PoolIterator classLoaderIterator(javaVM->classLoaderBlocks);
+      J9ClassLoader *classLoader = nullptr;
+
+      while (nullptr != (classLoader = (J9ClassLoader *)classLoaderIterator.nextSlot()))
+      {
+
+         J9HashTableState walkState;
+         J9Class *currentClass = javaVM->internalVMFunctions->hashClassTableStartDo(classLoader, &walkState, 0);
+
+         while (currentClass)
+         {
+            J9UTF8 *nameUTF8 = J9ROMCLASS_CLASSNAME(currentClass->romClass);
+            std::string currentClassName((char *)J9UTF8_DATA(nameUTF8), J9UTF8_LENGTH(nameUTF8));
+
+            // Compare with the target class name
+            if (currentClassName == className)
+            {
+               std::cout << "Found class '" << className << "' in class loader " << classLoader << std::endl;
+               return currentClass;
+            }
+
+            // Move to the next class in the current loader's table
+            currentClass = javaVM->internalVMFunctions->hashClassTableNextDo(&walkState);
+         }
+      }
+
+      std::cout << "Class '" << className << "' not found in any class loader." << std::endl;
+      return nullptr;
+   }
+
+   J9Class *findClassByName(TR::Compilation * comp, const std::string &className, TR_J9VMBase *fej9, TR_ResolvedMethod *resolvedMethod)
+   {
+
       TR_OpaqueClassBlock *omb = fej9->getClassFromSignature(className.c_str(), className.length(), resolvedMethod, true);
       if (omb)
          return (J9Class *)omb;
 
-   }
-   J9VMThread *vmThread = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
-   J9JavaVM *javaVM = vmThread->javaVM;
+      J9VMThread *vmThread = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
+      J9JavaVM *javaVM = vmThread->javaVM;
 
-   // Use a GC-safe iterator to walk through all class loader blocks
-   GC_PoolIterator classLoaderIterator(javaVM->classLoaderBlocks);
-   J9ClassLoader *classLoader = nullptr;
-
-   while (nullptr != (classLoader = (J9ClassLoader *)classLoaderIterator.nextSlot()))
-   {
-
+      // Iterate all loaded classes in the system class loader
       J9HashTableState walkState;
-      J9Class *currentClass = javaVM->internalVMFunctions->hashClassTableStartDo(classLoader, &walkState, 0);
+      J9Class *clazz = javaVM->internalVMFunctions->hashClassTableStartDo(javaVM->systemClassLoader, &walkState, 0);
 
-      while (currentClass)
+      while (clazz)
       {
-         J9UTF8 *nameUTF8 = J9ROMCLASS_CLASSNAME(currentClass->romClass);
+         J9UTF8 *nameUTF8 = J9ROMCLASS_CLASSNAME(clazz->romClass);
          std::string currentClassName((char *)J9UTF8_DATA(nameUTF8), J9UTF8_LENGTH(nameUTF8));
 
-         // Compare with the target class name
          if (currentClassName == className)
          {
-            std::cout << "Found class '" << className << "' in class loader " << classLoader << std::endl;
-            return currentClass;
+            return clazz;
          }
 
-         // Move to the next class in the current loader's table
-         currentClass = javaVM->internalVMFunctions->hashClassTableNextDo(&walkState);
-      }
-   }
-
-   std::cout << "Class '" << className << "' not found in any class loader." << std::endl;
-   return nullptr;
-}
-
-J9Class *findClassByName(TR::Compilation *comp, const std::string &className, TR_J9VMBase *fej9, TR_ResolvedMethod *resolvedMethod)
-{
-
-   TR_OpaqueClassBlock *omb = fej9->getClassFromSignature(className.c_str(), className.length(), resolvedMethod, true);
-   if (omb)
-      return (J9Class *)omb;
-
-   J9VMThread *vmThread = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
-   J9JavaVM *javaVM = vmThread->javaVM;
-
-   // Iterate all loaded classes in the system class loader
-   J9HashTableState walkState;
-   J9Class *clazz = javaVM->internalVMFunctions->hashClassTableStartDo(javaVM->systemClassLoader, &walkState, 0);
-
-   while (clazz)
-   {
-      J9UTF8 *nameUTF8 = J9ROMCLASS_CLASSNAME(clazz->romClass);
-      std::string currentClassName((char *)J9UTF8_DATA(nameUTF8), J9UTF8_LENGTH(nameUTF8));
-
-      if (currentClassName == className)
-      {
-         return clazz;
+         clazz = javaVM->internalVMFunctions->hashClassTableNextDo(&walkState);
       }
 
-      clazz = javaVM->internalVMFunctions->hashClassTableNextDo(&walkState);
+      return nullptr;
    }
-
-   return nullptr;
-}
