@@ -3502,14 +3502,14 @@ OMR_InlinerUtil *OMR::Optimizer::getInlinerUtil()
 }
 
 /***** The newly added methods begins below *****/
-
+static unordered_set<std::string> processedClinit;
 void processClinits(TR::Compilation *comp)
 {
    std::ifstream inputFile("ci.txt");
 
    if (!inputFile.is_open())
    {
-      TR_ASSERT_FATAL(0, "Error: Could not open file ci.txt");
+      TR_ASSERT(0, "Error: Could not open file ci.txt");
       return;
    }
 
@@ -3518,10 +3518,12 @@ void processClinits(TR::Compilation *comp)
    while (std::getline(inputFile, class_name))
    {
       i++;
-      if (class_name.empty() || isLibraryMethod((class_name + ".<clinit>()V")))
+      if (class_name.empty() || isLibraryMethod((class_name + ".<clinit>()V")) || processedClinit.find(class_name) != processedClinit.end())
       {
          continue;
       }
+
+      processedClinit.insert(class_name);
 
       int len = class_name.length();
 
@@ -3535,14 +3537,14 @@ void processClinits(TR::Compilation *comp)
 
          if (m != nullptr)
          {
-            std::cout << i << ": Found <clinit> for class: " << class_name << std::endl;
+            // std::cout << i << ": Found <clinit> for class: " << class_name << std::endl;
             PAGNode *comp_type_2 = new PAGNode();
             comp_type_2->static_type = "COMP TYPE 2";
             traverse_cfg((J9Method *)m->getPersistentIdentifier(), pag, getOrInsertMethodIndexByName((class_name + ".<clinit>()V"), pag), comp, new PAGNode(), comp_type_2);
          }
          else
          {
-            std::cout << i << ": NOT Found <clinit> for class: " << class_name << std::endl;
+            // std::cout << i << ": NOT Found <clinit> for class: " << class_name << std::endl;
          }
       }
       else
@@ -3660,11 +3662,11 @@ void benchmarkBuildIndependentSet(TR::Compilation *comp)
 
          outFile.close();
 
-         std::cout << "Methods in MethodSS = " << std::endl;
-         for (auto nam : methodsSS)
-         {
-            std::cout << nam << std::endl;
-         }
+         // std::cout << "Methods in MethodSS = " << std::endl;
+         // for (auto nam : methodsSS)
+         // {
+         //    std::cout << nam << std::endl;
+         // }
       }
 
       //    //std::cout<<"method mset = "<<((std::string)(comp->getMethodSymbol()->getResolvedMethod()->nameChars())).substr(0, comp->getMethodSymbol()->getResolvedMethod()->nameLength())<<"\n";
@@ -5511,7 +5513,7 @@ int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues,
             std::string name = usefulNode->getSymbolReference()->getName(comp->getDebug());
             std::string full_name = name.substr(0, name.find(' '));
             ;
-            std::cout << full_name << std::endl;
+            // std::cout << full_name << std::endl;
             pag->addEdge(rhs_pag_ptr, receiver_pag_ptr, PUTFIELD, field_name);
             if (pag->threadAccessibleFields.find(full_name) != pag->threadAccessibleFields.end())
             {
@@ -6653,125 +6655,125 @@ void traverse_bytecode(J9Method *method, PointerAssignmentGraph *pag, int method
    int reference_params = 0;
    std::string fullNAME = className + "." + name + signature;
    // Create entries in the varaible Map for each of the parameters and a PAGNode for return node ;
-   if (analysedMethodNames.find(fullNAME) == analysedMethodNames.end()) // This means that this method 'my' was not analyzed before or called before.
-   {
-      if (!resolvedMethod->isStatic())
-      {
-         PAGNode *param_node_ptr = new PAGNode(VARIABLE, 0, nullptr, method_block, -1, methodIndex);
-         std::cout << "FOR recvr Method index = " << methodIndex << std::endl;
-         pag->methodIndex_to_allMethodNodes[methodIndex].push_back(param_node_ptr);
-         pag->PAG_nodes.insert(param_node_ptr);
-         pag->methodIndex_to_formalNodes[methodIndex].push_back(param_node_ptr);
-         reference_params++;
-      }
-      for (int i = 0; i < num_params; i++)
-      {
-         if (is_reference_type(methodSignature, i))
-         {
-            reference_params++;
-            std::string static_type = getParameterReferenceType(methodSignature, i);
-            PAGNode *param_node_ptr = new PAGNode(VARIABLE, i + 1, nullptr, method_block, -1, methodIndex, static_type);
-            // std::cout << "for is_reference_type Method index = " << methodIndex << std::endl;
-            pag->methodIndex_to_allMethodNodes[methodIndex].push_back(param_node_ptr);
-            pag->PAG_nodes.insert(param_node_ptr);
-            pag->methodIndex_to_formalNodes[methodIndex].push_back(param_node_ptr);
-         }
-      }
+   // if (analysedMethodNames.find(fullNAME) == analysedMethodNames.end()) // This means that this method 'my' was not analyzed before or called before.
+   // {
+   //    if (!resolvedMethod->isStatic())
+   //    {
+   //       PAGNode *param_node_ptr = new PAGNode(VARIABLE, 0, nullptr, method_block, -1, methodIndex);
+   //       std::cout << "FOR recvr Method index = " << methodIndex << std::endl;
+   //       pag->methodIndex_to_allMethodNodes[methodIndex].push_back(param_node_ptr);
+   //       pag->PAG_nodes.insert(param_node_ptr);
+   //       pag->methodIndex_to_formalNodes[methodIndex].push_back(param_node_ptr);
+   //       reference_params++;
+   //    }
+   //    for (int i = 0; i < num_params; i++)
+   //    {
+   //       if (is_reference_type(methodSignature, i))
+   //       {
+   //          reference_params++;
+   //          std::string static_type = getParameterReferenceType(methodSignature, i);
+   //          PAGNode *param_node_ptr = new PAGNode(VARIABLE, i + 1, nullptr, method_block, -1, methodIndex, static_type);
+   //          // std::cout << "for is_reference_type Method index = " << methodIndex << std::endl;
+   //          pag->methodIndex_to_allMethodNodes[methodIndex].push_back(param_node_ptr);
+   //          pag->PAG_nodes.insert(param_node_ptr);
+   //          pag->methodIndex_to_formalNodes[methodIndex].push_back(param_node_ptr);
+   //       }
+   //    }
 
-      if (hasReturnType)
-      {
-         pag->methodIndex_to_returnNode[methodIndex] = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, method_block, -1, methodIndex);
-         pag->PAG_nodes.insert(pag->methodIndex_to_returnNode[methodIndex]);
-         pag->methodIndex_to_allMethodNodes[methodIndex].push_back(pag->methodIndex_to_returnNode[methodIndex]);
-      }
-   }
-   vector<PAGNode *> formal_param_nodes = pag->methodIndex_to_formalNodes[methodIndex];
-   PAGNode *returnNode = nullptr;
-   auto it = pag->methodIndex_to_returnNode.find(methodIndex);
-   if (it != pag->methodIndex_to_returnNode.end())
-   {
-      returnNode = it->second;
-   }
+   //    if (hasReturnType)
+   //    {
+   //       pag->methodIndex_to_returnNode[methodIndex] = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, method_block, -1, methodIndex);
+   //       pag->PAG_nodes.insert(pag->methodIndex_to_returnNode[methodIndex]);
+   //       pag->methodIndex_to_allMethodNodes[methodIndex].push_back(pag->methodIndex_to_returnNode[methodIndex]);
+   //    }
+   // }
+   // vector<PAGNode *> formal_param_nodes = pag->methodIndex_to_formalNodes[methodIndex];
+   // PAGNode *returnNode = nullptr;
+   // auto it = pag->methodIndex_to_returnNode.find(methodIndex);
+   // if (it != pag->methodIndex_to_returnNode.end())
+   // {
+   //    returnNode = it->second;
+   // }
 
-   std::cout << "Formal params size = " << formal_param_nodes.size() << std::endl;
-   if (reference_params != formal_param_nodes.size() || ((hasReturnType && !returnNode) || (!hasReturnType && returnNode)))
-   {
-      throw std::runtime_error("There is a mismatch in the size of paramters maybe the method signature changed.");
-   }
+   // std::cout << "Formal params size = " << formal_param_nodes.size() << std::endl;
+   // if (reference_params != formal_param_nodes.size() || ((hasReturnType && !returnNode) || (!hasReturnType && returnNode)))
+   // {
+   //    throw std::runtime_error("There is a mismatch in the size of paramters maybe the method signature changed.");
+   // }
 
-   for (int i = 0; i < reference_params; i++)
-   {
-      // PAGNode *param_node_ptr = new PAGNode(VARIABLE, i, nullptr, method_block, -1, methodIndex);
-      // pag->methodIndex_to_allMethodNodes[methodIndex].push_back(param_node_ptr);
-      // pag->PAG_nodes.insert(param_node_ptr);
-      // pag->methodIndex_to_formalNodes[methodIndex].push_back(param_node_ptr);
+   // for (int i = 0; i < reference_params; i++)
+   // {
+   //    // PAGNode *param_node_ptr = new PAGNode(VARIABLE, i, nullptr, method_block, -1, methodIndex);
+   //    // pag->methodIndex_to_allMethodNodes[methodIndex].push_back(param_node_ptr);
+   //    // pag->PAG_nodes.insert(param_node_ptr);
+   //    // pag->methodIndex_to_formalNodes[methodIndex].push_back(param_node_ptr);
 
-      variableMap[formal_param_nodes[i]->name] = formal_param_nodes[i];
-   }
-   if (hasReturnType)
-   {
-      // pag->methodIndex_to_returnNode[methodIndex] = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, method_block, -1, methodIndex);
-      // pag->PAG_nodes.insert(pag->methodIndex_to_returnNode[methodIndex]);
-      // pag->methodIndex_to_allMethodNodes[methodIndex].push_back(pag->methodIndex_to_returnNode[methodIndex]);
-   }
+   //    variableMap[formal_param_nodes[i]->name] = formal_param_nodes[i];
+   // }
+   // if (hasReturnType)
+   // {
+   //    // pag->methodIndex_to_returnNode[methodIndex] = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, method_block, -1, methodIndex);
+   //    // pag->PAG_nodes.insert(pag->methodIndex_to_returnNode[methodIndex]);
+   //    // pag->methodIndex_to_allMethodNodes[methodIndex].push_back(pag->methodIndex_to_returnNode[methodIndex]);
+   // }
 
-   int32_t currentIndex = 0;
-   int statementCount = 0;
-   operandStack *stack = new operandStack();
+   // int32_t currentIndex = 0;
+   // int statementCount = 0;
+   // operandStack *stack = new operandStack();
 
-   while (currentIndex < methodSize)
-   {
-      TR_ASSERT_FATAL(currentIndex >= 0 && currentIndex < methodSize, "Bytecode index out of bounds");
+   // while (currentIndex < methodSize)
+   // {
+   //    TR_ASSERT_FATAL(currentIndex >= 0 && currentIndex < methodSize, "Bytecode index out of bounds");
 
-      uint8_t *pc = (uint8_t *)(methodStart + currentIndex);
+   //    uint8_t *pc = (uint8_t *)(methodStart + currentIndex);
 
-      TR_J9ByteCode bytecode = TR_J9ByteCodeIterator::convertOpCodeToByteCodeEnum(*pc);
-      int32_t instructionLength = getInstructionLength(bytecode, pc);
-      std::cout << "  [" << statementCount << "] PC: " << currentIndex
-                << " - Opcode: 0x" << std::hex << (int)(*pc) << std::dec
-                << " - " << getBytecodeString(bytecode) << " ---> " << instructionLength << std::endl;
+   //    TR_J9ByteCode bytecode = TR_J9ByteCodeIterator::convertOpCodeToByteCodeEnum(*pc);
+   //    int32_t instructionLength = getInstructionLength(bytecode, pc);
+   //    std::cout << "  [" << statementCount << "] PC: " << currentIndex
+   //              << " - Opcode: 0x" << std::hex << (int)(*pc) << std::dec
+   //              << " - " << getBytecodeString(bytecode) << " ---> " << instructionLength << std::endl;
 
-      TR::VMAccessCriticalSection vmAccess(comp);
-      J9VMThread *vm = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
-      TR_OpaqueClassBlock *opaqueCurrentClass = resolvedMethod->classOfMethod();
-      J9Class *currentClass = reinterpret_cast<J9Class *>(opaqueCurrentClass);
-      executeBytecode(bytecode, pc, pag, stack, resolvedMethod, method, methodIndex, currentIndex, variableMap, hasReturnType, comp, currentClass, new PAGNode(), new PAGNode());
+   //    TR::VMAccessCriticalSection vmAccess(comp);
+   //    J9VMThread *vm = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
+   //    TR_OpaqueClassBlock *opaqueCurrentClass = resolvedMethod->classOfMethod();
+   //    J9Class *currentClass = reinterpret_cast<J9Class *>(opaqueCurrentClass);
+   //    executeBytecode(bytecode, pc, pag, stack, resolvedMethod, method, methodIndex, currentIndex, variableMap, hasReturnType, comp, currentClass, new PAGNode(), new PAGNode());
 
-      // if (bytecode == J9BCnew)
-      // {
-      //     uint16_t cpIndex = (pc[2] << 8) | pc[1];
-      //     uint32_t classNamelength = 0;
-      //     char *classNameChars = resolvedMethod->getClassNameFromConstantPool(cpIndex, classNamelength);
-      //     std::string className(classNameChars, classNamelength);
-      //     std::cout << "  -> Create an object of type: " << className << std::endl;
-      // }
+   //    // if (bytecode == J9BCnew)
+   //    // {
+   //    //     uint16_t cpIndex = (pc[2] << 8) | pc[1];
+   //    //     uint32_t classNamelength = 0;
+   //    //     char *classNameChars = resolvedMethod->getClassNameFromConstantPool(cpIndex, classNamelength);
+   //    //     std::string className(classNameChars, classNamelength);
+   //    //     std::cout << "  -> Create an object of type: " << className << std::endl;
+   //    // }
 
-      // if (bytecode == J9BCgetfield || bytecode == J9BCputfield)
-      // {
+   //    // if (bytecode == J9BCgetfield || bytecode == J9BCputfield)
+   //    // {
 
-      //     uint16_t cpIndex = (pc[2] << 8) | pc[1];
-      //     int fieldNameLength = 0;
-      //     const char *fieldNameChars = resolvedMethod->fieldNameChars(cpIndex, fieldNameLength);
+   //    //     uint16_t cpIndex = (pc[2] << 8) | pc[1];
+   //    //     int fieldNameLength = 0;
+   //    //     const char *fieldNameChars = resolvedMethod->fieldNameChars(cpIndex, fieldNameLength);
 
-      //     std::string fieldName(fieldNameChars, fieldNameLength);
+   //    //     std::string fieldName(fieldNameChars, fieldNameLength);
 
-      //     int signatureLength = 0;
-      //     const char *signatureChars = resolvedMethod->fieldSignatureChars(cpIndex, signatureLength);
+   //    //     int signatureLength = 0;
+   //    //     const char *signatureChars = resolvedMethod->fieldSignatureChars(cpIndex, signatureLength);
 
-      //     std::string signature(signatureChars, signatureLength - 1);
-      //     signature = signature.substr(1);
+   //    //     std::string signature(signatureChars, signatureLength - 1);
+   //    //     signature = signature.substr(1);
 
-      //     // int classNamelength = 0;
-      //     // const char *className = resolvedMethod->classNameOfFieldOrStatic(cpIndex,classNamelength);
+   //    //     // int classNamelength = 0;
+   //    //     // const char *className = resolvedMethod->classNameOfFieldOrStatic(cpIndex,classNamelength);
 
-      //     std::cout << "  -> Access the field: " << signature << "." << fieldName;
-      // }
-      // std::cout << std::endl;
+   //    //     std::cout << "  -> Access the field: " << signature << "." << fieldName;
+   //    // }
+   //    // std::cout << std::endl;
 
-      currentIndex += instructionLength;
-      globalIndex_++;
-      statementCount++;
-   }
+   //    currentIndex += instructionLength;
+   //    globalIndex_++;
+   //    statementCount++;
+   // }
 
    std::string fully_qualified_name = className + "." + name + signature;
    // if (changedMethodNames.find(fully_qualified_name) != changedMethodNames.end())
@@ -7910,8 +7912,8 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       const char *fieldStaticType = resolvedMethod->classNameOfFieldOrStatic(cpIndex, len);
       std::string fieldName(fieldNameChars, fieldNameLength);
       std::string fieldType(fieldSig, signatureLength);
-      std::cout << "  -> fieldName= " << fieldName << " ### " << fieldSig << " #### " << fieldStaticType << std::endl;
-     
+      // std::cout << "  -> fieldName= " << fieldName << " ### " << fieldSig << " #### " << fieldStaticType << std::endl;
+
       PAGNode *temp_node_ptr = new PAGNode(VARIABLE, globalIndex_, nullptr, method_block, bci, methodIndex, fieldType);
       pag->PAG_nodes.insert(temp_node_ptr);
       pag->methodIndex_to_allMethodNodes[methodIndex].push_back(temp_node_ptr);
@@ -7974,8 +7976,8 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       std::string fieldType(fieldSig, signatureLength);
       std::string fieldName(fieldNameChars, fieldNameLength);
 
-      std::cout << "  ->className in putfield " << className << std::endl;
-      std::cout << "  -> fieldName= " << fieldName << std::endl;
+      // std::cout << "  ->className in putfield " << className << std::endl;
+      // std::cout << "  -> fieldName= " << fieldName << std::endl;
       std::string fullName = className + "." + fieldName;
       set<PAGNode *> value_set = stack->popRef();
       set<PAGNode *> objs_set;
@@ -8056,8 +8058,8 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       size_t pos = returnType.find(')');
 
       returnType = returnType.substr(pos + 1);
-      
-      PAGNode* retNode = new PAGNode(VARIABLE, -1, nullptr, method_block, bci, methodIndex);
+
+      PAGNode *retNode = new PAGNode(VARIABLE, -1, nullptr, method_block, bci, methodIndex);
       pag->PAG_nodes.insert(retNode);
       pag->methodIndex_to_allMethodNodes[methodIndex].push_back(retNode);
 
@@ -8123,7 +8125,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    case J9BCinvokevirtual:
    case J9BCinvokespecial:
    {
-      std::cout << "invokespecial/invokevirtual: cpIndex " << cpIndex << std::endl;
+      // std::cout << "invokespecial/invokevirtual: cpIndex " << cpIndex << std::endl;
       uint len = 0;
       J9Method *j9method;
 
@@ -8155,7 +8157,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       U_16 nameLength = J9UTF8_LENGTH(name_utf8);
       std::string name(nameChars, nameLength);
 
-      std::cout << "   -> " << name << signature << " is the method!!!" << std::endl;
+      // std::cout << "   -> " << name << signature << " is the method!!!" << std::endl;
       // methodName along with signature;
       string methodName = name + signature;
 
@@ -8202,8 +8204,6 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
          // U_16 nameIndex = romClassRef->name;
          // J9ROMConstantPoolItem *classNameUtf8CPItem = &(cp->romConstantPool[nameIndex]);
          // J9UTF8 *classNameUtf8 = (J9UTF8 *)classNameUtf8CPItem;
-
-         // Now extract as before
          // char *classNameChars = (char *)J9UTF8_DATA(classNameUtf8);
          // U_16 classNameLength = J9UTF8_LENGTH(classNameUtf8);
          // J9ROMStringRef *romStringRef = (J9ROMStringRef *)&cp->romConstantPool[classRefIndex];
@@ -8211,7 +8211,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
          // int classNameLength = J9UTF8_LENGTH(classNameWrapper);
          // char * classNameChars = (char*) J9UTF8_DATA(classNameWrapper);
          // std::string className(classNameChars, classNameLength);
-         std::cout << "  ->invokestatic className  " << className << std::endl;
+         // std::cout << "  ->invokestatic className  " << className << std::endl;
          PAGNode *rNode = new PAGNode(VARIABLE, 0, nullptr, method_block, -1, methodIndex, className);
          if (rst == "J" || rst == "D")
          {
@@ -8294,7 +8294,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
 
                std::string full_name = className + "." + name + signature;
                std::string staticName = staticClassName + "." + name + signature;
-               std::cout << "full_name = " << full_name << " Stt = " << staticName << std::endl;
+               // std::cout << "full_name = " << full_name << " Stt = " << staticName << std::endl;
                if (staticName.rfind("java/lang/Object.<init>()") == 0)
                   break;
 
@@ -8423,7 +8423,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       uint32_t classNamelength = 0;
       char *classNameChars = resolvedMethod->getClassNameFromConstantPool(cpIndex, classNamelength);
       std::string className(classNameChars, classNamelength);
-      std::cout << "  -> Create an object of type: " << className << std::endl;
+      // std::cout << "  -> Create an object of type: " << className << std::endl;
 
       PAGNode *obj_ptr = new PAGNode(OBJECT, -1, nullptr, method_block, bci, methodIndex);
       pag->PAG_nodes.insert(obj_ptr);
@@ -8580,10 +8580,10 @@ bool searchForOveridingMethodsInClass(std::string className, std::string method_
                if (isLibraryMethod(full_method_name))
                   pag->addEdge(pag->bottom_node, returnNode, ASSIGN, bci);
                else
-               {  
+               {
                   int m_ind = getOrInsertMethodIndexByName(full_method_name, pag);
-                  PAGNode* retn = pag->getReturnNode(m_ind);
-                  if(!retn)
+                  PAGNode *retn = pag->getReturnNode(m_ind);
+                  if (!retn)
                   {
                      retn = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, method_block, -1, m_ind);
                      retn->static_type = returnStaticType;
@@ -8593,7 +8593,6 @@ bool searchForOveridingMethodsInClass(std::string className, std::string method_
                   }
                   pag->addEdge(retn, returnNode, ASSIGN, bci);
                }
-                  
             }
             else if (calleeReturnsPrimitive)
             {
@@ -9168,13 +9167,13 @@ int getOrInsertMethodIndexByName(std::string methodName, PointerAssignmentGraph 
 
    if (pag->_methodIndices.find(methodName) != pag->_methodIndices.end())
    {
-      std::cout << "Found in the method indices " << methodName << std::endl;
+      // std::cout << "Found in the method indices " << methodName << std::endl;
       return pag->_methodIndices[methodName];
    }
 
    int index = pag->_methodIndices.size() + 1;
    pag->_methodIndices[methodName] = index;
-   std::cout << "Inserted in the method indices " << methodName << std::endl;
+   // std::cout << "Inserted in the method indices " << methodName << std::endl;
 
    return index;
 }
@@ -9733,7 +9732,7 @@ int32_t calculateWideInstructionLength(uint8_t *pc)
 }
 
 // === Branch classifiers ===
-inline bool isBranch(TR_J9ByteCode bc)
+bool isBranch(TR_J9ByteCode bc)
 {
    switch (bc)
    {
@@ -9763,12 +9762,12 @@ inline bool isBranch(TR_J9ByteCode bc)
    }
 }
 
-inline bool isSwitch(TR_J9ByteCode bc)
+bool isSwitch(TR_J9ByteCode bc)
 {
    return (bc == J9BCtableswitch || bc == J9BClookupswitch);
 }
 
-inline bool isReturnOrThrow(TR_J9ByteCode bc)
+bool isReturnOrThrow(TR_J9ByteCode bc)
 {
    switch (bc)
    {
@@ -9786,7 +9785,7 @@ inline bool isReturnOrThrow(TR_J9ByteCode bc)
    return false;
 }
 // For branches, compute absolute bytecode index of target
-inline int32_t branchTarget(int32_t pcIndex, TR_J9ByteCode bc, uint8_t *pc)
+int32_t branchTarget(int32_t pcIndex, TR_J9ByteCode bc, uint8_t *pc)
 {
    if (bc == J9BCgotow)
    {
@@ -9808,7 +9807,7 @@ inline int32_t branchTarget(int32_t pcIndex, TR_J9ByteCode bc, uint8_t *pc)
    return -1; // not a branch
 }
 
-inline std::vector<int32_t> switchTargets(int32_t pcIndex, TR_J9ByteCode bc, uint8_t *pc)
+std::vector<int32_t> switchTargets(int32_t pcIndex, TR_J9ByteCode bc, uint8_t *pc)
 {
    std::vector<int32_t> targets;
 
@@ -9910,7 +9909,14 @@ TR::CFG *buildCFG(TR_OpaqueMethodBlock *method_block, TR::Compilation *comp, std
    // Create TR::Block nodes
    for (int32_t leader : leaders)
    {
-      TR::Block *b = TR::Block::createEmptyBlock(comp);
+      // TR::Block *b = TR::Block::createEmptyBlock(0, comp, -1, (TR::Block *)__null);
+      TR::Block *b =
+          new (comp->trHeapMemory()) TR::Block(
+              TR::TreeTop::create(comp, TR::Node::create(0, TR::BBStart)),
+              TR::TreeTop::create(comp, TR::Node::create(0, TR::BBEnd)),
+              comp->trMemory());
+      b->getEntry()->join(b->getExit());
+      b->setFrequency(-1);
       b->setByteCodeIndex(leader, comp);
       //   std::cout << b->getEntry()->getNode()->getByteCodeIndex() << std::endl;
       blocks[leader] = b;
@@ -9949,7 +9955,7 @@ TR::CFG *buildCFG(TR_OpaqueMethodBlock *method_block, TR::Compilation *comp, std
 
       uint8_t *lastPc = (uint8_t *)(methodStart + lastInstrStart);
 
-      std::cout << "BASIC BLOCK START BCI=" << block->getEntry()->getNode()->getByteCodeIndex() << " Last Instruction= " << lastInstrStart << " - " << getBytecodeString(lastBc) << std::endl;
+      // std::cout << "BASIC BLOCK START BCI=" << block->getEntry()->getNode()->getByteCodeIndex() << " Last Instruction= " << lastInstrStart << " - " << getBytecodeString(lastBc) << std::endl;
 
       // Add edges based on the last instruction of the block
       if (isBranch(lastBc))
@@ -9987,75 +9993,78 @@ TR::CFG *buildCFG(TR_OpaqueMethodBlock *method_block, TR::Compilation *comp, std
    return cfg;
 }
 
-int getSlotForArgument(const char* descriptor, int argIndex) {
-    int slot = 1;        // slot 0 is 'this'
-    int currentArg = 0;
+int getSlotForArgument(const char *descriptor, int argIndex)
+{
+   int slot = 1; // slot 0 is 'this'
+   int currentArg = 0;
 
-    const char* p = descriptor;
-    if (*p == '(') ++p;  // skip '('
+   const char *p = descriptor;
+   if (*p == '(')
+      ++p; // skip '('
 
-    while (*p && *p != ')') {
-        char c = *p++;
+   while (*p && *p != ')')
+   {
+      char c = *p++;
 
-         if (c == 'L') {
-            // Reference type: skip until ';'
-            while (*p && *p != ';') ++p;
-            if (*p == ';') ++p;
+      if (c == 'L')
+      {
+         // Reference type: skip until ';'
+         while (*p && *p != ';')
+            ++p;
+         if (*p == ';')
+            ++p;
 
-            if (currentArg == argIndex)
-                return slot;
+         if (currentArg == argIndex)
+            return slot;
 
-            slot += 1;
-            currentArg++;
-        }
-        else if (c == '[') {
-            // Array type: skip all '[' and next type (may be object or primitive)
-            while (*p == '[') ++p;
-            if (*p == 'L') {
-                while (*p && *p != ';') ++p;
-                if (*p == ';') ++p;
-            } else {
-                ++p;
-            }
+         slot += 1;
+         currentArg++;
+      }
+      else if (c == '[')
+      {
+         // Array type: skip all '[' and next type (may be object or primitive)
+         while (*p == '[')
+            ++p;
+         if (*p == 'L')
+         {
+            while (*p && *p != ';')
+               ++p;
+            if (*p == ';')
+               ++p;
+         }
+         else
+         {
+            ++p;
+         }
 
-            if (currentArg == argIndex)
-                return slot;
+         if (currentArg == argIndex)
+            return slot;
 
-            slot += 1;
-            currentArg++;
-        }
-        else if (c == 'J' || c == 'D') {
-            // long or double: 2 slots
-            if (currentArg == argIndex)
-                return slot;
+         slot += 1;
+         currentArg++;
+      }
+      else if (c == 'J' || c == 'D')
+      {
+         // long or double: 2 slots
+         if (currentArg == argIndex)
+            return slot;
 
-            slot += 2;
-            currentArg++;
-        }
-        else {
-            // primitive (I, F, S, B, C, Z): 1 slot
-            if (currentArg == argIndex)
-                return slot;
+         slot += 2;
+         currentArg++;
+      }
+      else
+      {
+         // primitive (I, F, S, B, C, Z): 1 slot
+         if (currentArg == argIndex)
+            return slot;
 
-            slot += 1;
-            currentArg++;
-        }
-    }
+         slot += 1;
+         currentArg++;
+      }
+   }
 
-     return -1;
+   return -1;
 }
-
-int main() {
-    const char* desc = "(DDLorg/HdrHistogram/EncodableHistogram;D)V";
-
-    for (int i = 0; i < 4; ++i) {
-        int slot = getSlotForArgument(desc, i);
-        std::cout << "Arg " << i << " starts at slot " << slot << "\n";
-    }
-
-    return 0;
-}
-
 
 void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex, TR::Compilation *comp, PAGNode *primitive_node, PAGNode *comp_type2_primitiveNode)
 {
@@ -10067,7 +10076,7 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
    std::map<int32_t, TR::Block *> blocks;
    TR::Block *entryBlock = nullptr;
 
-   std::cout << "Resolved method ptr: = " << resolvedMethod << std::endl;
+   // std::cout << "Resolved method ptr: = " << resolvedMethod << std::endl;
    char *classNameChars = resolvedMethod->classNameChars();
    int32_t classNameLength = resolvedMethod->classNameLength();
 
@@ -10082,19 +10091,19 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
    std::string returnStaticType;
    bool hasReturnType = returnsObject(methodSignature, returnStaticType);
    _methodsNamesBeingAnalyzed.insert(className + "." + name + signature);
-   if (isLibraryMethod((className + "." + name + signature)))
-   {
-      std::cout << "############## SKIPPED Traversing the Bytecode of the method " << className << "." << name << signature << "##############" << std::endl;
+   // if (isLibraryMethod((className + "." + name + signature)))
+   // {
+   //    std::cout << "############## SKIPPED Traversing the Bytecode of the method " << className << "." << name << signature << "##############" << std::endl;
 
-      return;
-   }
+   //    return;
+   // }
 
    std::cout << "############## Traversing the Bytecode of the method " << className << "." << name << signature << "##############" << std::endl;
    int num_params = count_parameters(methodSignature); // resolvedMethod->numberOfParameterSlots(); double or long takes 2 slots
-   if(name.rfind("outputIntervalHistogram")==0)
-   {
-      std::cout << "Got :" << name << std::endl;
-   }
+   // if(name.rfind("outputIntervalHistogram")==0)
+   // {
+   //    std::cout << "Got :" << name << std::endl;
+   // }
    std::unordered_map<int, PAGNode *> variableMap;
    int reference_params = 0;
    std::string fullNAME = className + "." + name + signature;
@@ -10104,30 +10113,28 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
       if (!resolvedMethod->isStatic())
       {
          PAGNode *param_node_ptr = new PAGNode(VARIABLE, 0, nullptr, method_block, -1, methodIndex, className);
-         std::cout << "FOR recvr Method index = " << methodIndex << std::endl;
+         // std::cout << "FOR recvr Method index = " << methodIndex << std::endl;
          pag->methodIndex_to_allMethodNodes[methodIndex].push_back(param_node_ptr);
          pag->PAG_nodes.insert(param_node_ptr);
          pag->methodIndex_to_formalNodes[methodIndex].push_back(param_node_ptr);
          reference_params++;
       }
 
-  
       for (int i = 0; i < num_params; i++)
-      {  
+      {
 
          if (is_reference_type(methodSignature, i))
-         {  
+         {
             reference_params++;
             int slot_num = getSlotForArgument(methodSignature, i);
 
             std::string static_type = getParameterReferenceType(methodSignature, i);
-            PAGNode *param_node_ptr = new PAGNode(VARIABLE,slot_num, nullptr, method_block, -1, methodIndex, static_type);
-            std::cout << "for is_reference_type Method index = " << methodIndex << std::endl;
+            PAGNode *param_node_ptr = new PAGNode(VARIABLE, slot_num, nullptr, method_block, -1, methodIndex, static_type);
+            // std::cout << "for is_reference_type Method index = " << methodIndex << std::endl;
             pag->methodIndex_to_allMethodNodes[methodIndex].push_back(param_node_ptr);
             pag->PAG_nodes.insert(param_node_ptr);
             pag->methodIndex_to_formalNodes[methodIndex].push_back(param_node_ptr);
          }
-
       }
 
       if (hasReturnType)
@@ -10146,7 +10153,7 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
       returnNode = it->second;
    }
 
-   std::cout << "Formal params size = " << formal_param_nodes.size() << std::endl;
+   // std::cout << "Formal params size = " << formal_param_nodes.size() << std::endl;
    if (reference_params != formal_param_nodes.size() || ((hasReturnType && !returnNode) || (!hasReturnType && returnNode)))
    {
       TR_ASSERT_FATAL(0, "There is a mismatch in the size of paramters maybe the method signature changed.");
@@ -10206,7 +10213,7 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
          TR_J9ByteCode bytecode = TR_J9ByteCodeIterator::convertOpCodeToByteCodeEnum(*pc);
          int32_t instructionLength = getInstructionLength(bytecode, pc);
 
-         std::cout << pcIndex << " - Opcode: 0x" << std::hex << (int)(*pc) << std::dec << " - " << getBytecodeString(bytecode) << " ---> " << instructionLength << std::endl;
+         // std::cout << pcIndex << " - Opcode: 0x" << std::hex << (int)(*pc) << std::dec << " - " << getBytecodeString(bytecode) << " ---> " << instructionLength << std::endl;
 
          TR::VMAccessCriticalSection vmAccess(comp);
          J9VMThread *vm = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
@@ -10235,12 +10242,12 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
          else
          {
             operandStack *succStack = inStacks[succ];
-            std::cout << "Succ BCI = " << succBci << std::endl;
-          
+            // std::cout << "Succ BCI = " << succBci << std::endl;
+
             if (succStack->merge(*stack) && worklist_bb_bci.find(succBci) == worklist_bb_bci.end()) // if successor is already in the worklist then don't add it again.
             {
                worklist_bb_bci.insert(succBci);
-               std::cout << "Reanalysing " << succBci << std::endl;
+               // std::cout << "Reanalysing " << succBci << std::endl;
                worklist.push(succ);
             }
          }
@@ -10316,7 +10323,7 @@ J9Class *findClassAcrossAllLoaders(TR::Compilation *comp, const std::string &cla
          // Compare with the target class name
          if (currentClassName == className)
          {
-            std::cout << "Found class '" << className << "' in class loader " << classLoader << std::endl;
+            // std::cout << "Found class '" << className << "' in class loader " << classLoader << std::endl;
             return currentClass;
          }
 
@@ -10325,7 +10332,7 @@ J9Class *findClassAcrossAllLoaders(TR::Compilation *comp, const std::string &cla
       }
    }
 
-   std::cout << "Class '" << className << "' not found in any class loader." << std::endl;
+   // std::cout << "Class '" << className << "' not found in any class loader." << std::endl;
    return nullptr;
 }
 

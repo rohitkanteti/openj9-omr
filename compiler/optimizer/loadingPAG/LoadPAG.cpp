@@ -123,7 +123,7 @@ void LoadPAG::loadNodes(const std::string &filename)
         }
         else
         {
-             pag->nodeIndexToNode[index++] = pag->bottom_node;
+            pag->nodeIndexToNode[index++] = pag->bottom_node;
         }
     }
 }
@@ -137,21 +137,15 @@ void LoadPAG::loadEdges(const std::string &filename)
     {
         if (line.empty())
             continue;
+
         auto colonPos = line.find(':');
         if (colonPos == std::string::npos)
             continue;
 
         int srcIndex = std::stoi(line.substr(0, colonPos));
+        std::string edgesPart = line.substr(colonPos + 1);
 
-        auto openBracket = line.find('[', colonPos);
-        auto closeBracket = line.rfind(']');
-        if (openBracket == std::string::npos || closeBracket == std::string::npos || closeBracket <= openBracket)
-        {
-            continue;
-        }
-
-        std::string listContent = line.substr(openBracket + 1, closeBracket - openBracket - 1);
-        std::stringstream listSS(listContent);
+        std::stringstream listSS(edgesPart);
         std::string tuple;
 
         while (std::getline(listSS, tuple, ';'))
@@ -159,10 +153,15 @@ void LoadPAG::loadEdges(const std::string &filename)
             if (tuple.empty())
                 continue;
 
+            tuple.erase(remove_if(tuple.begin(), tuple.end(), ::isspace), tuple.end());
+
             if (tuple.front() == '[')
-                tuple.erase(0, 1);
-            if (tuple.back() == ']')
+                tuple.erase(tuple.begin());
+            if (!tuple.empty() && tuple.back() == ']')
                 tuple.pop_back();
+
+            if (tuple.empty())
+                continue;
 
             std::stringstream tupleSS(tuple);
             std::string token;
@@ -178,13 +177,24 @@ void LoadPAG::loadEdges(const std::string &filename)
             if (!std::getline(tupleSS, token, ','))
                 continue;
             std::string fieldName = token;
+            if (fieldName == "<N/A>")
+                fieldName = "";
 
             if (!std::getline(tupleSS, token, ','))
                 continue;
-            int callsiteBCI = std::stoi(token);
+            int callsiteBCI = 0;
+            try
+            {
+                callsiteBCI = std::stoi(token);
+            }
+            catch (...)
+            {
+                callsiteBCI = -1;
+            }
 
             PAGNode *src = pag->nodeIndexToNode[srcIndex];
             PAGNode *dest = pag->nodeIndexToNode[destIndex];
+
             if (!src || !dest)
             {
                 std::cerr << "Invalid edge in line: " << line << "\n";
@@ -192,16 +202,7 @@ void LoadPAG::loadEdges(const std::string &filename)
             }
 
             EdgeType eType = parseEdgeType(edgeTypeInt);
-
-            // PAGEdge* edge = new PAGEdge(src, dest, eType, fieldName, callsiteBCI);
-            // src->outgoing.insert(edge);
-            // dest->incoming.insert(edge);
             pag->addEdge(src, dest, eType, fieldName, callsiteBCI);
-
-            // EdgeType reverseType = static_cast<EdgeType>(eType + 5); // Convert to BAR version
-            // PAGEdge* reverseEdge = new PAGEdge(dest, src, reverseType, fieldName, callsiteBCI);
-            // dest->outgoing.insert(reverseEdge);
-            // src->incoming.insert(reverseEdge);
         }
     }
 }
