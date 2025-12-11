@@ -1356,6 +1356,7 @@ public:
       _startOptions = NULL;
       _envOptions = NULL;
       _logFileName = NULL;
+      _changedMethodName = NULL;
       _suffixLogsFormat = NULL;
       _logFile = NULL;
       _optFileName = NULL;
@@ -1558,6 +1559,7 @@ public:
    TR::FILE *          getLogFile()          {return _logFile;}
    void            setLogFile(TR::FILE * f)  {_logFile = f;}
    char *          getLogFileName()      {return _logFileName;}
+   char* getChangedMethodName() {return _changedMethodName;}
 
    char *    getBlockShufflingSequence(){ return _blockShufflingSequence; }
 
@@ -2352,6 +2354,7 @@ protected:
    char                       *_logFileName;
    char                       *_suffixLogsFormat;
    TR::FILE *                      _logFile;
+   char* _changedMethodName;
 
 
    char                       *_optFileName;

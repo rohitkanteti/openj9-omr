@@ -3617,7 +3617,7 @@ void benchmarkBuildIndependentSet(TR::Compilation *comp)
    std::string actCName = tempCName.substr(0, comp->getMethodSymbol()->getResolvedMethod()->classNameLength());
    // std::cout << "checking for : " << methodPersistentId << std::endl;
    std::string methodToAnalyze = getMethodName(comp->getMethodSymbol());
-   if (analysedMethodNames.find(methodToAnalyze) == analysedMethodNames.end()) // (_methodsAnalyzed.find(methodPersistentId) == _methodsAnalyzed.end())
+   if (analysedMethodNames.find(methodToAnalyze) == analysedMethodNames.end() && alreadyAnalyzedMethods.find(methodToAnalyze) == alreadyAnalyzedMethods.end()) // (_methodsAnalyzed.find(methodPersistentId) == _methodsAnalyzed.end())
    {
       std::cout << "**************************************************************analyzing " << getMethodName(comp->getMethodSymbol()) << " omb= " << methodPersistentId << " in OMROptimizer.cpp**************************************************************" << std::endl;
 
@@ -8602,7 +8602,7 @@ bool searchForOveridingMethodsInClass(std::string className, std::string method_
          }
 
          // if not a library method, not anbalyzed earlier, not in the curently being analyzed methods then traverse it first
-         if (!isLibraryMethod(full_method_name) && analysedMethodNames.find(full_method_name) == analysedMethodNames.end() && _methodsNamesBeingAnalyzed.find(full_method_name) == _methodsNamesBeingAnalyzed.end()) //&& changedMethodNames.find(full_method_name) == changedMethodNames.end())
+         if (!isLibraryMethod(full_method_name) && analysedMethodNames.find(full_method_name) == analysedMethodNames.end() && _methodsNamesBeingAnalyzed.find(full_method_name) == _methodsNamesBeingAnalyzed.end() && alreadyAnalyzedMethods.find(full_method_name) == alreadyAnalyzedMethods.end()) //&& changedMethodNames.find(full_method_name) == changedMethodNames.end())
          {
             PAGNode *comp_type_2 = new PAGNode();
             comp_type_2->comp_type = "COMP_TYPE_2";
@@ -10108,7 +10108,7 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
    int reference_params = 0;
    std::string fullNAME = className + "." + name + signature;
    // Create entries in the varaible Map for each of the parameters and a PAGNode for return node ;
-   if (analysedMethodNames.find(fullNAME) == analysedMethodNames.end()) // This means that this method 'my' was not analyzed before or called before.
+   if (analysedMethodNames.find(fullNAME) == analysedMethodNames.end() && alreadyAnalyzedMethods.find(fullNAME) == alreadyAnalyzedMethods.end()) // This means that this method 'my' was not analyzed before or called before.
    {
       if (!resolvedMethod->isStatic())
       {
