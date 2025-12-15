@@ -250,7 +250,7 @@ void PointerAssignmentGraph::removeNodes(int method)
 std::unordered_set<std::string> PointerAssignmentGraph::get_fields(PAGNode *object)
 {
     std::unordered_set<std::string> fields;
-    for (auto edge : object->outgoing)
+    for (auto edge : object->incoming)
     {
         if (edge->type == EdgeType::PUTFIELD && !edge->field.empty())
         {
@@ -263,11 +263,11 @@ std::unordered_set<std::string> PointerAssignmentGraph::get_fields(PAGNode *obje
 std::unordered_set<PAGNode *> PointerAssignmentGraph::get_field_target(PAGNode *object, std::string field)
 {
     std::unordered_set<PAGNode *> targets;
-    for (auto edge : object->outgoing)
+    for (auto edge : object->incoming)
     {
         if (edge->type == EdgeType::PUTFIELD && edge->field == field)
         {
-            targets.insert(edge->dest);
+            targets.insert(edge->src);
         }
     }
     return targets;

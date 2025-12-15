@@ -1596,10 +1596,25 @@ void writeNodesToFile(TR::Compilation *comp, PointerAssignmentGraph *pag)
       std::cerr << "Failed to open file for writing.\n";
       return;
    }
+
+   // 1. Map Node Pointers to Integer IDs
+   // Using PAGNode* as the key is faster and safer than string keys
+   std::unordered_map<PAGNode *, int> nodeIDMap;
    int index = 1;
-   std::unordered_map<string, int> nodeIndices;
+
+   // Helper lambda for safe lookup throughout the function
+   auto getNodeID = [&](PAGNode *n) -> int {
+      if (!n) return 0;
+      auto it = nodeIDMap.find(n);
+      return (it != nodeIDMap.end()) ? it->second : 0;
+   };
+
+   // --- DUMP NODES ---
    for (const auto &node : pag->PAG_nodes)
    {
+      // Register the mapping: Pointer -> ID
+      nodeIDMap[node] = index;
+
       outfile << "["
               << node->bci << ","
               << node->methodIndex << ","
@@ -1611,67 +1626,78 @@ void writeNodesToFile(TR::Compilation *comp, PointerAssignmentGraph *pag)
          outfile << "1,";
       }
       else
+      {
          outfile << "0,";
+      }
+
       for (std::string cname : node->pointee_class_names)
       {
          outfile << cname << ",";
       }
       outfile << "]\n";
 
-      std::string nodeKey = std::to_string(node->bci) + "," + std::to_string(node->methodIndex) + "," + std::to_string(node->type) + "," + std::to_string(node->name);
-      nodeIndices[nodeKey] = index++;
+      index++;
    }
    outfile.close();
 
+   // --- DUMP EDGES ---
    for (const auto &node : pag->PAG_nodes)
    {
-      int srcNodeIndex = getNodeIndex(node, nodeIndices);
+      int srcNodeIndex = getNodeID(node);
       edgesfile << srcNodeIndex << ":";
+
       for (auto *edge : node->outgoing)
       {
          auto *dest = edge->dest;
+         int destNodeIndex = getNodeID(dest);
 
-         std::string indexkey = std::to_string(dest->bci) + "," + std::to_string(_methodIndicesPtr[dest->caller]) + "," +
-                                std::to_string(dest->type) + "," +
-                                std::to_string(dest->name);
-
-         // std::cout << "Index key is " << indexkey << std::endl;
-         int destNodeIndex = nodeIndices[indexkey];
+         // Handle Static Fields logic if direct lookup failed
+         // (Assuming staticField_to_Node is a map available in scope or part of pag)
          if (destNodeIndex == 0 && pag->staticFields.find(edge->field) != pag->staticFields.end())
          {
-            destNodeIndex = getNodeIndex(staticField_to_Node[edge->field], nodeIndices);
+            // Note: Ensure staticField_to_Node is accessible here. 
+            // If it's a member of pag, use pag->staticField_to_Node
+            if (staticField_to_Node.find(edge->field) != staticField_to_Node.end()) 
+            {
+                destNodeIndex = getNodeID(staticField_to_Node[edge->field]);
+            }
          }
-         edgesfile << "["
-                   << destNodeIndex << ","
-                   << edge->type << ","
-                   << edge->field << ","
-                   << edge->callsiteBCI << "];";
+
+         // Only write valid edges
+         if (destNodeIndex != 0) 
+         {
+            edgesfile << "["
+                      << destNodeIndex << ","
+                      << edge->type << ","
+                      << edge->field << ","
+                      << edge->callsiteBCI << "];";
+         }
       }
       edgesfile << "\n";
    }
    edgesfile.close();
-   // outfile.close();
-   // sort the node mappings
+
+   // --- DUMP METHOD TO NODE MAPS ---
+   // Sort the node mappings
    std::vector<pair<int, vector<PAGNode *>>> sortedMappings = sortMethodsByIndex(pag->methodIndex_to_allMethodNodes, comp);
 
-   // dump, method to node maps
-   std::ofstream mToNodesfile("methodIndex_to_PAGNodes.txt"); // methodIndex: [nodeIndex,formalNode=1/non-formal=0]*
+   std::ofstream mToNodesfile("methodIndex_to_PAGNodes.txt"); 
    for (const auto &entry : sortedMappings)
    {
-      // TR_OpaqueMethodBlock *omb = entry.first;
-      // TR_ResolvedMethod *resolvedMethod = getCachedResolvedMethodFromPtr(comp, omb);
-      // TR::ResolvedMethodSymbol *resolvedMethodSymbol = resolvedMethod->findOrCreateJittedMethodSymbol(comp);
-
       mToNodesfile << entry.first << ":";
 
       const std::vector<PAGNode *> &allNodes = entry.second;
-      const std::vector<PAGNode *> &formalNodes = pag->methodIndex_to_formalNodes[entry.first];
+      // Safety check for formal nodes map existence
+      const std::vector<PAGNode *> &formalNodes = (pag->methodIndex_to_formalNodes.count(entry.first)) 
+                                                ? pag->methodIndex_to_formalNodes[entry.first] 
+                                                : std::vector<PAGNode *>();
 
       for (PAGNode *node : allNodes)
       {
-         mToNodesfile << "[" << getNodeIndex(node, nodeIndices) << ",";
+         mToNodesfile << "[" << getNodeID(node) << ",";
          int isFormalNode = 0;
 
+         // Check if node is in the formalNodes list
          for (PAGNode *n : formalNodes)
          {
             if (node == n)
@@ -1683,14 +1709,12 @@ void writeNodesToFile(TR::Compilation *comp, PointerAssignmentGraph *pag)
 
          mToNodesfile << std::to_string(isFormalNode) << "];";
       }
-
       mToNodesfile << "\n";
    }
-
    mToNodesfile.close();
 
+   // --- DUMP CALL GRAPH ---
    std::ofstream callgraphfile("callgraph.txt");
-   // (CallsiteBCI,returnNodeIndex):[methodIndex1,comma separated list of actual parameter PAGNode*];[methodIndex2,comma separated list of actual parameter PAGNode*];
 
    for (auto &entry : callsiteBCI_to_targets)
    {
@@ -1698,10 +1722,10 @@ void writeNodesToFile(TR::Compilation *comp, PointerAssignmentGraph *pag)
       const std::unordered_set<int> &targets = entry.second;
 
       // Get return node index - use RETURN_NODE_NAME (-56765) for void returns
-      int returnNodeIndex = RETURN_NODE_NAME; // Default for void
+      int returnNodeIndex = RETURN_NODE_NAME; 
       if (callsiteBCI_to_return_node.find(callsite_bci) != callsiteBCI_to_return_node.end() && callsiteBCI_to_return_node[callsite_bci] != nullptr)
       {
-         returnNodeIndex = getNodeIndex(callsiteBCI_to_return_node[callsite_bci], nodeIndices);
+         returnNodeIndex = getNodeID(callsiteBCI_to_return_node[callsite_bci]);
       }
 
       callgraphfile << "(" << callsite_bci << "," << returnNodeIndex << "):";
@@ -1716,19 +1740,17 @@ void writeNodesToFile(TR::Compilation *comp, PointerAssignmentGraph *pag)
          {
             for (PAGNode *actualParam : callsiteBCI_to_actual_params[callsite_bci])
             {
-               int paramNodeIndex = getNodeIndex(actualParam, nodeIndices);
+               int paramNodeIndex = getNodeID(actualParam);
                callgraphfile << paramNodeIndex << ",";
             }
          }
-
          callgraphfile << "];";
       }
-
       callgraphfile << "\n";
    }
    callgraphfile.close();
 
-   std::ofstream tf("threadAccesible.txt");
+    std::ofstream tf("threadAccesible.txt");
    for (auto field : pag->threadAccessibleFields)
    {
       tf << field << std::endl;
@@ -1741,19 +1763,7 @@ void writeNodesToFile(TR::Compilation *comp, PointerAssignmentGraph *pag)
       sf << field << std::endl;
    }
    sf.close();
-   // std::ofstream returnNodesfile("methodIndex_to_returnPAGNodes.txt"); //methodIndex:nodeIndex
-   // for(auto entry:pag->methodIndex_to_returnNode)
-   // {
-   //    TR_OpaqueMethodBlock* omb = entry.first;
-   //    TR_ResolvedMethod *resolvedMethod = getCachedResolvedMethodFromPtr(comp, omb);
-   //    TR::ResolvedMethodSymbol *ResolvedMethodSymbol = resolvedMethod->findOrCreateJittedMethodSymbol(comp);
-
-   //    returnNodesfile  << getOrInsertMethodIndex(ResolvedMethodSymbol,comp) <<":" << getNodeIndex(entry.second,nodeIndices) << "\n";
-   // }
-
-   // returnNodesfile.close();
 }
-
 void OMR::Optimizer::dumpPostOptTrees()
 {
    // do nothing for IlGen optimizer
@@ -7077,7 +7087,10 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       }
       for (PAGNode *obj_ref : stack_top)
       {
-         pag->addEdge(obj_ref, variableMap[0], ASSIGN, bci);
+         EdgeType e = ASSIGN;
+         if(obj_ref->type == OBJECT)
+            e = NEW;
+         pag->addEdge(obj_ref, variableMap[0], e, bci);
          variableMap[0]->pointee_class_names.insert(obj_ref->pointee_class_names.begin(), obj_ref->pointee_class_names.end());
       }
       break;
@@ -7092,8 +7105,11 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
          pag->methodIndex_to_allMethodNodes[methodIndex].push_back(variableMap[1]);
       }
       for (PAGNode *obj_ref : stack_top)
-      {
-         pag->addEdge(obj_ref, variableMap[1], ASSIGN, bci);
+      {  
+         EdgeType e = ASSIGN;
+         if(obj_ref->type == OBJECT)
+            e = NEW;
+         pag->addEdge(obj_ref, variableMap[1], e, bci);
          variableMap[1]->pointee_class_names.insert(obj_ref->pointee_class_names.begin(), obj_ref->pointee_class_names.end());
       }
       break;
@@ -7109,7 +7125,10 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       }
       for (PAGNode *obj_ref : stack_top)
       {
-         pag->addEdge(obj_ref, variableMap[2], ASSIGN, bci);
+         EdgeType e = ASSIGN;
+         if(obj_ref->type == OBJECT)
+            e = NEW;
+         pag->addEdge(obj_ref, variableMap[2], e, bci);
          variableMap[2]->pointee_class_names.insert(obj_ref->pointee_class_names.begin(), obj_ref->pointee_class_names.end());
       }
       break;
@@ -7126,7 +7145,10 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
 
       for (PAGNode *obj_ref : stack_top)
       {
-         pag->addEdge(obj_ref, variableMap[3], ASSIGN, bci);
+         EdgeType e = ASSIGN;
+         if(obj_ref->type == OBJECT)
+            e = NEW;
+         pag->addEdge(obj_ref, variableMap[3], e, bci);
          variableMap[3]->pointee_class_names.insert(obj_ref->pointee_class_names.begin(), obj_ref->pointee_class_names.end());
       }
       break;
@@ -7769,7 +7791,10 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       for (PAGNode *obj_ref : stack_top)
       {
          PAGNode *var = variableMap[index];
-         pag->addEdge(obj_ref, var, ASSIGN, bci);
+         EdgeType e = ASSIGN;
+         if(obj_ref->type == OBJECT)
+            e = NEW;
+         pag->addEdge(obj_ref, var, e, bci);
          var->pointee_class_names.insert(obj_ref->pointee_class_names.begin(), obj_ref->pointee_class_names.end());
          if (obj_ref->static_type.find("no static type") == std::string::npos)
             var->pointee_class_names.insert(obj_ref->static_type);
@@ -7999,7 +8024,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
 
             PAGNode *static_pag_ptr = class_to_staticPAGNode[fieldType];
             pag->addEdge(value, static_pag_ptr, PUTFIELD, fieldName);
-            pag->LeakyNodes.insert(value);
+            pag->LeakyNodes.insert(static_pag_ptr);
          }
          else
          {
@@ -8009,7 +8034,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
 
                if (pag->threadAccessibleFields.find(fullName) != pag->threadAccessibleFields.end())
                {
-                  pag->LeakyNodes.insert(value);
+                  pag->LeakyNodes.insert(obj_ref);
                }
 
                for (std::string classN : obj_ref->pointee_class_names)
@@ -8893,6 +8918,7 @@ void getall_loaded_classes(TR::Compilation *comp)
             {
                //    std :: cout << className <<std::endl;
                all_loaded_classes.insert(className);
+               loaded_classes.insert(className);
                className_to_fields[className] = getClassFields(clazz, comp->j9VMThread());
             }
          }
