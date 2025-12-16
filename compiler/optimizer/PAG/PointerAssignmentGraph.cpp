@@ -195,7 +195,7 @@ void PointerAssignmentGraph::removeEdges(int method)
                 {
                     if (staticFields.find(edge->field) != staticFields.end() || threadAccessibleFields.find(edge->field) != threadAccessibleFields.end())
                     {
-                        LeakyNodes.erase(edge->src);
+                        LeakyNodes.erase(edge->dest);
                     }
                 }
 
