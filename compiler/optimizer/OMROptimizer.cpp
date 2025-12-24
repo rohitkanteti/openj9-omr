@@ -6623,175 +6623,175 @@ TR_OpaqueClassBlock *getCachedClass(TR::Compilation *comp, const std::string &cl
 }
 
 // -----
+// NOT USING BELOW ANYMORE
+// void traverse_bytecode(J9Method *method, PointerAssignmentGraph *pag, int methodIndex, TR::Compilation *comp)
+// {
 
-void traverse_bytecode(J9Method *method, PointerAssignmentGraph *pag, int methodIndex, TR::Compilation *comp)
-{
+//    TR_OpaqueMethodBlock *method_block = reinterpret_cast<TR_OpaqueMethodBlock *>(method);
+//    int32_t methodSize = TR::Compiler->mtd.bytecodeSize(method_block);
+//    uintptr_t methodStart = TR::Compiler->mtd.bytecodeStart(method_block);
+//    TR_ResolvedMethod *resolvedMethod = getCachedResolvedMethodFromPtr(comp, method_block);
 
-   TR_OpaqueMethodBlock *method_block = reinterpret_cast<TR_OpaqueMethodBlock *>(method);
-   int32_t methodSize = TR::Compiler->mtd.bytecodeSize(method_block);
-   uintptr_t methodStart = TR::Compiler->mtd.bytecodeStart(method_block);
-   TR_ResolvedMethod *resolvedMethod = getCachedResolvedMethodFromPtr(comp, method_block);
+//    std::cout << "Resolved method ptr: = " << resolvedMethod << std::endl;
+//    char *classNameChars = resolvedMethod->classNameChars();
+//    int32_t classNameLength = resolvedMethod->classNameLength();
 
-   std::cout << "Resolved method ptr: = " << resolvedMethod << std::endl;
-   char *classNameChars = resolvedMethod->classNameChars();
-   int32_t classNameLength = resolvedMethod->classNameLength();
+//    char *methodName = resolvedMethod->nameChars();
+//    int32_t methodNameLength = resolvedMethod->nameLength();
+//    char *methodSignature = resolvedMethod->signatureChars();
+//    int32_t methodSignatureLength = resolvedMethod->signatureLength();
 
-   char *methodName = resolvedMethod->nameChars();
-   int32_t methodNameLength = resolvedMethod->nameLength();
-   char *methodSignature = resolvedMethod->signatureChars();
-   int32_t methodSignatureLength = resolvedMethod->signatureLength();
+//    std::string name(methodName, methodNameLength);
+//    std::string className(classNameChars, classNameLength);
+//    std::string signature(methodSignature, methodSignatureLength);
+//    std::string returnStaticType;
+//    bool hasReturnType = returnsObject(methodSignature, returnStaticType);
+//    if (isLibraryMethod((className + "." + name + signature)))
+//    {
+//       std::cout << "############## SKIPPED Traversing the Bytecode of the method " << className << "." << name << signature << "##############" << std::endl;
 
-   std::string name(methodName, methodNameLength);
-   std::string className(classNameChars, classNameLength);
-   std::string signature(methodSignature, methodSignatureLength);
-   std::string returnStaticType;
-   bool hasReturnType = returnsObject(methodSignature, returnStaticType);
-   if (isLibraryMethod((className + "." + name + signature)))
-   {
-      std::cout << "############## SKIPPED Traversing the Bytecode of the method " << className << "." << name << signature << "##############" << std::endl;
+//       return;
+//    }
 
-      return;
-   }
+//    std::cout << "############## Traversing the Bytecode of the method " << className << "." << name << signature << "##############" << std::endl;
 
-   std::cout << "############## Traversing the Bytecode of the method " << className << "." << name << signature << "##############" << std::endl;
+//    if (name.rfind("findFirstNonZeroValueVirtualIndexStartingAt") == 0)
+//    {
+//       std::cout << methodIndex << className << "." << name << signature << std::endl;
+//    }
 
-   if (name.rfind("findFirstNonZeroValueVirtualIndexStartingAt") == 0)
-   {
-      std::cout << methodIndex << className << "." << name << signature << std::endl;
-   }
+//    int num_params = count_parameters(methodSignature); // resolvedMethod->numberOfParameterSlots(); double or long takes 2 slots
+//    std::unordered_map<int, PAGNode *> variableMap;
+//    int reference_params = 0;
+//    std::string fullNAME = className + "." + name + signature;
+//    // Create entries in the varaible Map for each of the parameters and a PAGNode for return node ;
+//    if (analysedMethodNames.find(fullNAME) == analysedMethodNames.end()) // This means that this method 'my' was not analyzed before or called before.
+//    {
+//       if (!resolvedMethod->isStatic())
+//       {
+//          PAGNode *param_node_ptr = new PAGNode(VARIABLE, 0, nullptr, method_block, -1, methodIndex);
+//          std::cout << "FOR recvr Method index = " << methodIndex << std::endl;
+//          pag->methodIndex_to_allMethodNodes[methodIndex].push_back(param_node_ptr);
+//          pag->PAG_nodes.insert(param_node_ptr);
+//          pag->methodIndex_to_formalNodes[methodIndex].push_back(param_node_ptr);
+//          reference_params++;
+//       }
+//       for (int i = 0; i < num_params; i++)
+//       {
+//          if (is_reference_type(methodSignature, i))
+//          {
+//             reference_params++;
+//             std::string static_type = getParameterReferenceType(methodSignature, i);
+//             PAGNode *param_node_ptr = new PAGNode(VARIABLE, i + 1, nullptr, method_block, -1, methodIndex, static_type);
+//             // std::cout << "for is_reference_type Method index = " << methodIndex << std::endl;
+//             pag->methodIndex_to_allMethodNodes[methodIndex].push_back(param_node_ptr);
+//             pag->PAG_nodes.insert(param_node_ptr);
+//             pag->methodIndex_to_formalNodes[methodIndex].push_back(param_node_ptr);
+//          }
+//       }
 
-   int num_params = count_parameters(methodSignature); // resolvedMethod->numberOfParameterSlots(); double or long takes 2 slots
-   std::unordered_map<int, PAGNode *> variableMap;
-   int reference_params = 0;
-   std::string fullNAME = className + "." + name + signature;
-   // Create entries in the varaible Map for each of the parameters and a PAGNode for return node ;
-   // if (analysedMethodNames.find(fullNAME) == analysedMethodNames.end()) // This means that this method 'my' was not analyzed before or called before.
-   // {
-   //    if (!resolvedMethod->isStatic())
-   //    {
-   //       PAGNode *param_node_ptr = new PAGNode(VARIABLE, 0, nullptr, method_block, -1, methodIndex);
-   //       std::cout << "FOR recvr Method index = " << methodIndex << std::endl;
-   //       pag->methodIndex_to_allMethodNodes[methodIndex].push_back(param_node_ptr);
-   //       pag->PAG_nodes.insert(param_node_ptr);
-   //       pag->methodIndex_to_formalNodes[methodIndex].push_back(param_node_ptr);
-   //       reference_params++;
-   //    }
-   //    for (int i = 0; i < num_params; i++)
-   //    {
-   //       if (is_reference_type(methodSignature, i))
-   //       {
-   //          reference_params++;
-   //          std::string static_type = getParameterReferenceType(methodSignature, i);
-   //          PAGNode *param_node_ptr = new PAGNode(VARIABLE, i + 1, nullptr, method_block, -1, methodIndex, static_type);
-   //          // std::cout << "for is_reference_type Method index = " << methodIndex << std::endl;
-   //          pag->methodIndex_to_allMethodNodes[methodIndex].push_back(param_node_ptr);
-   //          pag->PAG_nodes.insert(param_node_ptr);
-   //          pag->methodIndex_to_formalNodes[methodIndex].push_back(param_node_ptr);
-   //       }
-   //    }
+//       if (hasReturnType)
+//       {
+//          pag->methodIndex_to_returnNode[methodIndex] = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, method_block, -1, methodIndex);
+//          pag->PAG_nodes.insert(pag->methodIndex_to_returnNode[methodIndex]);
+//          pag->methodIndex_to_allMethodNodes[methodIndex].push_back(pag->methodIndex_to_returnNode[methodIndex]);
+//       }
+//    }
+//    vector<PAGNode *> formal_param_nodes = pag->methodIndex_to_formalNodes[methodIndex];
+//    PAGNode *returnNode = nullptr;
+//    auto it = pag->methodIndex_to_returnNode.find(methodIndex);
+//    if (it != pag->methodIndex_to_returnNode.end())
+//    {
+//       returnNode = it->second;
+//    }
 
-   //    if (hasReturnType)
-   //    {
-   //       pag->methodIndex_to_returnNode[methodIndex] = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, method_block, -1, methodIndex);
-   //       pag->PAG_nodes.insert(pag->methodIndex_to_returnNode[methodIndex]);
-   //       pag->methodIndex_to_allMethodNodes[methodIndex].push_back(pag->methodIndex_to_returnNode[methodIndex]);
-   //    }
-   // }
-   // vector<PAGNode *> formal_param_nodes = pag->methodIndex_to_formalNodes[methodIndex];
-   // PAGNode *returnNode = nullptr;
-   // auto it = pag->methodIndex_to_returnNode.find(methodIndex);
-   // if (it != pag->methodIndex_to_returnNode.end())
-   // {
-   //    returnNode = it->second;
-   // }
+//    std::cout << "Formal params size = " << formal_param_nodes.size() << std::endl;
+//    if (reference_params != formal_param_nodes.size() || ((hasReturnType && !returnNode) || (!hasReturnType && returnNode)))
+//    {
+//       throw std::runtime_error("There is a mismatch in the size of paramters maybe the method signature changed.");
+//    }
 
-   // std::cout << "Formal params size = " << formal_param_nodes.size() << std::endl;
-   // if (reference_params != formal_param_nodes.size() || ((hasReturnType && !returnNode) || (!hasReturnType && returnNode)))
-   // {
-   //    throw std::runtime_error("There is a mismatch in the size of paramters maybe the method signature changed.");
-   // }
+//    for (int i = 0; i < reference_params; i++)
+//    {
+//       // PAGNode *param_node_ptr = new PAGNode(VARIABLE, i, nullptr, method_block, -1, methodIndex);
+//       // pag->methodIndex_to_allMethodNodes[methodIndex].push_back(param_node_ptr);
+//       // pag->PAG_nodes.insert(param_node_ptr);
+//       // pag->methodIndex_to_formalNodes[methodIndex].push_back(param_node_ptr);
 
-   // for (int i = 0; i < reference_params; i++)
-   // {
-   //    // PAGNode *param_node_ptr = new PAGNode(VARIABLE, i, nullptr, method_block, -1, methodIndex);
-   //    // pag->methodIndex_to_allMethodNodes[methodIndex].push_back(param_node_ptr);
-   //    // pag->PAG_nodes.insert(param_node_ptr);
-   //    // pag->methodIndex_to_formalNodes[methodIndex].push_back(param_node_ptr);
+//       variableMap[formal_param_nodes[i]->name] = formal_param_nodes[i];
+//    }
+//    if (hasReturnType)
+//    {
+//       // pag->methodIndex_to_returnNode[methodIndex] = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, method_block, -1, methodIndex);
+//       // pag->PAG_nodes.insert(pag->methodIndex_to_returnNode[methodIndex]);
+//       // pag->methodIndex_to_allMethodNodes[methodIndex].push_back(pag->methodIndex_to_returnNode[methodIndex]);
+//    }
 
-   //    variableMap[formal_param_nodes[i]->name] = formal_param_nodes[i];
-   // }
-   // if (hasReturnType)
-   // {
-   //    // pag->methodIndex_to_returnNode[methodIndex] = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, method_block, -1, methodIndex);
-   //    // pag->PAG_nodes.insert(pag->methodIndex_to_returnNode[methodIndex]);
-   //    // pag->methodIndex_to_allMethodNodes[methodIndex].push_back(pag->methodIndex_to_returnNode[methodIndex]);
-   // }
+//    int32_t currentIndex = 0;
+//    int statementCount = 0;
+//    operandStack *stack = new operandStack();
 
-   // int32_t currentIndex = 0;
-   // int statementCount = 0;
-   // operandStack *stack = new operandStack();
+//    while (currentIndex < methodSize)
+//    {
+//       TR_ASSERT_FATAL(currentIndex >= 0 && currentIndex < methodSize, "Bytecode index out of bounds");
 
-   // while (currentIndex < methodSize)
-   // {
-   //    TR_ASSERT_FATAL(currentIndex >= 0 && currentIndex < methodSize, "Bytecode index out of bounds");
+//       uint8_t *pc = (uint8_t *)(methodStart + currentIndex);
 
-   //    uint8_t *pc = (uint8_t *)(methodStart + currentIndex);
+//       TR_J9ByteCode bytecode = TR_J9ByteCodeIterator::convertOpCodeToByteCodeEnum(*pc);
+//       int32_t instructionLength = getInstructionLength(bytecode, pc);
+//       std::cout << "  [" << statementCount << "] PC: " << currentIndex
+//                 << " - Opcode: 0x" << std::hex << (int)(*pc) << std::dec
+//                 << " - " << getBytecodeString(bytecode) << " ---> " << instructionLength << std::endl;
 
-   //    TR_J9ByteCode bytecode = TR_J9ByteCodeIterator::convertOpCodeToByteCodeEnum(*pc);
-   //    int32_t instructionLength = getInstructionLength(bytecode, pc);
-   //    std::cout << "  [" << statementCount << "] PC: " << currentIndex
-   //              << " - Opcode: 0x" << std::hex << (int)(*pc) << std::dec
-   //              << " - " << getBytecodeString(bytecode) << " ---> " << instructionLength << std::endl;
+//       TR::VMAccessCriticalSection vmAccess(comp);
+//       J9VMThread *vm = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
+//       TR_OpaqueClassBlock *opaqueCurrentClass = resolvedMethod->classOfMethod();
+//       J9Class *currentClass = reinterpret_cast<J9Class *>(opaqueCurrentClass);
+//       executeBytecode(bytecode, pc, pag, stack, resolvedMethod, method, methodIndex, currentIndex, variableMap, hasReturnType, comp, currentClass, new PAGNode(), new PAGNode());
 
-   //    TR::VMAccessCriticalSection vmAccess(comp);
-   //    J9VMThread *vm = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
-   //    TR_OpaqueClassBlock *opaqueCurrentClass = resolvedMethod->classOfMethod();
-   //    J9Class *currentClass = reinterpret_cast<J9Class *>(opaqueCurrentClass);
-   //    executeBytecode(bytecode, pc, pag, stack, resolvedMethod, method, methodIndex, currentIndex, variableMap, hasReturnType, comp, currentClass, new PAGNode(), new PAGNode());
+//       // if (bytecode == J9BCnew)
+//       // {
+//       //     uint16_t cpIndex = (pc[2] << 8) | pc[1];
+//       //     uint32_t classNamelength = 0;
+//       //     char *classNameChars = resolvedMethod->getClassNameFromConstantPool(cpIndex, classNamelength);
+//       //     std::string className(classNameChars, classNamelength);
+//       //     std::cout << "  -> Create an object of type: " << className << std::endl;
+//       // }
 
-   //    // if (bytecode == J9BCnew)
-   //    // {
-   //    //     uint16_t cpIndex = (pc[2] << 8) | pc[1];
-   //    //     uint32_t classNamelength = 0;
-   //    //     char *classNameChars = resolvedMethod->getClassNameFromConstantPool(cpIndex, classNamelength);
-   //    //     std::string className(classNameChars, classNamelength);
-   //    //     std::cout << "  -> Create an object of type: " << className << std::endl;
-   //    // }
+//       // if (bytecode == J9BCgetfield || bytecode == J9BCputfield)
+//       // {
 
-   //    // if (bytecode == J9BCgetfield || bytecode == J9BCputfield)
-   //    // {
+//       //     uint16_t cpIndex = (pc[2] << 8) | pc[1];
+//       //     int fieldNameLength = 0;
+//       //     const char *fieldNameChars = resolvedMethod->fieldNameChars(cpIndex, fieldNameLength);
 
-   //    //     uint16_t cpIndex = (pc[2] << 8) | pc[1];
-   //    //     int fieldNameLength = 0;
-   //    //     const char *fieldNameChars = resolvedMethod->fieldNameChars(cpIndex, fieldNameLength);
+//       //     std::string fieldName(fieldNameChars, fieldNameLength);
 
-   //    //     std::string fieldName(fieldNameChars, fieldNameLength);
+//       //     int signatureLength = 0;
+//       //     const char *signatureChars = resolvedMethod->fieldSignatureChars(cpIndex, signatureLength);
 
-   //    //     int signatureLength = 0;
-   //    //     const char *signatureChars = resolvedMethod->fieldSignatureChars(cpIndex, signatureLength);
+//       //     std::string signature(signatureChars, signatureLength - 1);
+//       //     signature = signature.substr(1);
 
-   //    //     std::string signature(signatureChars, signatureLength - 1);
-   //    //     signature = signature.substr(1);
+//       //     // int classNamelength = 0;
+//       //     // const char *className = resolvedMethod->classNameOfFieldOrStatic(cpIndex,classNamelength);
 
-   //    //     // int classNamelength = 0;
-   //    //     // const char *className = resolvedMethod->classNameOfFieldOrStatic(cpIndex,classNamelength);
+//       //     std::cout << "  -> Access the field: " << signature << "." << fieldName;
+//       // }
+//       // std::cout << std::endl;
 
-   //    //     std::cout << "  -> Access the field: " << signature << "." << fieldName;
-   //    // }
-   //    // std::cout << std::endl;
+//       currentIndex += instructionLength;
+//       globalIndex_++;
+//       statementCount++;
+//    }
 
-   //    currentIndex += instructionLength;
-   //    globalIndex_++;
-   //    statementCount++;
-   // }
-
-   std::string fully_qualified_name = className + "." + name + signature;
-   // if (changedMethodNames.find(fully_qualified_name) != changedMethodNames.end())
-   // {
-   //    changedMethodNames.erase(fully_qualified_name);
-   // }
-   analysedMethodNames.insert(fully_qualified_name);
-}
+//    std::string fully_qualified_name = className + "." + name + signature;
+//    // if (changedMethodNames.find(fully_qualified_name) != changedMethodNames.end())
+//    // {
+//    //    changedMethodNames.erase(fully_qualified_name);
+//    // }
+//    analysedMethodNames.insert(fully_qualified_name);
+// }
 
 // refernce https://en.wikipedia.org/wiki/List_of_Java_bytecode_instructions , https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-6.html
 void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph *pag, operandStack *stack, TR_ResolvedMethod *resolvedMethod,
@@ -10098,6 +10098,32 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
    int32_t methodSize = TR::Compiler->mtd.bytecodeSize(method_block);
    uintptr_t methodStart = TR::Compiler->mtd.bytecodeStart(method_block);
    TR_ResolvedMethod *resolvedMethod = getCachedResolvedMethodFromPtr(comp, method_block);
+
+   // --- STRICT NODE CACHING LAMBDA ---
+   // Checks ALL fields: type, name, caller, bci, clazz_ptr, static_type, methodIndex
+   auto getOrCreateNode = [&](NodeType type, int name_id, TR_OpaqueMethodBlock* caller_ptr, int bci_loc, TR_OpaqueClassBlock* clazz_ptr, std::string label, int mIndex) -> PAGNode* {
+       
+       for (PAGNode* node : pag->methodIndex_to_allMethodNodes[methodIndex]) {
+           
+         
+           if ( 
+            (node->type != type) 
+           || (node->name != name_id) 
+           || (node->caller != caller_ptr) 
+           || (node->bci != bci_loc) 
+           || (node->clazz_ptr != clazz_ptr) 
+           || (node->static_type != label) 
+           || (node->methodIndex != mIndex) ) continue;
+
+           return node;
+       }
+
+       PAGNode* newNode = new PAGNode(type, name_id, clazz_ptr, caller_ptr, bci_loc, mIndex, label);
+       
+       pag->PAG_nodes.insert(newNode);
+       pag->methodIndex_to_allMethodNodes[methodIndex].push_back(newNode);
+       return newNode;
+   };
 
    std::map<int32_t, TR::Block *> blocks;
    TR::Block *entryBlock = nullptr;
