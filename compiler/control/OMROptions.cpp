@@ -177,7 +177,7 @@ TR::OptionTable OMR::Options::_jitOptions[] = {
                                    TR::Options::set32BitNumeric, offsetof(TR::Options, _catchBlockCounterThreshold), 50, "F%d"},
    
    {"changedMethod=",               "Name of the method assumed to be changed",
-        TR::Options::setString,  offsetof(OMR::Options,_changedMethodName), 0, "P%s"},                                
+        TR::Options::setString,  offsetof(OMR::Options,_changedMethodNamesFile), 0, "P%s"},                                
                                    {"checkGRA",                "D\tPreserve stores that would otherwise be removed by GRA, and then verify that the stored value matches the global register", SET_OPTION_BIT(TR_CheckGRA), "F"},
    {"checkStructureDuringExitExtraction", "D\tCheck structure after each step of exit extraction", SET_OPTION_BIT(TR_CheckStructureDuringExitExtraction), "F"},
    {"classesWithFoldableFinalFields=",   "O{regex}\tAllow hard-coding of values of final fields in the specified classes.  Default is to fold anything considered safe.", TR::Options::setRegex, offsetof(OMR::Options, _classesWithFolableFinalFields), 0, "F"},
