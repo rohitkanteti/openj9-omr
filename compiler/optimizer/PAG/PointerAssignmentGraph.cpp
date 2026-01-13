@@ -8,7 +8,15 @@ PointerAssignmentGraph::PointerAssignmentGraph()
 
 PAGNode *PointerAssignmentGraph::getReturnNode(int method)
 {
-    return (methodIndex_to_returnNode.find(method) != methodIndex_to_returnNode.end()) ? methodIndex_to_returnNode[method] : NULL;
+    PAGNode* returnNode = (methodIndex_to_returnNode.find(method) != methodIndex_to_returnNode.end()) ? methodIndex_to_returnNode[method] : NULL;
+    if(returnNode == NULL)
+    {
+        methodIndex_to_returnNode[method] = new PAGNode(RETURN, -56765, NULL, NULL, -1, method);
+        PAG_nodes.insert(methodIndex_to_returnNode[method]);
+        methodIndex_to_allMethodNodes[method].push_back(methodIndex_to_returnNode[method]);
+        returnNode = methodIndex_to_returnNode[method];
+    }
+    return returnNode;
 }
 
 vector<PAGNode *> PointerAssignmentGraph::getFormalParameterNodes(METHOD_INDEX method)

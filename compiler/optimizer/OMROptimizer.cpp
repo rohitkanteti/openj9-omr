@@ -6378,7 +6378,7 @@ bool isLibraryMethod(std::string methodName)
       isLibraryMethod = false;
       return isLibraryMethod;
    }
-
+   if (methodName.find("openj9") != std::string::npos) return true;
    if (methodName.rfind("org/apache/lucene", 0) == 0 || methodName.rfind("org/apache/xalan", 0) == 0)
    {
       return false;
@@ -8661,7 +8661,12 @@ bool searchForOveridingMethodsInClass(std::string className, std::string method_
             if (isLibraryMethod(full_method_name))
                pag->addEdge(pag->bottom_node, returnNode, ASSIGN, bci);
             else
-               pag->addEdge(pag->getReturnNode(getOrInsertMethodIndexByName(full_method_name, pag)), returnNode, ASSIGN, bci);
+            {
+               int mInd = getOrInsertMethodIndexByName(full_method_name, pag);
+               pag->addEdge(pag->getReturnNode(mInd), returnNode, ASSIGN, bci);
+               pag->methodIndex_to_returnNode[mInd]->static_type = returnStaticType;
+            }  
+            
          }
          else if (calleeReturnsPrimitive)
          {
