@@ -8582,21 +8582,32 @@ bool searchForOveridingMethodsInClass(std::string className, std::string method_
       J9Method *ramMethod = &j9Class->ramMethods[i];
       // std::cout << "Method added is: " ;
       TR_OpaqueMethodBlock *method_block = reinterpret_cast<TR_OpaqueMethodBlock *>(ramMethod);
-      TR_ResolvedMethod *resolved_Method = comp->fe()->createResolvedMethod(comp->trMemory(), method_block, 0);
+      // TR_ResolvedMethod *resolved_Method = comp->fe()->createResolvedMethod(comp->trMemory(), method_block, 0);
 
       // int classNameLength = resolvedMethod->classNameLength();
       // const char* className = resolvedMethod->classNameChars();
-      int methodNameLength = resolved_Method->nameLength();
-      const char *methodName = resolved_Method->nameChars();
-      int signatureLength = resolved_Method->signatureLength();
-      const char *signature = resolved_Method->signatureChars();
+      // int methodNameLength = resolved_Method->nameLength();
+      // const char *methodName = resolved_Method->nameChars();
+      // int signatureLength = resolved_Method->signatureLength();
+      // const char *signature = resolved_Method->signatureChars();
 
-      std::string signature_name(signature, signatureLength);
-      std::string target_method_name(methodName, methodNameLength);
-      std::string full_method_name = className + "." + method_name + method_signature;
+      // std::string signature_name(signature, signatureLength);
+      // std::string target_method_name(methodName, methodNameLength);
+      J9ROMMethod *romMethod = J9_ROM_METHOD_FROM_RAM_METHOD(ramMethod);
+      J9ROMClass  *romClass  = j9Class->romClass;
+
+      J9UTF8 *utfMethodName = J9ROMMETHOD_NAME(romMethod);
+      std::string target_method_name( (char*)J9UTF8_DATA(utfMethodName), J9UTF8_LENGTH(utfMethodName) );
+      
+      J9UTF8 *utfSignature = J9ROMMETHOD_SIGNATURE(romMethod);
+      std::string signature_name( (char*)J9UTF8_DATA(utfSignature), J9UTF8_LENGTH(utfSignature) );
+      J9UTF8 *utfClassName = J9ROMCLASS_CLASSNAME(romClass);
+      std::string className( (char*)J9UTF8_DATA(utfClassName), J9UTF8_LENGTH(utfClassName) );
+      std::string full_method_name = className + "." + target_method_name + signature_name;
+      // std::string full_method_name = className + "." + method_name + method_signature;
       if (method_signature == signature_name && method_name == target_method_name)
       {
-         bool isAbstractMethod = resolved_Method->isAbstract();
+         bool isAbstractMethod = (romMethod->modifiers & J9AccAbstract) != 0;
 
          if (isAbstractMethod && className.rfind(StaticClassName) == 0)
          {
