@@ -10243,6 +10243,19 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
    // }
    std::unordered_map<int, PAGNode *> variableMap;
    int reference_params = 0;
+   if ((romMethod->modifiers & J9AccStatic) == 0)
+   {
+      reference_params++;
+   }
+
+   for (int i = 0; i < num_params; i++)
+   {
+      if (is_reference_type(methodSignature, i))
+      {
+         reference_params++;
+      }
+   }
+
    std::string fullNAME = className + "." + name + signature;
    // Create entries in the varaible Map for each of the parameters and a PAGNode for return node ;
    if (analysedMethodNames.find(fullNAME) == analysedMethodNames.end() && alreadyAnalyzedMethods.find(fullNAME) == alreadyAnalyzedMethods.end()) // This means that this method 'my' was not analyzed before or called before.
@@ -10254,7 +10267,6 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
          pag->methodIndex_to_allMethodNodes[methodIndex].push_back(param_node_ptr);
          pag->PAG_nodes.insert(param_node_ptr);
          pag->methodIndex_to_formalNodes[methodIndex].push_back(param_node_ptr);
-         reference_params++;
       }
 
       for (int i = 0; i < num_params; i++)
@@ -10262,7 +10274,6 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
 
          if (is_reference_type(methodSignature, i))
          {
-            reference_params++;
             int slot_num = getSlotForArgument(methodSignature, i);
 
             std::string static_type = getParameterReferenceType(methodSignature, i);
@@ -10276,14 +10287,14 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
 
       // if (hasReturnType)
       // {
-         pag->methodIndex_to_returnNode[methodIndex] = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, method_block, -1, methodIndex);
-         pag->methodIndex_to_returnNode[methodIndex]->static_type = returnStaticType;
-         pag->PAG_nodes.insert(pag->methodIndex_to_returnNode[methodIndex]);
-         pag->methodIndex_to_allMethodNodes[methodIndex].push_back(pag->methodIndex_to_returnNode[methodIndex]);
-         if (returnStaticType == "J" || returnStaticType == "D") 
-         {
-            pag->methodIndex_to_returnNode[methodIndex]->comp_type = "COMP_TYPE_2";
-         }
+      pag->methodIndex_to_returnNode[methodIndex] = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, method_block, -1, methodIndex);
+      pag->methodIndex_to_returnNode[methodIndex]->static_type = returnStaticType;
+      pag->PAG_nodes.insert(pag->methodIndex_to_returnNode[methodIndex]);
+      pag->methodIndex_to_allMethodNodes[methodIndex].push_back(pag->methodIndex_to_returnNode[methodIndex]);
+      if (returnStaticType == "J" || returnStaticType == "D")
+      {
+         pag->methodIndex_to_returnNode[methodIndex]->comp_type = "COMP_TYPE_2";
+      }
       // }
    }
    vector<PAGNode *> formal_param_nodes = pag->methodIndex_to_formalNodes[methodIndex];
@@ -10295,7 +10306,7 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
    }
 
    // std::cout << "Formal params size = " << formal_param_nodes.size() << std::endl;
-   if (reference_params != formal_param_nodes.size())// || ((hasReturnType && !returnNode) || (!hasReturnType && returnNode)))
+   if (reference_params != formal_param_nodes.size()) // || ((hasReturnType && !returnNode) || (!hasReturnType && returnNode)))
    {
       TR_ASSERT_FATAL(0, "There is a mismatch in the size of paramters maybe the method signature changed.");
    }
