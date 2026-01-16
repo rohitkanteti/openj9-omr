@@ -10285,16 +10285,16 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
          }
       }
 
-      // if (hasReturnType)
-      // {
-      pag->methodIndex_to_returnNode[methodIndex] = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, method_block, -1, methodIndex);
-      pag->methodIndex_to_returnNode[methodIndex]->static_type = returnStaticType;
-      pag->PAG_nodes.insert(pag->methodIndex_to_returnNode[methodIndex]);
-      pag->methodIndex_to_allMethodNodes[methodIndex].push_back(pag->methodIndex_to_returnNode[methodIndex]);
-      if (returnStaticType == "J" || returnStaticType == "D")
+      if (hasReturnType)
       {
-         pag->methodIndex_to_returnNode[methodIndex]->comp_type = "COMP_TYPE_2";
+         pag->methodIndex_to_returnNode[methodIndex] = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, method_block, -1, methodIndex);
+         pag->methodIndex_to_returnNode[methodIndex]->static_type = returnStaticType;
+         pag->PAG_nodes.insert(pag->methodIndex_to_returnNode[methodIndex]);
+         pag->methodIndex_to_allMethodNodes[methodIndex].push_back(pag->methodIndex_to_returnNode[methodIndex]);
       }
+      // if (returnStaticType == "J" || returnStaticType == "D")
+      // {
+      //    pag->methodIndex_to_returnNode[methodIndex]->comp_type = "COMP_TYPE_2";
       // }
    }
    vector<PAGNode *> formal_param_nodes = pag->methodIndex_to_formalNodes[methodIndex];
