@@ -149,6 +149,11 @@ std::vector<PAGEdge *> PointerAssignmentGraph::getStoreEdges()
 std::vector<PAGEdge *> PointerAssignmentGraph::getStoreEdges(int method)
 {
     std::vector<PAGEdge *> result;
+    if(methodIndex_to_allMethodNodes.find(method)==methodIndex_to_allMethodNodes.end()) 
+    {
+        std::cout << "The method with method_index=" << method << "was not found in " << std::endl;
+         return result;
+    }
     for (auto node : methodIndex_to_allMethodNodes[method])
     {
         for (auto edge : node->outgoing)
@@ -165,6 +170,11 @@ std::vector<PAGEdge *> PointerAssignmentGraph::getStoreEdges(int method)
 std::vector<PAGEdge *> PointerAssignmentGraph::getIntraproceduralAssignEdges(int method)
 {
     std::vector<PAGEdge *> result;
+    if(methodIndex_to_allMethodNodes.find(method)==methodIndex_to_allMethodNodes.end()) 
+    {
+        std::cout << "The method with method_index=" << method << "was not found in " << std::endl;
+         return result;
+    }
     for (auto node : methodIndex_to_allMethodNodes[method])
     {
         for (auto edge : node->outgoing)
@@ -181,10 +191,17 @@ std::vector<PAGEdge *> PointerAssignmentGraph::getIntraproceduralAssignEdges(int
 
 void PointerAssignmentGraph::removeEdges(int method)
 {
-    for (auto node : methodIndex_to_allMethodNodes[method])
+    if(methodIndex_to_allMethodNodes.find(method)==methodIndex_to_allMethodNodes.end()) 
     {
+        std::cout << "The method with method_index=" << method << "was not found in " << std::endl;
+         return;
+    }
+    for (auto node : methodIndex_to_allMethodNodes[method])
+    {   
+        std::unordered_set<PAGEdge*> delete_these;
         for (auto edge : node->outgoing)
         {
+            // std::cout << "In removeEdges " <<edge <<  std::endl;
             // if(edge->dest->methodIndex == method)
             // {
             bool is_formal = false;
@@ -209,14 +226,25 @@ void PointerAssignmentGraph::removeEdges(int method)
 
                 // }
 
-                removeEdge(edge);
+                // removeEdge(edge);
+                delete_these.insert(edge);
             }
+        }
+        for(PAGEdge* to_del : delete_these)
+        {
+            removeEdge(to_del);
         }
     }
 }
 void PointerAssignmentGraph::removeNodes(int method)
-{
-    vector<PAGNode *> nodes =methodIndex_to_allMethodNodes[method];
+{   
+    if(methodIndex_to_allMethodNodes.find(method)==methodIndex_to_allMethodNodes.end()) 
+    {
+        std::cout << "The method with method_index=" << method << "was not found in " << std::endl;
+         return;
+    }
+
+    vector<PAGNode *> nodes = methodIndex_to_allMethodNodes[method];
     vector<PAGNode *> &allNodes = methodIndex_to_allMethodNodes[method];
     std::cout << "The number of nodes of methodIndex " << method << " may be removed are  " << nodes.size() << std::endl;
     PAGNode *ret_node = methodIndex_to_returnNode[method];
@@ -482,6 +510,11 @@ std::vector<PAGEdge *> PointerAssignmentGraph::getLoadEdges()
 std::vector<PAGEdge *> PointerAssignmentGraph::getLoadEdges(int method)
 {
     std::vector<PAGEdge *> result;
+    if(methodIndex_to_allMethodNodes.find(method)==methodIndex_to_allMethodNodes.end()) 
+    {
+        std::cout << "The method with method_index=" << method << "was not found in " << std::endl;
+         return result;
+    }
     for (auto node : methodIndex_to_allMethodNodes[method])
     {
         for (auto edge : node->outgoing)

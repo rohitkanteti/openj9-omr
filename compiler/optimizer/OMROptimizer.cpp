@@ -9047,6 +9047,21 @@ void getThreadRelatedClasses(TR::Compilation *comp)
          }
       }
    }
+
+   std::ofstream outFile("threadRelatedClasses.txt");
+
+   if (outFile.is_open())
+   {
+      for (const auto &className : threadExtendingClasses)
+      {
+         outFile << className << "\n";
+      }
+      outFile.close();
+   }
+   else
+   {
+      TR_ASSERT_FATAL(1, "could not open threadRelatedClasses.txt");
+   }
 }
 
 int32_t getInstructionLength(TR_J9ByteCode bytecode, uint8_t *pc)
@@ -10243,6 +10258,7 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
    // }
    std::unordered_map<int, PAGNode *> variableMap;
    int reference_params = 0;
+
    if ((romMethod->modifiers & J9AccStatic) == 0)
    {
       reference_params++;
@@ -10260,31 +10276,36 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
    // Create entries in the varaible Map for each of the parameters and a PAGNode for return node ;
    if (analysedMethodNames.find(fullNAME) == analysedMethodNames.end() && alreadyAnalyzedMethods.find(fullNAME) == alreadyAnalyzedMethods.end()) // This means that this method 'my' was not analyzed before or called before.
    {
+      bool static_node_created_here = false;
       if ((romMethod->modifiers & J9AccStatic) == 0)
       {
          PAGNode *param_node_ptr = new PAGNode(VARIABLE, 0, nullptr, method_block, -1, methodIndex, className);
          // std::cout << "FOR recvr Method index = " << methodIndex << std::endl;
+         static_node_created_here = true;
          pag->methodIndex_to_allMethodNodes[methodIndex].push_back(param_node_ptr);
          pag->PAG_nodes.insert(param_node_ptr);
          pag->methodIndex_to_formalNodes[methodIndex].push_back(param_node_ptr);
       }
 
-      for (int i = 0; i < num_params; i++)
+      if (static_node_created_here || pag->methodIndex_to_formalNodes.find(methodIndex) == pag->methodIndex_to_formalNodes.end())
       {
-
-         if (is_reference_type(methodSignature, i))
+         for (int i = 0; i < num_params; i++)
          {
-            int slot_num = getSlotForArgument(methodSignature, i);
 
-            std::string static_type = getParameterReferenceType(methodSignature, i);
-            PAGNode *param_node_ptr = new PAGNode(VARIABLE, slot_num, nullptr, method_block, -1, methodIndex, static_type);
-            // std::cout << "for is_reference_type Method index = " << methodIndex << std::endl;
-            pag->methodIndex_to_allMethodNodes[methodIndex].push_back(param_node_ptr);
-            pag->PAG_nodes.insert(param_node_ptr);
-            pag->methodIndex_to_formalNodes[methodIndex].push_back(param_node_ptr);
+            if (is_reference_type(methodSignature, i))
+            {
+               int slot_num = getSlotForArgument(methodSignature, i);
+
+               std::string static_type = getParameterReferenceType(methodSignature, i);
+
+               PAGNode *param_node_ptr = new PAGNode(VARIABLE, slot_num, nullptr, method_block, -1, methodIndex, static_type);
+               // std::cout << i << " for is_reference_type Method index = " << methodIndex << " " << num_params << " " << reference_params << std::endl;
+               pag->methodIndex_to_allMethodNodes[methodIndex].push_back(param_node_ptr);
+               pag->PAG_nodes.insert(param_node_ptr);
+               pag->methodIndex_to_formalNodes[methodIndex].push_back(param_node_ptr);
+            }
          }
       }
-
       if (hasReturnType)
       {
          pag->methodIndex_to_returnNode[methodIndex] = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, method_block, -1, methodIndex);
@@ -10317,7 +10338,7 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
       // pag->methodIndex_to_allMethodNodes[methodIndex].push_back(param_node_ptr);
       // pag->PAG_nodes.insert(param_node_ptr);
       // pag->methodIndex_to_formalNodes[methodIndex].push_back(param_node_ptr);
-      if (resolvedMethod->isStatic())
+      if ((romMethod->modifiers & J9AccStatic) != 0)
          variableMap[(formal_param_nodes[i]->name) - 1] = formal_param_nodes[i];
       else
          variableMap[formal_param_nodes[i]->name] = formal_param_nodes[i]; // non-static methods, slot 0 -> this
@@ -10342,7 +10363,8 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
    inStacks[entryBlock] = new operandStack();
    worklist.push(entryBlock);
 
-   J9Class *currentClass = reinterpret_cast<J9Class *>(resolvedMethod->classOfMethod());
+   J9Class *currentClass = J9_CLASS_FROM_METHOD(method); // reinterpret_cast<J9Class *>(resolvedMethod->classOfMethod());
+
    unordered_set<int> worklist_bb_bci;
    worklist_bb_bci.insert(entryBlock->getEntry()->getNode()->getByteCodeIndex());
 
@@ -10368,9 +10390,9 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
          // std::cout << pcIndex << " - Opcode: 0x" << std::hex << (int)(*pc) << std::dec << " - " << getBytecodeString(bytecode) << " ---> " << instructionLength << std::endl;
 
          TR::VMAccessCriticalSection vmAccess(comp);
-         J9VMThread *vm = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
-         TR_OpaqueClassBlock *opaqueCurrentClass = resolvedMethod->classOfMethod();
-         J9Class *currentClass = reinterpret_cast<J9Class *>(opaqueCurrentClass);
+         // J9VMThread *vm = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
+         // TR_OpaqueClassBlock *opaqueCurrentClass = resolvedMethod->classOfMethod();
+         J9Class *currentClass = J9_CLASS_FROM_METHOD(method); // reinterpret_cast<J9Class *>(opaqueCurrentClass);
          executeBytecode(bytecode, pc, pag, stack, resolvedMethod, method, methodIndex, pcIndex, variableMap, hasReturnType, comp, currentClass, primitive_node, comp_type2_primitiveNode);
 
          pcIndex += instructionLength;
