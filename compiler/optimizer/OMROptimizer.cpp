@@ -3634,20 +3634,20 @@ void benchmarkBuildIndependentSet(TR::Compilation *comp)
    if (analysedMethodNames.find(methodToAnalyze) == analysedMethodNames.end() && alreadyAnalyzedMethods.find(methodToAnalyze) == alreadyAnalyzedMethods.end()) // (_methodsAnalyzed.find(methodPersistentId) == _methodsAnalyzed.end())
    {
       std::string mname = getMethodName(comp->getMethodSymbol());
-      std::cout << "**************************************************************analyzing " << mname << " omb= " << methodPersistentId << " in OMROptimizer.cpp**************************************************************" << std::endl;
+      // std::cout << "**************************************************************analyzing " << mname << " omb= " << methodPersistentId << " in OMROptimizer.cpp**************************************************************" << std::endl;
 
       bool got = false;
-      if (mname.rfind("scatterPhoton") == 0 || mname.rfind("Timer.toString()") == 0)
-      {
-         got = true;
-         std::cout << "Got " << mname;
-      }
+      // if (mname.rfind("scatterPhoton") == 0 || mname.rfind("Timer.toString()") == 0)
+      // {
+      //    got = true;
+      //    std::cout << "Got " << mname;
+      // }
       _methodsAnalyzed.insert(methodPersistentId);
       _methodsBeingAnalyzed.insert(methodPersistentId);
       _methodsNamesBeingAnalyzed.insert(methodToAnalyze);
       //  std::cout << "Compiling : " << getMethodName(comp->getMethodSymbol()) << std::endl;
-      if (got)
-         std::cout << got;
+      // if (got)
+      //    std::cout << got;
       //  return;
       // methodDict[methodPersistentId] = computeMSetForMethod(comp, comp->getMethodSymbol());
       // traverse_bytecode((J9Method *)comp->getMethodBeingCompiled()->getPersistentIdentifier(), pag, getOrInsertMethodIndex(comp->getMethodSymbol(), comp), comp);
@@ -3656,7 +3656,7 @@ void benchmarkBuildIndependentSet(TR::Compilation *comp)
       comp_type_2->comp_type = "COMP_TYPE_2";
       traverse_cfg((J9Method *)comp->getMethodSymbol()->getResolvedMethod()->getPersistentIdentifier(), pag, getOrInsertMethodIndex(comp->getMethodSymbol(), comp), comp, new PAGNode(), comp_type_2);
 
-      std::cout << "**************************************************************Done analyzing " << getMethodName(comp->getMethodSymbol()) << " in OMROptimizer.cpp**************************************************************" << std::endl;
+      // std::cout << "**************************************************************Done analyzing " << getMethodName(comp->getMethodSymbol()) << " in OMROptimizer.cpp**************************************************************" << std::endl;
 
       // methodDict[methodPersistentId] =
       // recompilation_test* rec = new recompilation_test();
@@ -4300,7 +4300,7 @@ bool returnsObject(const std::string &methodSignature, std::string &returnStatic
 MethodSet computeMSetForMethod(TR::Compilation *comp, TR::ResolvedMethodSymbol *methodSymbol)
 {
 
-   std::cout << "-----Computing Mset for method = " << getMethodName(methodSymbol) << " " << methodSymbol->getResolvedMethod()->getPersistentIdentifier() << "-----\n";
+   // std::cout << "-----Computing Mset for method = " << getMethodName(methodSymbol) << " " << methodSymbol->getResolvedMethod()->getPersistentIdentifier() << "-----\n";
 
    Counter counter(comp->getVisitCount(), -10);
 
@@ -4338,14 +4338,14 @@ MethodSet computeMSetForMethod(TR::Compilation *comp, TR::ResolvedMethodSymbol *
    // TODO: perform the topological sort of the CFG here, to identify the order in which the basic blocks are to be processed
    TR::CFG *cfg = methodSymbol->getFlowGraph();
    // if (!cfg)
-   std::cout << "cfg is null!" << std::endl;
+   // std::cout << "cfg is null!" << std::endl;
    TR::Block *start = cfg->getStart()->asBlock();
    TR_LinkHead1<TR::CFGNode> nodeList = cfg->getNodes();
 
    if (comp->getOption(TR_PrintCFG))
    {
       // printing the CFGNodes
-      std::cout << "####" << getMethodName(methodSymbol) << "####" << std::endl;
+      // std::cout << "####" << getMethodName(methodSymbol) << "####" << std::endl;
       while (!nodeList.isEmpty())
       {
          TR::CFGNode *cfg_node = nodeList.pop();
@@ -4365,7 +4365,7 @@ MethodSet computeMSetForMethod(TR::Compilation *comp, TR::ResolvedMethodSymbol *
          }
       }
 
-      std::cout << "###### Printing CFG Done!! #####" << std::endl;
+      // std::cout << "###### Printing CFG Done!! #####" << std::endl;
    }
 
    // perform a topological sort of the CFG to determine the order in which the basic blocks are to be processed
@@ -4587,7 +4587,7 @@ void getTargetsToPeek(std::queue<TR_OpaqueClassBlock *> &bfsList, std::unordered
       // if(!targetMethod) continue;
 
       // std::cout <<"Target method "<<getMethodName(targetMethod->findOrCreateJittedMethodSymbol(comp))<<std::endl;
-      std::cout << targetMethod << std::endl;
+      // std::cout << targetMethod << std::endl;
       if (targetMethod && !targetMethod->isAbstract())
       {
 
@@ -7701,7 +7701,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
          for (PAGNode *obj_ref : stack_top)
          {
             PAGNode *return_pag_node_ptr = pag->methodIndex_to_returnNode[methodIndex];
-            std::cout << methodIndex << " " << return_pag_node_ptr << std::endl;
+            // std::cout << methodIndex << " " << return_pag_node_ptr << std::endl;
             pag->addEdge(obj_ref, return_pag_node_ptr, ASSIGN);
 
             return_pag_node_ptr->pointee_class_names.insert(obj_ref->pointee_class_names.begin(), obj_ref->pointee_class_names.end());
@@ -7831,7 +7831,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    {
       set<PAGNode *> stack_top = stack->popRef();
       int index = pc[1];
-      std::cout << " storing to variable " << index << std::endl;
+     // std::cout << " storing to variable " << index << std::endl;
 
       if (!variableMap[index])
       {
@@ -8528,7 +8528,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       uint32_t cnlen = 0;
       char *classNameChars = resolvedMethod->getClassNameFromConstantPool(cpIndex, cnlen);
       std::string castClassName(classNameChars, cnlen);
-      std::cout << " --> cast to class " << castClassName << std::endl;
+     // std::cout << " --> cast to class " << castClassName << std::endl;
 
       set<PAGNode *> stack_top = stack->popRef();
       for (PAGNode *obj_ref : stack_top)
@@ -8594,7 +8594,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    }
 
    default:
-      std::cout << "Unhandled bytecode in executeBytecode: " << getBytecodeString(bytecode) << std::endl;
+     // std::cout << "Unhandled bytecode in executeBytecode: " << getBytecodeString(bytecode) << std::endl;
       break;
    }
 }
@@ -8636,8 +8636,9 @@ bool searchForOveridingMethodsInClass(std::string className, std::string method_
       }
       return true;
    }
+   // std::cout << className << std::endl;
    J9Class *j9Class = findClassAcrossAllLoaders(comp, className, fej9, resolvedMethod);
-   TR_ASSERT_FATAL(j9Class, "Could not load the class by name");
+   TR_ASSERT_FATAL(j9Class, "Could not load the class by name %s",className);
    J9ROMClass *romClass = j9Class->romClass;
 
    for (U_32 i = 0; i < romClass->romMethodCount; i++)
@@ -10093,14 +10094,14 @@ TR::CFG *buildCFG(TR_OpaqueMethodBlock *method_block, TR::Compilation *comp, std
       else if (isSwitch(lastBc))
       {
          auto tgts = switchTargets(lastInstrStart, lastBc, lastPc);
-         std::cout << "switch targets = ";
+        // std::cout << "switch targets = ";
          for (auto t : tgts)
          {
-            std::cout << t << ",";
+           // std::cout << t << ",";
             if (blocks.count(t))
                cfg->addEdge(block, blocks[t]);
          }
-         std::cout << std::endl;
+        // std::cout << std::endl;
       }
       else if (!isReturnOrThrow(lastBc))
       {
@@ -10250,7 +10251,7 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
    //    return;
    // }
 
-   std::cout << "############## Traversing the Bytecode of the method " << className << "." << name << signature << "##############" << std::endl;
+  // std::cout << "############## Traversing the Bytecode of the method " << className << "." << name << signature << "##############" << std::endl;
    int num_params = count_parameters(methodSignature); // resolvedMethod->numberOfParameterSlots(); double or long takes 2 slots
    // if(name.rfind("outputIntervalHistogram")==0)
    // {
@@ -10434,7 +10435,7 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
    // //    changedMethodNames.erase(fully_qualified_name);
    // // }
    // analysedMethodNames.insert(fully_qualified_name);
-   std::cout << "##############Done traversing the Bytecode of the method " << className << "." << name << signature << "##############" << std::endl;
+  // std::cout << "##############Done traversing the Bytecode of the method " << className << "." << name << signature << "##############" << std::endl;
    _methodsNamesBeingAnalyzed.erase(className + "." + name + signature);
    std::string fully_qualified_name = className + "." + name + signature;
    analysedMethodNames.insert(fully_qualified_name);
