@@ -1,4 +1,72 @@
 #include "LoadPAG.hpp"
+// #include <zlib.h>
+// #include "../../../../openj9/runtime/include/zlib.h"
+// Bypass OpenJ9's internal zlib header to use standard OS zlib
+extern "C" {
+    typedef void* gzFile;
+    gzFile gzopen(const char *path, const char *mode);
+    int gzclose(gzFile file);
+    int gzprintf(gzFile file, const char *format, ...);
+    char *gzgets(gzFile file, char *buf, int len);
+}
+#include <algorithm>
+static std::unordered_map<int, std::string> classIndexToStr;
+static std::unordered_map<int, std::string> methodIndexToStr;
+static void loadIndices() {
+    if (!classIndexToStr.empty()) return;
+    
+    gzFile cfile = gzopen("ci.txt.gz", "r");
+    if (!cfile) cfile = gzopen("ci.txt", "r");
+    if (cfile) {
+        char buffer[1024];
+        int idx = 1;
+        while (gzgets(cfile, buffer, sizeof(buffer)) != NULL) {
+            std::string line(buffer);
+            line.erase(std::remove(line.begin(), line.end(), '\n'), line.end());
+            line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
+            if (!line.empty()) classIndexToStr[idx++] = line;
+        }
+        gzclose(cfile);
+    }
+
+    gzFile mfile = gzopen("mi.txt.gz", "r");
+    if (!mfile) mfile = gzopen("mi.txt", "r");
+    if (mfile) {
+        char buffer[4096];
+        int idx = 1;
+        while (gzgets(mfile, buffer, sizeof(buffer)) != NULL) {
+            std::string line(buffer);
+            line.erase(std::remove(line.begin(), line.end(), '\n'), line.end());
+            line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
+            if (!line.empty()) methodIndexToStr[idx++] = line;
+        }
+        gzclose(mfile);
+    }
+}
+static bool gzGetLine(gzFile file, std::string &line)
+{
+    line.clear();
+    char buffer[4096];
+    bool hasData = false;
+
+    while (true)
+    {
+        if (gzgets(file, buffer, sizeof(buffer)) == NULL)
+        {
+            return hasData; 
+        }
+        hasData = true;
+        line.append(buffer);
+        
+        if (!line.empty() && line.back() == '\n')
+        {
+            line.pop_back(); 
+            if (!line.empty() && line.back() == '\r') 
+                line.pop_back(); 
+            return true;
+        }
+    }
+}
 LoadPAG::LoadPAG(const std::string &nodeFile, const std::string &edgeFile, const std::string &methodNodeMappingFile, const std::string &callgraphfile, std::string &threadfieldFile, std::string &staticfieldFile)
     : nodeFile(nodeFile), edgeFile(edgeFile), methodNodeMappingFile(methodNodeMappingFile), callgraphfile(callgraphfile), threadfieldFile(threadfieldFile), staticfieldFile(staticfieldFile) {}
 
@@ -72,201 +140,119 @@ EdgeType LoadPAG::parseEdgeType(int typeVal)
 
 void LoadPAG::loadNodes(const std::string &filename)
 {
-    std::ifstream file(filename);
+    loadIndices(); 
+    gzFile file = gzopen(filename.c_str(), "r");
+    if (!file) file = gzopen((filename + ".gz").c_str(), "r");
+    if (!file) return;
+
     std::string line;
     int index = 1;
 
-    while (std::getline(file, line))
+    while (gzGetLine(file, line))
     {
-        if (line.empty())
-            continue;
-
-        if (line.front() == '[')
-            line = line.substr(1);
-        if (line.back() == ']')
-            line.pop_back();
+        if (line.empty()) continue;
 
         std::stringstream ss(line);
-        std::string token;
+        int bci, methodIndex, typeInt, name, isLeaky;
 
-        std::getline(ss, token, ',');
-        int bci = std::stoi(token);
-
-        std::getline(ss, token, ',');
-        int methodIndex = std::stoi(token);
-
-        std::getline(ss, token, ',');
-        int typeInt = std::stoi(token);
-
-        std::getline(ss, token, ',');
-        int name = std::stoi(token);
-
-        std::getline(ss, token, ',');
-        int isLeaky = std::stoi(token);
+        if (!(ss >> bci >> methodIndex >> typeInt >> name >> isLeaky)) continue;
 
         NodeType type = parseNodeType(typeInt);
-
         std::unordered_set<std::string> pointee_names;
-        while (std::getline(ss, token, ','))
+        std::string token;
+
+        while (ss >> token)
         {
-            if (!token.empty())
-                pointee_names.insert(token);
+            bool isDigit = true;
+            for(char c : token) if(!isdigit(c)) { isDigit = false; break; }
+
+            if (isDigit) pointee_names.insert(classIndexToStr[std::stoi(token)]);
+            else pointee_names.insert(token);
         }
-        if (!(bci == -9 && type == 5 && name == -9))
+
+        if (!(bci == -9 && type == NodeType::GLOBAL && name == -9))
         {
             PAGNode *node = new PAGNode(type, name, nullptr, nullptr, bci, methodIndex);
             pag->PAG_nodes.insert(node);
             pag->nodeIndexToNode[index++] = node;
             node->pointee_class_names.insert(pointee_names.begin(), pointee_names.end());
-            if (isLeaky)
-                pag->LeakyNodes.insert(node);
+            if (isLeaky == 1) pag->LeakyNodes.insert(node);
         }
         else
         {
             pag->nodeIndexToNode[index++] = pag->bottom_node;
         }
     }
+    gzclose(file);
 }
 
 void LoadPAG::loadEdges(const std::string &filename)
 {
-    std::ifstream file(filename);
+    gzFile file = gzopen(filename.c_str(), "r");
+    if (!file) file = gzopen((filename + ".gz").c_str(), "r");
+    if (!file) return;
+
     std::string line;
 
-    while (std::getline(file, line))
+    while (gzGetLine(file, line))
     {
-        if (line.empty())
-            continue;
+        if (line.empty()) continue;
 
-        auto colonPos = line.find(':');
-        if (colonPos == std::string::npos)
-            continue;
+        std::stringstream ss(line);
+        int srcIndex;
+        if (!(ss >> srcIndex)) continue;
 
-        int srcIndex = std::stoi(line.substr(0, colonPos));
-        std::string edgesPart = line.substr(colonPos + 1);
+        PAGNode *src = pag->nodeIndexToNode[srcIndex];
+        if (!src) continue;
 
-        std::stringstream listSS(edgesPart);
-        std::string tuple;
+        int destIndex, edgeTypeInt, callsiteBCI;
+        std::string fieldName;
 
-        while (std::getline(listSS, tuple, ';'))
+        // Automatically extract chunks of 4 variables at a time
+        while (ss >> destIndex >> edgeTypeInt >> fieldName >> callsiteBCI)
         {
-            if (tuple.empty())
-                continue;
+            if (fieldName == "") fieldName = "";
 
-            tuple.erase(remove_if(tuple.begin(), tuple.end(), ::isspace), tuple.end());
-
-            if (tuple.front() == '[')
-                tuple.erase(tuple.begin());
-            if (!tuple.empty() && tuple.back() == ']')
-                tuple.pop_back();
-
-            if (tuple.empty())
-                continue;
-
-            std::stringstream tupleSS(tuple);
-            std::string token;
-
-            if (!std::getline(tupleSS, token, ','))
-                continue;
-            int destIndex = std::stoi(token);
-
-            if (!std::getline(tupleSS, token, ','))
-                continue;
-            int edgeTypeInt = std::stoi(token);
-
-            if (!std::getline(tupleSS, token, ','))
-                continue;
-            std::string fieldName = token;
-            if (fieldName == "<N/A>")
-                fieldName = "";
-
-            if (!std::getline(tupleSS, token, ','))
-                continue;
-            int callsiteBCI = 0;
-            try
-            {
-                callsiteBCI = std::stoi(token);
-            }
-            catch (...)
-            {
-                callsiteBCI = -1;
-            }
-
-            PAGNode *src = pag->nodeIndexToNode[srcIndex];
             PAGNode *dest = pag->nodeIndexToNode[destIndex];
-
-            if (!src || !dest)
-            {
-                std::cerr << "Invalid edge in line: " << line << "\n";
-                continue;
-            }
+            if (!dest) continue;
 
             EdgeType eType = parseEdgeType(edgeTypeInt);
             pag->addEdge(src, dest, eType, fieldName, callsiteBCI);
         }
     }
+    gzclose(file);
 }
-
 void LoadPAG::loadMethodNodeMappings(const std::string &filename)
 {
-    std::ifstream file(filename);
+    gzFile file = gzopen(filename.c_str(), "r");
+    if (!file) file = gzopen((filename + ".gz").c_str(), "r");
+    if (!file) return;
+
     std::string line;
 
-    while (std::getline(file, line))
+    while (gzGetLine(file, line))
     {
-        if (line.empty())
-            continue;
+        if (line.empty()) continue;
 
-        auto colonPos = line.find(':');
-        int methodIndex = std::stoi(line.substr(0, colonPos));
-        std::string nodeData = line.substr(colonPos + 2, line.size() - colonPos - 3); // remove ":[" and "]"
+        std::stringstream ss(line);
+        int methodIndex;
+        if (!(ss >> methodIndex)) continue;
 
-        std::stringstream ss(nodeData);
-        std::string pair;
-
-        while (std::getline(ss, pair, ';'))
+        int nodeIndex, isParam;
+        
+        // Extract chunks of 2 variables at a time
+        while (ss >> nodeIndex >> isParam)
         {
-            if (pair.empty())
-                continue;
-
-            // Remove [ and ] if present
-            if (pair.front() == '[')
-                pair = pair.substr(1);
-            if (pair.back() == ']')
-                pair.pop_back();
-
-            std::stringstream pairSS(pair);
-            std::string token;
-
-            std::getline(pairSS, token, ',');
-            int nodeIndex = std::stoi(token);
-
-            std::getline(pairSS, token, ',');
-            int isParam = std::stoi(token);
-
             PAGNode *node = pag->nodeIndexToNode[nodeIndex];
-            if (!node)
-            {
-                std::cerr << "Node index not found in PAG: " << nodeIndex << "\n";
-                continue;
-            }
+            if (!node) continue;
 
-            // Add to allMethodNodes
             pag->methodIndex_to_allMethodNodes[methodIndex].push_back(node);
 
-            // If it's a formal parameter
-            if (isParam == 1)
-            {
-                pag->methodIndex_to_formalNodes[methodIndex].push_back(node);
-            }
-
-            // If it's a return node
-            if (node->type == NodeType::RETURN)
-            {
-                pag->methodIndex_to_returnNode[methodIndex] = node;
-            }
+            if (isParam == 1) pag->methodIndex_to_formalNodes[methodIndex].push_back(node);
+            if (node->type == NodeType::RETURN) pag->methodIndex_to_returnNode[methodIndex] = node;
         }
     }
+    gzclose(file);
 }
 
 void LoadPAG::addMatchEdges()
@@ -305,66 +291,40 @@ void LoadPAG::addMatchEdges()
 
 void LoadPAG::loadCG(const std::string &filename)
 {
-    std::ifstream file(filename);
+    gzFile file = gzopen(filename.c_str(), "r");
+    if (!file) file = gzopen((filename + ".gz").c_str(), "r");
+    if (!file) return;
+
     std::string line;
 
-    while (std::getline(file, line))
+    while (gzGetLine(file, line))
     {
-        if (line.empty())
-            continue;
+        if (line.empty()) continue;
 
-        size_t colonPos = line.find(':');
-        if (colonPos == std::string::npos)
-            continue;
+        std::stringstream ss(line);
+        int callsiteBCI, receiverIndex;
+        
+        if (!(ss >> callsiteBCI >> receiverIndex)) continue;
 
-        std::string callsiteInfo = line.substr(0, colonPos);
-        std::string targetsStr = line.substr(colonPos + 1);
-
-        if (callsiteInfo.front() != '(' || callsiteInfo.back() != ')')
-            continue;
-        callsiteInfo = callsiteInfo.substr(1, callsiteInfo.length() - 2); // Remove parentheses
-
-        size_t commaPos = callsiteInfo.find(',');
-        if (commaPos == std::string::npos)
-            continue;
-
-        int callsiteBCI = std::stoi(callsiteInfo.substr(0, commaPos));
-        int receiverIndex = std::stoi(callsiteInfo.substr(commaPos + 1));
-        // std::cout << "BCI is " << callsiteBCI << "reciever index is "<<receiverIndex <<std::endl;
-        if (receiverIndex != -90898)
+        if (receiverIndex != -56765) // Using the RETURN_NODE_NAME logic
             pag->callsite_to_storeNodeIndex[callsiteBCI] = receiverIndex;
 
-        std::stringstream targetsStream(targetsStr);
-        std::string targetEntry;
-        while (std::getline(targetsStream, targetEntry, ';'))
+        int targetMethodIndex, numParams;
+
+        // Extract the target and how many parameters it has
+        while (ss >> targetMethodIndex >> numParams)
         {
-            if (targetEntry.empty())
-                continue;
-
-            size_t openBracket = targetEntry.find('[');
-            size_t closeBracket = targetEntry.find(']');
-            if (openBracket == std::string::npos || closeBracket == std::string::npos)
-                continue;
-
-            targetEntry = targetEntry.substr(openBracket + 1, closeBracket - openBracket - 1);
-
-            std::stringstream entryStream(targetEntry);
-            std::string token;
-
-            if (!std::getline(entryStream, token, ','))
-                continue;
-            int targetMethodIndex = std::stoi(token);
-
             std::vector<PAGNode *> actualParams;
-            while (std::getline(entryStream, token, ','))
+            
+            // Loop exactly numParams times to get all parameters
+            for (int i = 0; i < numParams; ++i)
             {
-                if (token.empty())
-                    continue;
-                int nodeIndex = std::stoi(token);
-                auto nodeIt = pag->nodeIndexToNode.find(nodeIndex);
-                if (nodeIt != pag->nodeIndexToNode.end())
-                {
-                    actualParams.push_back(nodeIt->second);
+                int nodeIndex;
+                if (ss >> nodeIndex) {
+                    auto nodeIt = pag->nodeIndexToNode.find(nodeIndex);
+                    if (nodeIt != pag->nodeIndexToNode.end()) {
+                        actualParams.push_back(nodeIt->second);
+                    }
                 }
             }
 
@@ -377,15 +337,15 @@ void LoadPAG::loadCG(const std::string &filename)
 
                 std::ostringstream oss;
                 oss << callerMethodIndex << ' ' << targetMethodIndex << ' ' << callsiteBCI;
-                std::string key = oss.str();
-                pag->CG.callsiteParams[key] = actualParams;
+                pag->CG.callsiteParams[oss.str()] = actualParams;
             }
         }
     }
+    gzclose(file);
 }
-
 void LoadPAG::getImportantFieldNames(const std::string &threadfieldFile, int static_or_thread)
 {
+   
     std::ifstream file(threadfieldFile);
 
     if (!file.is_open())
@@ -397,11 +357,21 @@ void LoadPAG::getImportantFieldNames(const std::string &threadfieldFile, int sta
     std::string line;
     while (std::getline(file, line))
     {
-        // std::cout << line << std::endl;
+        if (line.empty()) continue;
+        std::string fieldName = line;
+
+        if (isdigit(line[0])) {
+            auto dotPos = line.find('.');
+            if (dotPos != std::string::npos) {
+                int cIdx = std::stoi(line.substr(0, dotPos));
+                fieldName = classIndexToStr[cIdx] + "." + line.substr(dotPos + 1);
+            }
+        }
+
         if (static_or_thread == 0)
-            pag->threadAccessibleFields.insert(line);
+            pag->threadAccessibleFields.insert(fieldName);
         else
-            pag->staticFields.insert(line);
+            pag->staticFields.insert(fieldName);
     }
 
     file.close();

@@ -135,7 +135,14 @@
 #include "methodSet.cpp"
 #include "../../../openj9/runtime/compiler/ilgen/J9ByteCodeIterator.hpp"
 #include "../../../openj9/runtime/compiler/runtime/Recompilation_test/operandStack.hpp"
-
+// Bypass OpenJ9's internal zlib header to use standard OS zlib
+extern "C" {
+    typedef void* gzFile;
+    gzFile gzopen(const char *path, const char *mode);
+    int gzclose(gzFile file);
+    int gzprintf(gzFile file, const char *format, ...);
+    char *gzgets(gzFile file, char *buf, int len);
+}
 int32_t calculateTableswitchLength(uint8_t *pc);
 int32_t calculateLookupswitchLength(uint8_t *pc);
 int32_t calculateWideInstructionLength(uint8_t *pc);
@@ -239,6 +246,66 @@ bool isLibraryMethod(std::string methodName);
 void writeNodesToFile(TR::Compilation *, PointerAssignmentGraph *p);
 void printExhaustive();
 void getAlreadyAnalyzedMethodNames();
+// --- ADD THESE HELPERS FOR INDEX MAPPING ---
+static std::unordered_map<std::string, int> class_to_index;
+static int getClassIndex(const std::string& className) {
+    if (class_to_index.empty()) {
+        gzFile file = gzopen("ci.txt.gz", "r");
+        if (!file) file = gzopen("ci.txt", "r");
+        if (file) {
+            char buffer[1024];
+            int idx = 1;
+            while (gzgets(file, buffer, sizeof(buffer)) != NULL) {
+                std::string line(buffer);
+                line.erase(std::remove(line.begin(), line.end(), '\n'), line.end());
+                line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
+                if (!line.empty()) class_to_index[line] = idx++;
+            }
+            gzclose(file);
+        }
+    }
+    
+    if (class_to_index.find(className) == class_to_index.end()) {
+        int newIdx = class_to_index.size() + 1;
+        class_to_index[className] = newIdx;
+        gzFile file = gzopen("ci.txt.gz", "a"); 
+        if (file) {
+            gzprintf(file, "%s\n", className.c_str());
+            gzclose(file);
+        }
+    }
+    return class_to_index[className];
+}
+
+static std::unordered_map<std::string, int> method_to_index;
+static int getMethodIndex(const std::string& methodName) {
+    if (method_to_index.empty()) {
+        gzFile file = gzopen("mi.txt.gz", "r");
+        if (!file) file = gzopen("mi.txt", "r");
+        if (file) {
+            char buffer[4096];
+            int idx = 1;
+            while (gzgets(file, buffer, sizeof(buffer)) != NULL) {
+                std::string line(buffer);
+                line.erase(std::remove(line.begin(), line.end(), '\n'), line.end());
+                line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
+                if (!line.empty()) method_to_index[line] = idx++;
+            }
+            gzclose(file);
+        }
+    }
+    
+    if (method_to_index.find(methodName) == method_to_index.end()) {
+        int newIdx = method_to_index.size() + 1;
+        method_to_index[methodName] = newIdx;
+        gzFile file = gzopen("mi.txt.gz", "a");
+        if (file) {
+            gzprintf(file, "%s\n", methodName.c_str());
+            gzclose(file);
+        }
+    }
+    return method_to_index[methodName];
+}
 std::unordered_set<std::string> getReflectiveTargets(std::string &caller, int lineNumber);
 // std::set<Entry> processNode(TR::Node *node, int methodIndex, TR_OpaqueMethodBlock *currentMethod, TR::Compilation *comp,
 //                               Counter &counter, std::unordered_map<TR_OpaqueMethodBlock*,
@@ -1588,21 +1655,24 @@ static std::unordered_map<int, PAGNode *> callsiteBCI_to_return_node;           
 
 void writeNodesToFile(TR::Compilation *comp, PointerAssignmentGraph *pag)
 {
-   std::ofstream outfile("nodes.txt");
-   std::ofstream edgesfile("PAGEdges.txt");
+   // Open compressed files
+   gzFile outfile = gzopen("nodes.txt.gz", "w");
+   gzFile edgesfile = gzopen("PAGEdges.txt.gz", "w");
 
-   if (!outfile.is_open() || !edgesfile.is_open())
+   if (!outfile || !edgesfile)
    {
-      std::cerr << "Failed to open file for writing.\n";
+      std::cerr << "Failed to open compressed files for writing.\n";
+      if (outfile)
+         gzclose(outfile);
+      if (edgesfile)
+         gzclose(edgesfile);
       return;
    }
 
    // 1. Map Node Pointers to Integer IDs
-   // Using PAGNode* as the key is faster and safer than string keys
    std::unordered_map<PAGNode *, int> nodeIDMap;
    int index = 1;
 
-   // Helper lambda for safe lookup throughout the function
    auto getNodeID = [&](PAGNode *n) -> int
    {
       if (!n)
@@ -1611,160 +1681,143 @@ void writeNodesToFile(TR::Compilation *comp, PointerAssignmentGraph *pag)
       return (it != nodeIDMap.end()) ? it->second : 0;
    };
 
-   // --- DUMP NODES ---
+   // DUMP NODES
+   // Format: bci methodIndex type name isLeaky classIndex1 classIndex2 ... \n [where classIndexi is the pointee name]
    for (const auto &node : pag->PAG_nodes)
    {
-      // Register the mapping: Pointer -> ID
       nodeIDMap[node] = index;
 
-      outfile << "["
-              << node->bci << ","
-              << node->methodIndex << ","
-              << node->type << ","
-              << node->name << ",";
+      gzprintf(outfile, "%d %d %d %d %d", 
+               node->bci, node->methodIndex, node->type, node->name,
+               (pag->LeakyNodes.find(node) != pag->LeakyNodes.end() ? 1 : 0));
 
-      if (pag->LeakyNodes.find(node) != pag->LeakyNodes.end())
+      for (const std::string& cname : node->pointee_class_names)
       {
-         outfile << "1,";
+         gzprintf(outfile, " %d", getClassIndex(cname));
       }
-      else
-      {
-         outfile << "0,";
-      }
-
-      for (std::string cname : node->pointee_class_names)
-      {
-         outfile << cname << ",";
-      }
-      outfile << "]\n";
+      gzprintf(outfile, "\n");
 
       index++;
    }
-   outfile.close();
-
-   // --- DUMP EDGES ---
+   gzclose(outfile);
+   // DUMP EDGES 
+   // Format: srcIndex destIndex edgeType fieldName callsiteBCI destIndex2 ... \n
    for (const auto &node : pag->PAG_nodes)
    {
       int srcNodeIndex = getNodeID(node);
-      edgesfile << srcNodeIndex << ":";
+      gzprintf(edgesfile, "%d", srcNodeIndex);
 
       for (auto *edge : node->outgoing)
       {
          auto *dest = edge->dest;
          int destNodeIndex = getNodeID(dest);
 
-         // Handle Static Fields logic if direct lookup failed
-         // (Assuming staticField_to_Node is a map available in scope or part of pag)
          if (destNodeIndex == 0 && pag->staticFields.find(edge->field) != pag->staticFields.end())
          {
-            // Note: Ensure staticField_to_Node is accessible here.
-            // If it's a member of pag, use pag->staticField_to_Node
             if (staticField_to_Node.find(edge->field) != staticField_to_Node.end())
             {
                destNodeIndex = getNodeID(staticField_to_Node[edge->field]);
             }
          }
 
-         // Only write valid edges
          if (destNodeIndex != 0)
          {
-            edgesfile << "["
-                      << destNodeIndex << ","
-                      << edge->type << ","
-                      << edge->field << ","
-                      << edge->callsiteBCI << "];";
+            std::string fName = edge->field.empty() ? "-" : edge->field;
+            gzprintf(edgesfile, " %d %d %s %d", destNodeIndex, edge->type, fName.c_str(), edge->callsiteBCI);
          }
       }
-      edgesfile << "\n";
+      gzprintf(edgesfile, "\n");
    }
-   edgesfile.close();
+   gzclose(edgesfile);
 
-   // --- DUMP METHOD TO NODE MAPS ---
-   // Sort the node mappings
-   std::vector<pair<int, vector<PAGNode *>>> sortedMappings = sortMethodsByIndex(pag->methodIndex_to_allMethodNodes, comp);
-
-   std::ofstream mToNodesfile("methodIndex_to_PAGNodes.txt");
-   for (const auto &entry : sortedMappings)
-   {
-      mToNodesfile << entry.first << ":";
-
-      const std::vector<PAGNode *> &allNodes = entry.second;
-      // Safety check for formal nodes map existence
-      const std::vector<PAGNode *> &formalNodes = (pag->methodIndex_to_formalNodes.count(entry.first))
-                                                      ? pag->methodIndex_to_formalNodes[entry.first]
-                                                      : std::vector<PAGNode *>();
-
-      for (PAGNode *node : allNodes)
+   //  DUMP METHOD TO NODE MAPS 
+   // Format: methodIndex nodeIndex isFormal nodeIndex2 isFormal2 ... \n
+   gzFile mToNodesfile = gzopen("methodIndex_to_PAGNodes.txt.gz", "w");
+   if (mToNodesfile) {
+      std::vector<pair<int, vector<PAGNode *>>> sortedMappings = sortMethodsByIndex(pag->methodIndex_to_allMethodNodes, comp);
+      for (const auto &entry : sortedMappings)
       {
-         mToNodesfile << "[" << getNodeID(node) << ",";
-         int isFormalNode = 0;
+         gzprintf(mToNodesfile, "%d", entry.first);
+         const std::vector<PAGNode *> &allNodes = entry.second;
+         const std::vector<PAGNode *> &formalNodes = (pag->methodIndex_to_formalNodes.count(entry.first))
+                                                         ? pag->methodIndex_to_formalNodes[entry.first]
+                                                         : std::vector<PAGNode *>();
 
-         // Check if node is in the formalNodes list
-         for (PAGNode *n : formalNodes)
+         for (PAGNode *node : allNodes)
          {
-            if (node == n)
-            {
-               isFormalNode = 1;
-               break;
-            }
+            int isFormalNode = (std::find(formalNodes.begin(), formalNodes.end(), node) != formalNodes.end()) ? 1 : 0;
+            gzprintf(mToNodesfile, " %d %d", getNodeID(node), isFormalNode);
+         }
+         gzprintf(mToNodesfile, "\n");
+      }
+      gzclose(mToNodesfile);
+   }
+   //  DUMP CALL GRAPH 
+   // Format: callsiteBCI returnNodeIndex targetIndex numParams p1 p2 targetIndex2 numParams2 ... \n
+   gzFile callgraphfile = gzopen("callgraph.txt.gz", "w");
+   if (callgraphfile) {
+      for (auto &entry : callsiteBCI_to_targets)
+      {
+         int callsite_bci = entry.first;
+         int returnNodeIndex = RETURN_NODE_NAME;
+         
+         if (callsiteBCI_to_return_node.find(callsite_bci) != callsiteBCI_to_return_node.end() && callsiteBCI_to_return_node[callsite_bci] != nullptr)
+         {
+            returnNodeIndex = getNodeID(callsiteBCI_to_return_node[callsite_bci]);
          }
 
-         mToNodesfile << std::to_string(isFormalNode) << "];";
-      }
-      mToNodesfile << "\n";
-   }
-   mToNodesfile.close();
+         gzprintf(callgraphfile, "%d %d", callsite_bci, returnNodeIndex);
 
-   // --- DUMP CALL GRAPH ---
-   std::ofstream callgraphfile("callgraph.txt");
-
-   for (auto &entry : callsiteBCI_to_targets)
-   {
-      int callsite_bci = entry.first;
-      const std::unordered_set<int> &targets = entry.second;
-
-      // Get return node index - use RETURN_NODE_NAME (-56765) for void returns
-      int returnNodeIndex = RETURN_NODE_NAME;
-      if (callsiteBCI_to_return_node.find(callsite_bci) != callsiteBCI_to_return_node.end() && callsiteBCI_to_return_node[callsite_bci] != nullptr)
-      {
-         returnNodeIndex = getNodeID(callsiteBCI_to_return_node[callsite_bci]);
-      }
-
-      callgraphfile << "(" << callsite_bci << "," << returnNodeIndex << "):";
-
-      // Output each target with its actual parameters
-      for (int targetIndex : targets)
-      {
-         callgraphfile << "[" << targetIndex << ",";
-
-         // Output actual parameter PAG node indices
-         if (callsiteBCI_to_actual_params.find(callsite_bci) != callsiteBCI_to_actual_params.end())
+         for (int targetIndex : entry.second)
          {
+            // Write the number of params so the reader knows exactly how many to extract
+            size_t numParams = callsiteBCI_to_actual_params[callsite_bci].size();
+            gzprintf(callgraphfile, " %d %zu", targetIndex, numParams);
+
             for (PAGNode *actualParam : callsiteBCI_to_actual_params[callsite_bci])
             {
-               int paramNodeIndex = getNodeID(actualParam);
-               callgraphfile << paramNodeIndex << ",";
+               gzprintf(callgraphfile, " %d", getNodeID(actualParam));
             }
          }
-         callgraphfile << "];";
+         gzprintf(callgraphfile, "\n");
       }
-      callgraphfile << "\n";
+      gzclose(callgraphfile);
    }
-   callgraphfile.close();
 
-   std::ofstream tf("threadAccesible.txt");
-   for (auto field : pag->threadAccessibleFields)
-   {
-      tf << field << std::endl;
+   gzFile tf = gzopen("threadAccesible.txt.gz", "w");
+   if (tf) {
+      for (const auto& field : pag->threadAccessibleFields)
+      {
+         auto dotPos = field.find('.');
+         if (dotPos != std::string::npos) {
+             std::string cname = field.substr(0, dotPos);
+             std::string fname = field.substr(dotPos + 1);
+             // format: "ClassIndex.fieldName"
+             gzprintf(tf, "%d.%s\n", getClassIndex(cname), fname.c_str());
+         } else {
+             gzprintf(tf, "%s\n", field.c_str());
+         }
+      }
+      gzclose(tf);
    }
-   tf.close();
 
-   std::ofstream sf("staticFields.txt");
-   for (auto field : pag->staticFields)
-   {
-      sf << field << std::endl;
+   // Dump static fields
+   gzFile sf = gzopen("staticFields.txt.gz", "w");
+   if (sf) {
+      for (const auto& field : pag->staticFields)
+      {
+         auto dotPos = field.find('.');
+         if (dotPos != std::string::npos) {
+             std::string cname = field.substr(0, dotPos);
+             std::string fname = field.substr(dotPos + 1);
+             // format: "ClassIndex.fieldName"
+             gzprintf(sf, "%d.%s\n", getClassIndex(cname), fname.c_str());
+         } else {
+             gzprintf(sf, "%s\n", field.c_str());
+         }
+      }
+      gzclose(sf);
    }
-   sf.close();
 }
 void OMR::Optimizer::dumpPostOptTrees()
 {
@@ -3517,18 +3570,24 @@ OMR_InlinerUtil *OMR::Optimizer::getInlinerUtil()
 static unordered_set<std::string> processedClinit;
 void processClinits(TR::Compilation *comp)
 {
-   std::ifstream inputFile("ci.txt");
+   // std::ifstream inputFile("ci.txt");
+   gzFile inputFile = gzopen("ci.txt.gz", "r");
 
-   if (!inputFile.is_open())
+   if (!inputFile)
    {
       TR_ASSERT(0, "Error: Could not open file ci.txt");
       return;
    }
 
-   std::string class_name;
+   char buffer[1024];
    int i = 0;
-   while (std::getline(inputFile, class_name))
+
+   while (gzgets(inputFile, buffer, sizeof(buffer)) != NULL)
    {
+      std::string class_name(buffer);
+      class_name.erase(std::remove(class_name.begin(), class_name.end(), '\n'), class_name.end());
+      class_name.erase(std::remove(class_name.begin(), class_name.end(), '\r'), class_name.end());
+
       i++;
       if (class_name.empty() || isLibraryMethod((class_name + ".<clinit>()V")) || processedClinit.find(class_name) != processedClinit.end())
       {
@@ -3565,7 +3624,8 @@ void processClinits(TR::Compilation *comp)
          std::cout << "Warning: Could not resolve class: " << class_name << std::endl;
       }
    }
-   inputFile.close();
+   // inputFile.close();
+   gzclose(inputFile);
 }
 
 // (performOptimization) -> benchmarkBuildIndependentSet -> computeMSetForMethod -> evaluateNode
@@ -3669,21 +3729,15 @@ void benchmarkBuildIndependentSet(TR::Compilation *comp)
       {
          printExhaustive();
          writeNodesToFile(comp, pag);
-         std::ofstream outFile("analyzedMethods.txt");
-
-         for (auto methodName : analysedMethodNames)
+         gzFile outFile = gzopen("analyzedMethods.txt.gz", "w");
+         if (outFile)
          {
-            // if (omb == nullptr)
-            //    continue;
-
-            // TR_ResolvedMethod *Method = getCachedResolvedMethodFromPtr(comp, omb);
-            // TR::ResolvedMethodSymbol *ResolvedMethodSymbol = Method->findOrCreateJittedMethodSymbol(comp);
-
-            // std::string methodName = getMethodName(ResolvedMethodSymbol);
-            outFile << methodName << std::endl;
+            for (const auto &methodName : analysedMethodNames)
+            {
+               gzprintf(outFile, "%s\n", methodName.c_str());
+            }
+            gzclose(outFile);
          }
-
-         outFile.close();
 
          // std::cout << "Methods in MethodSS = " << std::endl;
          // for (auto nam : methodsSS)
@@ -6467,7 +6521,11 @@ void printExhaustive()
 {
    std::map<int, std::string> methodMap;
    int i = 0;
-   ofstream miFile("mi.txt");
+
+   gzFile miFile = gzopen("mi.txt.gz", "w");
+   if (!miFile)
+      return;
+
    map<int, std::string> inverseMethodIndices;
    for (auto m : pag->_methodIndices)
    {
@@ -6475,54 +6533,63 @@ void printExhaustive()
    }
    for (auto m : inverseMethodIndices)
    {
-      miFile /*<<std::to_string(i)<<":"*/ << m.second << "\n";
+      gzprintf(miFile, "%s\n", m.second.c_str());
       i++;
-      // ofstream crFile("crr" + to_string(m.first) + ".txt");
-      // for (auto r : _callsiteReceivers[m.first])
-      // {
-      //    crFile << r.first;
-      //    for (auto s : r.second)
-      //    {
-      //       crFile << " " << s;
-      //    }
-      //    crFile << ";";
-      // }
-      // crFile.close();
    }
 
-   miFile.close();
+   gzclose(miFile);
 }
 
 std::unordered_map<std::string, int> readMethodIndices()
 {
    std::unordered_map<string, int> ret;
-   char *methodIndicesFileName = "mi.txt";
+   // char *methodIndicesFileName = "mi.txt";
 
-   ifstream file(methodIndicesFileName);
-   string methodName;
+   // ifstream file(methodIndicesFileName);
+   gzFile file = gzopen("mi.txt.gz", "r");
+   char buffer[4096];
    int index = 1;
-   while (file >> methodName)
+   while (gzgets(file, buffer, sizeof(buffer)) != NULL)
    {
-      // cout << methodName << ":" << index << endl;
+      std::string methodName(buffer);
+      // Clean newline chars
+      methodName.erase(std::remove(methodName.begin(), methodName.end(), '\n'), methodName.end());
+      methodName.erase(std::remove(methodName.begin(), methodName.end(), '\r'), methodName.end());
 
-      ret[methodName] = index;
-      index++;
+      if (!methodName.empty())
+      {
+         ret[methodName] = index;
+         index++;
+      }
    }
-   file.close();
+   gzclose(file);
    return ret;
 }
 
 void getAlreadyAnalyzedMethodNames()
 {
-   std::ifstream file("analyzedMethods.txt");
-   std::string line;
-   int index = 1;
-
-   while (std::getline(file, line))
+   gzFile file = gzopen("analyzedMethods.txt.gz", "r");
+   if (!file)
    {
-      alreadyAnalyzedMethods.insert(line);
+      return;
    }
-   file.close();
+
+   if (file)
+   {
+      char buffer[4096];
+      while (gzgets(file, buffer, sizeof(buffer)) != NULL)
+      {
+         std::string line(buffer);
+         line.erase(std::remove(line.begin(), line.end(), '\n'), line.end());
+         line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
+
+         if (!line.empty())
+         {
+            alreadyAnalyzedMethods.insert(line);
+         }
+      }
+      gzclose(file);
+   }
 }
 
 void updateMatchEdges()
@@ -6553,31 +6620,39 @@ void updateMatchEdges()
 
 void getResolvedReflectiveCalls()
 {
-   std::ifstream file("transformedRefLog.txt");
-   std::string line;
+   gzFile file = gzopen("transformedRefLog.txt.gz", "r");
+   if (!file)
+      return;
 
-   while (std::getline(file, line))
+   if (file)
    {
-      if (line.empty())
-         continue;
-
-      std::istringstream iss(line);
-      std::string caller, lineNumStr, callee;
-
-      if (iss >> caller >> lineNumStr)
+      char buffer[4096];
+      while (gzgets(file, buffer, sizeof(buffer)) != NULL)
       {
-         int lineNumber = std::stoi(lineNumStr);
-         std::getline(iss, callee);
+         std::string line(buffer);
+         if (line.length() < 2)
+            continue;
 
-         if (!callee.empty() && callee[0] == ' ')
+         std::istringstream iss(line);
+         std::string caller, lineNumStr, callee;
+
+         if (iss >> caller >> lineNumStr)
          {
-            callee = callee.substr(1);
-         }
+            int lineNumber = std::stoi(lineNumStr);
+            std::getline(iss, callee);
 
-         reflectiveCallGraph[caller].emplace_back(callee, lineNumber);
+            if (!callee.empty() && callee[0] == ' ')
+            {
+               callee = callee.substr(1);
+            }
+            callee.erase(std::remove(callee.begin(), callee.end(), '\n'), callee.end());
+            callee.erase(std::remove(callee.begin(), callee.end(), '\r'), callee.end());
+
+            reflectiveCallGraph[caller].emplace_back(callee, lineNumber);
+         }
       }
+      gzclose(file);
    }
-   file.close();
 }
 
 std::unordered_set<std::string> getReflectiveTargets(std::string &caller, int lineNumber)
@@ -8580,9 +8655,8 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       char *nameChars = (char *)J9UTF8_DATA(name_utf8);
       U_16 nameLength = J9UTF8_LENGTH(name_utf8);
       std::string name(nameChars, nameLength);
-      if(bytecode == J9BCinvokespecialsplit || bytecode == J9BCinvokestaticsplit)
+      if (bytecode == J9BCinvokespecialsplit || bytecode == J9BCinvokestaticsplit)
          std::cout << "   -> " << name << signature << " is the method!!! for " << getBytecodeString(bytecode) << " bytecode" << std::endl;
-
 
       // std::cout << "   -> " << name << signature << " is the method!!!" << std::endl;
       // methodName along with signature;
@@ -9391,15 +9465,27 @@ void getall_loaded_classes(TR::Compilation *comp)
 {
    // std::cout << "All the loaded classes are: " << std::endl;
    // loaded by myagent
-   std::ifstream file("ci.txt");
-   std::string line;
-   int index = 1;
+   // std::ifstream file("ci.txt");
+   gzFile file = gzopen("ci.txt.gz", "r");
+   if (!file)
+      return;
 
-   while (std::getline(file, line))
+   if (file)
    {
-      loaded_classes.insert(line);
+      char buffer[1024];
+      while (gzgets(file, buffer, sizeof(buffer)) != NULL)
+      {
+         std::string line(buffer);
+         line.erase(std::remove(line.begin(), line.end(), '\n'), line.end());
+         line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
+
+         if (!line.empty())
+         {
+            loaded_classes.insert(line);
+         }
+      }
+      gzclose(file);
    }
-   file.close();
 
    J9VMThread *vmThread = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
    J9JavaVM *javaVM = vmThread->javaVM;
@@ -9474,19 +9560,19 @@ void getThreadRelatedClasses(TR::Compilation *comp)
       }
    }
 
-   std::ofstream outFile("threadRelatedClasses.txt");
+   gzFile outFile = gzopen("threadRelatedClasses.txt.gz", "w");
 
-   if (outFile.is_open())
+   if (outFile)
    {
       for (const auto &className : threadExtendingClasses)
       {
-         outFile << className << "\n";
+         gzprintf(outFile, "%s\n", className.c_str());
       }
-      outFile.close();
+      gzclose(outFile);
    }
    else
    {
-      TR_ASSERT_FATAL(1, "could not open threadRelatedClasses.txt");
+      TR_ASSERT_FATAL(0, "could not open threadRelatedClasses.txt.gz");
    }
 }
 
