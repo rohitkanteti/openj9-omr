@@ -142,7 +142,7 @@ void LoadPAG::loadNodes(const std::string &filename)
 {
     loadIndices(); 
     gzFile file = gzopen(filename.c_str(), "r");
-    if (!file) file = gzopen((filename + ".gz").c_str(), "r");
+    if (!file) file = gzopen((filename ).c_str(), "r");
     if (!file) return;
 
     std::string line;
@@ -189,7 +189,7 @@ void LoadPAG::loadNodes(const std::string &filename)
 void LoadPAG::loadEdges(const std::string &filename)
 {
     gzFile file = gzopen(filename.c_str(), "r");
-    if (!file) file = gzopen((filename + ".gz").c_str(), "r");
+    if (!file) file = gzopen((filename ).c_str(), "r");
     if (!file) return;
 
     std::string line;
@@ -225,7 +225,7 @@ void LoadPAG::loadEdges(const std::string &filename)
 void LoadPAG::loadMethodNodeMappings(const std::string &filename)
 {
     gzFile file = gzopen(filename.c_str(), "r");
-    if (!file) file = gzopen((filename + ".gz").c_str(), "r");
+    if (!file) file = gzopen((filename ).c_str(), "r");
     if (!file) return;
 
     std::string line;
@@ -292,7 +292,7 @@ void LoadPAG::addMatchEdges()
 void LoadPAG::loadCG(const std::string &filename)
 {
     gzFile file = gzopen(filename.c_str(), "r");
-    if (!file) file = gzopen((filename + ".gz").c_str(), "r");
+    if (!file) file = gzopen((filename ).c_str(), "r");
     if (!file) return;
 
     std::string line;
