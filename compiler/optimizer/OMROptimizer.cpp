@@ -8620,7 +8620,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
 
       if (isInterfaceInvoke)
       {
-         cpIndex = pc[3];
+         cpIndex = (pc[4] << 8) | pc[3];
       }
 
       J9ConstantPool *cp = J9_CP_FROM_METHOD(currentMethod);
@@ -8655,8 +8655,8 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       char *nameChars = (char *)J9UTF8_DATA(name_utf8);
       U_16 nameLength = J9UTF8_LENGTH(name_utf8);
       std::string name(nameChars, nameLength);
-      if (bytecode == J9BCinvokespecialsplit || bytecode == J9BCinvokestaticsplit)
-         std::cout << "   -> " << name << signature << " is the method!!! for " << getBytecodeString(bytecode) << " bytecode" << std::endl;
+      // if (bytecode == J9BCinvokespecialsplit || bytecode == J9BCinvokestaticsplit)
+      //    std::cout << "   -> " << name << signature << " is the method!!! for " << getBytecodeString(bytecode) << " bytecode" << std::endl;
 
       // std::cout << "   -> " << name << signature << " is the method!!!" << std::endl;
       // methodName along with signature;
