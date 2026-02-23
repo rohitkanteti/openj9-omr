@@ -8631,7 +8631,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
          U_16 index = *(U_16 *)(pc + 1);
          J9ConstantPool *ramConstantPool = J9_CP_FROM_METHOD(currentMethod);
 
-         UDATA splitTableIndex = index;
+         UDATA splitTableIndex = cpIndex; //index;
          U_16 cpIndex = *(U_16 *)(J9ROMCLASS_SPECIALSPLITMETHODREFINDEXES(ramConstantPool->ramClass->romClass) + splitTableIndex);
          J9Method *method = ramConstantPool->ramClass->specialSplitMethodTable[splitTableIndex];
          romMethodRef = (J9ROMMethodRef *)&ramConstantPool->romConstantPool[cpIndex];
