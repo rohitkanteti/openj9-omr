@@ -8632,7 +8632,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
          J9ConstantPool *ramConstantPool = J9_CP_FROM_METHOD(currentMethod);
 
          UDATA splitTableIndex = cpIndex; //index;
-         U_16 cpIndex = *(U_16 *)(J9ROMCLASS_SPECIALSPLITMETHODREFINDEXES(ramConstantPool->ramClass->romClass) + splitTableIndex);
+         cpIndex = *(U_16 *)(J9ROMCLASS_SPECIALSPLITMETHODREFINDEXES(ramConstantPool->ramClass->romClass) + splitTableIndex);
          J9Method *method = ramConstantPool->ramClass->specialSplitMethodTable[splitTableIndex];
          romMethodRef = (J9ROMMethodRef *)&ramConstantPool->romConstantPool[cpIndex];
       }
@@ -8683,8 +8683,8 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       std::unordered_set<int> targets;
       if (isStatic)
       {
-         J9ConstantPool *cp = J9_CP_FROM_METHOD(currentMethod);
-         J9ROMMethodRef *romMethodRef = (J9ROMMethodRef *)(cp->romConstantPool + cpIndex);
+         // J9ConstantPool *cp = J9_CP_FROM_METHOD(currentMethod);
+         // J9ROMMethodRef *romMethodRef = (J9ROMMethodRef *)(cp->romConstantPool + cpIndex);
          U_32 classRefIndex = romMethodRef->classRefCPIndex;
          J9ROMStringRef *romStringRef = (J9ROMStringRef *)&cp->romConstantPool[classRefIndex];
          J9UTF8 *classNameWrapper = J9ROMSTRINGREF_UTF8DATA(romStringRef);
@@ -8739,7 +8739,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
          actual_params.insert(actual_params.begin(), receiver_obj_ptr_set); // (this,arg1,arg2,...)
 
          J9ConstantPool *cp = J9_CP_FROM_METHOD(currentMethod);
-         J9ROMMethodRef *romMethodRef = (J9ROMMethodRef *)(cp->romConstantPool + cpIndex);
+         // J9ROMMethodRef *romMethodRef = (J9ROMMethodRef *)(cp->romConstantPool + cpIndex);
          U_32 classRefIndex = romMethodRef->classRefCPIndex;
          J9ROMStringRef *romStringRef = (J9ROMStringRef *)&cp->romConstantPool[classRefIndex];
          J9UTF8 *classNameWrapper = J9ROMSTRINGREF_UTF8DATA(romStringRef);
