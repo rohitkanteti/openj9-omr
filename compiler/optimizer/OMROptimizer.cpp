@@ -250,7 +250,7 @@ void getAlreadyAnalyzedMethodNames();
 static std::unordered_map<std::string, int> class_to_index;
 static int getClassIndex(const std::string& className) {
     if (class_to_index.empty()) {
-        gzFile file = gzopen("ci.txt.gz", "r");
+        gzFile file = gzopen("ci.txt", "r");
         if (!file) file = gzopen("ci.txt", "r");
         if (file) {
             char buffer[1024];
@@ -268,7 +268,7 @@ static int getClassIndex(const std::string& className) {
     if (class_to_index.find(className) == class_to_index.end()) {
         int newIdx = class_to_index.size() + 1;
         class_to_index[className] = newIdx;
-        gzFile file = gzopen("ci.txt.gz", "a"); 
+        gzFile file = gzopen("ci.txt", "a"); 
         if (file) {
             gzprintf(file, "%s\n", className.c_str());
             gzclose(file);
@@ -3571,7 +3571,7 @@ static unordered_set<std::string> processedClinit;
 void processClinits(TR::Compilation *comp)
 {
    // std::ifstream inputFile("ci.txt");
-   gzFile inputFile = gzopen("ci.txt.gz", "r");
+   gzFile inputFile = gzopen("ci.txt", "r");
 
    if (!inputFile)
    {
@@ -9136,8 +9136,10 @@ bool searchForOveridingMethodsInClass(std::string className, std::string method_
       return true;
    }
    // std::cout << className << std::endl;
+  
    J9Class *j9Class = findClassAcrossAllLoaders(comp, className, fej9, resolvedMethod);
-   TR_ASSERT_FATAL(j9Class, "Could not load the class by name %s", className);
+
+   TR_ASSERT_FATAL(j9Class, "Could not load the class by name %s", className.c_str());
    J9ROMClass *romClass = j9Class->romClass;
 
    for (U_32 i = 0; i < romClass->romMethodCount; i++)
@@ -9466,7 +9468,7 @@ void getall_loaded_classes(TR::Compilation *comp)
    // std::cout << "All the loaded classes are: " << std::endl;
    // loaded by myagent
    // std::ifstream file("ci.txt");
-   gzFile file = gzopen("ci.txt.gz", "r");
+   gzFile file = gzopen("ci.txt", "r");
    if (!file)
       return;
 
@@ -11028,7 +11030,7 @@ J9Class *findClassAcrossAllLoaders(TR::Compilation *comp, const std::string &cla
    // Use a GC-safe iterator to walk through all class loader blocks
    GC_PoolIterator classLoaderIterator(javaVM->classLoaderBlocks);
    J9ClassLoader *classLoader = nullptr;
-
+ 
    while (nullptr != (classLoader = (J9ClassLoader *)classLoaderIterator.nextSlot()))
    {
 
@@ -11039,7 +11041,7 @@ J9Class *findClassAcrossAllLoaders(TR::Compilation *comp, const std::string &cla
       {
          J9UTF8 *nameUTF8 = J9ROMCLASS_CLASSNAME(currentClass->romClass);
          std::string currentClassName((char *)J9UTF8_DATA(nameUTF8), J9UTF8_LENGTH(nameUTF8));
-
+       
          // Compare with the target class name
          if (currentClassName == className)
          {
