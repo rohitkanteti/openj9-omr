@@ -136,12 +136,13 @@
 #include "../../../openj9/runtime/compiler/ilgen/J9ByteCodeIterator.hpp"
 #include "../../../openj9/runtime/compiler/runtime/Recompilation_test/operandStack.hpp"
 // Bypass OpenJ9's internal zlib header to use standard OS zlib
-extern "C" {
-    typedef void* gzFile;
-    gzFile gzopen(const char *path, const char *mode);
-    int gzclose(gzFile file);
-    int gzprintf(gzFile file, const char *format, ...);
-    char *gzgets(gzFile file, char *buf, int len);
+extern "C"
+{
+   typedef void *gzFile;
+   gzFile gzopen(const char *path, const char *mode);
+   int gzclose(gzFile file);
+   int gzprintf(gzFile file, const char *format, ...);
+   char *gzgets(gzFile file, char *buf, int len);
 }
 int32_t calculateTableswitchLength(uint8_t *pc);
 int32_t calculateLookupswitchLength(uint8_t *pc);
@@ -248,63 +249,80 @@ void printExhaustive();
 void getAlreadyAnalyzedMethodNames();
 // --- ADD THESE HELPERS FOR INDEX MAPPING ---
 static std::unordered_map<std::string, int> class_to_index;
-static int getClassIndex(const std::string& className) {
-    if (class_to_index.empty()) {
-        gzFile file = gzopen("ci.txt", "r");
-        if (!file) file = gzopen("ci.txt", "r");
-        if (file) {
-            char buffer[1024];
-            int idx = 1;
-            while (gzgets(file, buffer, sizeof(buffer)) != NULL) {
-                std::string line(buffer);
-                line.erase(std::remove(line.begin(), line.end(), '\n'), line.end());
-                line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
-                if (!line.empty()) class_to_index[line] = idx++;
-            }
-            gzclose(file);
-        }
-    }
-    
-    if (class_to_index.find(className) == class_to_index.end()) {
-        int newIdx = class_to_index.size() + 1;
-        class_to_index[className] = newIdx;
-        gzFile file = gzopen("ci.txt", "a"); 
-        if (file) {
-            gzprintf(file, "%s\n", className.c_str());
-            gzclose(file);
-        }
-    }
-    return class_to_index[className];
+static int getClassIndex(const std::string &className)
+{
+   if (class_to_index.empty())
+   {
+      gzFile file = gzopen("ci.txt", "r");
+      if (!file)
+         file = gzopen("ci.txt", "r");
+      if (file)
+      {
+         char buffer[1024];
+         int idx = 1;
+         while (gzgets(file, buffer, sizeof(buffer)) != NULL)
+         {
+            std::string line(buffer);
+            line.erase(std::remove(line.begin(), line.end(), '\n'), line.end());
+            line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
+            if (!line.empty())
+               class_to_index[line] = idx++;
+         }
+         gzclose(file);
+      }
+   }
+
+   if (class_to_index.find(className) == class_to_index.end())
+   {
+      int newIdx = class_to_index.size() + 1;
+      class_to_index[className] = newIdx;
+      //   gzFile file = gzopen("ci.txt", "a");
+      std::ofstream outFile("ci.txt", std::ios::out | std::ios::app);
+      if (outFile.is_open())
+      {
+         outFile << className;  
+         outFile.close();
+      }
+   }
+   return class_to_index[className];
 }
 
 static std::unordered_map<std::string, int> method_to_index;
-static int getMethodIndex(const std::string& methodName) {
-    if (method_to_index.empty()) {
-        gzFile file = gzopen("mi.txt.gz", "r");
-        if (!file) file = gzopen("mi.txt", "r");
-        if (file) {
-            char buffer[4096];
-            int idx = 1;
-            while (gzgets(file, buffer, sizeof(buffer)) != NULL) {
-                std::string line(buffer);
-                line.erase(std::remove(line.begin(), line.end(), '\n'), line.end());
-                line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
-                if (!line.empty()) method_to_index[line] = idx++;
-            }
-            gzclose(file);
-        }
-    }
-    
-    if (method_to_index.find(methodName) == method_to_index.end()) {
-        int newIdx = method_to_index.size() + 1;
-        method_to_index[methodName] = newIdx;
-        gzFile file = gzopen("mi.txt.gz", "a");
-        if (file) {
-            gzprintf(file, "%s\n", methodName.c_str());
-            gzclose(file);
-        }
-    }
-    return method_to_index[methodName];
+static int getMethodIndex(const std::string &methodName)
+{
+   if (method_to_index.empty())
+   {
+      gzFile file = gzopen("mi.txt.gz", "r");
+      if (!file)
+         file = gzopen("mi.txt", "r");
+      if (file)
+      {
+         char buffer[4096];
+         int idx = 1;
+         while (gzgets(file, buffer, sizeof(buffer)) != NULL)
+         {
+            std::string line(buffer);
+            line.erase(std::remove(line.begin(), line.end(), '\n'), line.end());
+            line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
+            if (!line.empty())
+               method_to_index[line] = idx++;
+         }
+         gzclose(file);
+      }
+   }
+
+   if (method_to_index.find(methodName) == method_to_index.end())
+   {
+      int newIdx = method_to_index.size() + 1;
+      method_to_index[methodName] = newIdx;
+      gzFile file = gzopen("mi.txt.gz", "a");
+      if (file)
+      {
+         gzprintf(file, "%s\n", methodName.c_str());
+         gzclose(file);
+      }
+   }
+   return method_to_index[methodName];
 }
 std::unordered_set<std::string> getReflectiveTargets(std::string &caller, int lineNumber);
 // std::set<Entry> processNode(TR::Node *node, int methodIndex, TR_OpaqueMethodBlock *currentMethod, TR::Compilation *comp,
@@ -1687,11 +1705,11 @@ void writeNodesToFile(TR::Compilation *comp, PointerAssignmentGraph *pag)
    {
       nodeIDMap[node] = index;
 
-      gzprintf(outfile, "%d %d %d %d %d", 
+      gzprintf(outfile, "%d %d %d %d %d",
                node->bci, node->methodIndex, node->type, node->name,
                (pag->LeakyNodes.find(node) != pag->LeakyNodes.end() ? 1 : 0));
 
-      for (const std::string& cname : node->pointee_class_names)
+      for (const std::string &cname : node->pointee_class_names)
       {
          gzprintf(outfile, " %d", getClassIndex(cname));
       }
@@ -1700,7 +1718,7 @@ void writeNodesToFile(TR::Compilation *comp, PointerAssignmentGraph *pag)
       index++;
    }
    gzclose(outfile);
-   // DUMP EDGES 
+   // DUMP EDGES
    // Format: srcIndex destIndex edgeType fieldName callsiteBCI destIndex2 ... \n
    for (const auto &node : pag->PAG_nodes)
    {
@@ -1730,10 +1748,11 @@ void writeNodesToFile(TR::Compilation *comp, PointerAssignmentGraph *pag)
    }
    gzclose(edgesfile);
 
-   //  DUMP METHOD TO NODE MAPS 
+   //  DUMP METHOD TO NODE MAPS
    // Format: methodIndex nodeIndex isFormal nodeIndex2 isFormal2 ... \n
    gzFile mToNodesfile = gzopen("methodIndex_to_PAGNodes.txt.gz", "w");
-   if (mToNodesfile) {
+   if (mToNodesfile)
+   {
       std::vector<pair<int, vector<PAGNode *>>> sortedMappings = sortMethodsByIndex(pag->methodIndex_to_allMethodNodes, comp);
       for (const auto &entry : sortedMappings)
       {
@@ -1752,15 +1771,16 @@ void writeNodesToFile(TR::Compilation *comp, PointerAssignmentGraph *pag)
       }
       gzclose(mToNodesfile);
    }
-   //  DUMP CALL GRAPH 
+   //  DUMP CALL GRAPH
    // Format: callsiteBCI returnNodeIndex targetIndex numParams p1 p2 targetIndex2 numParams2 ... \n
    gzFile callgraphfile = gzopen("callgraph.txt.gz", "w");
-   if (callgraphfile) {
+   if (callgraphfile)
+   {
       for (auto &entry : callsiteBCI_to_targets)
       {
          int callsite_bci = entry.first;
          int returnNodeIndex = RETURN_NODE_NAME;
-         
+
          if (callsiteBCI_to_return_node.find(callsite_bci) != callsiteBCI_to_return_node.end() && callsiteBCI_to_return_node[callsite_bci] != nullptr)
          {
             returnNodeIndex = getNodeID(callsiteBCI_to_return_node[callsite_bci]);
@@ -1785,17 +1805,21 @@ void writeNodesToFile(TR::Compilation *comp, PointerAssignmentGraph *pag)
    }
 
    gzFile tf = gzopen("threadAccesible.txt.gz", "w");
-   if (tf) {
-      for (const auto& field : pag->threadAccessibleFields)
+   if (tf)
+   {
+      for (const auto &field : pag->threadAccessibleFields)
       {
          auto dotPos = field.find('.');
-         if (dotPos != std::string::npos) {
-             std::string cname = field.substr(0, dotPos);
-             std::string fname = field.substr(dotPos + 1);
-             // format: "ClassIndex.fieldName"
-             gzprintf(tf, "%d.%s\n", getClassIndex(cname), fname.c_str());
-         } else {
-             gzprintf(tf, "%s\n", field.c_str());
+         if (dotPos != std::string::npos)
+         {
+            std::string cname = field.substr(0, dotPos);
+            std::string fname = field.substr(dotPos + 1);
+            // format: "ClassIndex.fieldName"
+            gzprintf(tf, "%d.%s\n", getClassIndex(cname), fname.c_str());
+         }
+         else
+         {
+            gzprintf(tf, "%s\n", field.c_str());
          }
       }
       gzclose(tf);
@@ -1803,17 +1827,21 @@ void writeNodesToFile(TR::Compilation *comp, PointerAssignmentGraph *pag)
 
    // Dump static fields
    gzFile sf = gzopen("staticFields.txt.gz", "w");
-   if (sf) {
-      for (const auto& field : pag->staticFields)
+   if (sf)
+   {
+      for (const auto &field : pag->staticFields)
       {
          auto dotPos = field.find('.');
-         if (dotPos != std::string::npos) {
-             std::string cname = field.substr(0, dotPos);
-             std::string fname = field.substr(dotPos + 1);
-             // format: "ClassIndex.fieldName"
-             gzprintf(sf, "%d.%s\n", getClassIndex(cname), fname.c_str());
-         } else {
-             gzprintf(sf, "%s\n", field.c_str());
+         if (dotPos != std::string::npos)
+         {
+            std::string cname = field.substr(0, dotPos);
+            std::string fname = field.substr(dotPos + 1);
+            // format: "ClassIndex.fieldName"
+            gzprintf(sf, "%d.%s\n", getClassIndex(cname), fname.c_str());
+         }
+         else
+         {
+            gzprintf(sf, "%s\n", field.c_str());
          }
       }
       gzclose(sf);
@@ -8631,7 +8659,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
          U_16 index = *(U_16 *)(pc + 1);
          J9ConstantPool *ramConstantPool = J9_CP_FROM_METHOD(currentMethod);
 
-         UDATA splitTableIndex = cpIndex; //index;
+         UDATA splitTableIndex = cpIndex; // index;
          cpIndex = *(U_16 *)(J9ROMCLASS_SPECIALSPLITMETHODREFINDEXES(ramConstantPool->ramClass->romClass) + splitTableIndex);
          J9Method *method = ramConstantPool->ramClass->specialSplitMethodTable[splitTableIndex];
          romMethodRef = (J9ROMMethodRef *)&ramConstantPool->romConstantPool[cpIndex];
@@ -9136,7 +9164,7 @@ bool searchForOveridingMethodsInClass(std::string className, std::string method_
       return true;
    }
    // std::cout << className << std::endl;
-  
+
    J9Class *j9Class = findClassAcrossAllLoaders(comp, className, fej9, resolvedMethod);
 
    TR_ASSERT_FATAL(j9Class, "Could not load the class by name %s", className.c_str());
@@ -11030,7 +11058,7 @@ J9Class *findClassAcrossAllLoaders(TR::Compilation *comp, const std::string &cla
    // Use a GC-safe iterator to walk through all class loader blocks
    GC_PoolIterator classLoaderIterator(javaVM->classLoaderBlocks);
    J9ClassLoader *classLoader = nullptr;
- 
+
    while (nullptr != (classLoader = (J9ClassLoader *)classLoaderIterator.nextSlot()))
    {
 
@@ -11041,7 +11069,7 @@ J9Class *findClassAcrossAllLoaders(TR::Compilation *comp, const std::string &cla
       {
          J9UTF8 *nameUTF8 = J9ROMCLASS_CLASSNAME(currentClass->romClass);
          std::string currentClassName((char *)J9UTF8_DATA(nameUTF8), J9UTF8_LENGTH(nameUTF8));
-       
+
          // Compare with the target class name
          if (currentClassName == className)
          {
