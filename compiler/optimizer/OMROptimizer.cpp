@@ -193,7 +193,7 @@ static unordered_set<std::string> all_loaded_classes;
 
 //(method name, symbol ref, PAGNode*)
 static unordered_map<TR_OpaqueMethodBlock *, unordered_map<int32_t, PAGNode *>> symRefNumToPAGNode;
-static unordered_map<int32_t, TR::Node *> symRefNumToNode;
+// static unordered_map<int32_t, TR::Node *> symRefNumToNode;
 static bool done = false;
 static std::unordered_map<TR_OpaqueClassBlock *, std::unordered_set<std::string>> clazz_to_fields;
 static std::unordered_map<std::string, std::unordered_set<std::string>> className_to_fields;
@@ -211,37 +211,37 @@ static std::unordered_map<TR_OpaqueClassBlock *, int> classPtrToIndex;
 
 void printMatch();
 void calculateMatch();
-void updateMatchEdges();
+// void updateMatchEdges();
 // std::string join(std::set<Entry> const &entrySet, std::string delim);
-std::string joinVec(std::vector<std::string> const &strings, std::string delim);
+// std::string joinVec(std::vector<std::string> const &strings, std::string delim);
 // bool canCast(Entry e, TR_OpaqueClassBlock* type, TR::Compilation* comp);
 void constructCHA(TR::Compilation *comp);
 void getResolvedReflectiveCalls();
-void buildIndependentSet(TR::Compilation *comp);
+// void buildIndependentSet(TR::Compilation *comp);
 void benchmarkBuildIndependentSet(TR::Compilation *comp);
-int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues, Counter &counter, int methodIndex, MethodSet &mSet, TR_OpaqueMethodBlock *currentMethodSymbol, TR::Compilation *comp, bool populatePTA);
-void collectStmt(TR_OpaqueMethodBlock *HCRmethod, TR::Compilation *comp, bool addStmt);
+// int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues, Counter &counter, int methodIndex, MethodSet &mSet, TR_OpaqueMethodBlock *currentMethodSymbol, TR::Compilation *comp, bool populatePTA);
+// void collectStmt(TR_OpaqueMethodBlock *HCRmethod, TR::Compilation *comp, bool addStmt);
 TR_ResolvedMethod *getCachedResolvedMethod(TR::Compilation *comp, TR_OpaqueClassBlock *classPointer, const char *methodName, const char *signature);
 TR_ResolvedMethod *getCachedResolvedMethodFromPtr(TR::Compilation *comp, TR_OpaqueMethodBlock *methodPtr);
-TR_MethodParameterIterator *getCachedIterFromRM(TR::Compilation *comp, TR_ResolvedMethod *tempRM);
-std::unordered_map<TR_OpaqueMethodBlock *, std::unordered_set<int>> getVarMapping(TR_OpaqueMethodBlock *currentMethod, int currentVar, TR_OpaqueMethodBlock *HCRmethod);
-TR::Node *getUsefulNode(TR::Node *node);
+// TR_MethodParameterIterator *getCachedIterFromRM(TR::Compilation *comp, TR_ResolvedMethod *tempRM);
+// std::unordered_map<TR_OpaqueMethodBlock *, std::unordered_set<int>> getVarMapping(TR_OpaqueMethodBlock *currentMethod, int currentVar, TR_OpaqueMethodBlock *HCRmethod);
+// TR::Node *getUsefulNode(TR::Node *node);
 std::unordered_set<std::string> getClassFields(J9Class *clazz, J9VMThread *vmThread);
-void performDelete(TR::Compilation *comp, std::map<TR_OpaqueMethodBlock *, std::set<int>> delStmt);
-void finalReanalyze(TR::Node *usefulNode, TR_OpaqueMethodBlock *currentMethod, TR::Compilation *comp);
-void refineCollect(TR::Compilation *comp);
-bool isTransparentMethod(std::string methodName);
+// void performDelete(TR::Compilation *comp, std::map<TR_OpaqueMethodBlock *, std::set<int>> delStmt);
+// void finalReanalyze(TR::Node *usefulNode, TR_OpaqueMethodBlock *currentMethod, TR::Compilation *comp);
+// void refineCollect(TR::Compilation *comp);
+// bool isTransparentMethod(std::string methodName);
 void printPAG(TR::Compilation *);
 void printLPAG(PointerAssignmentGraph *lpag);
-extern std::map<int, std::set<int>> readReceivers(int methodIndex);
+// extern std::map<int, std::set<int>> readReceivers(int methodIndex);
 extern std::unordered_map<int, std::string> readClassIndices();
 std::unordered_map<std::string, int> readMethodIndices();
-extern std::unordered_set<int> readPartiallyAnalysedMethodIndices();
+// extern std::unordered_set<int> readPartiallyAnalysedMethodIndices();
 // extern map<int, PointsToGraph> readPTG(string fileName);
 // extern std::unordered_map<std::string, Entry> rawNode;
 std::string getMethodName(TR::ResolvedMethodSymbol *m);
 int getOrInsertMethodIndex(TR::ResolvedMethodSymbol *methodSymbol, TR::Compilation *comp);
-void performRuntimePTA(TR::Compilation *comp);
+// void performRuntimePTA(TR::Compilation *comp);
 MethodSet computeMSetForMethod(TR::Compilation *comp, TR::ResolvedMethodSymbol *methodSymbol);
 bool isLibraryMethod(std::string methodName);
 void writeNodesToFile(TR::Compilation *, PointerAssignmentGraph *p);
@@ -280,7 +280,7 @@ static int getClassIndex(const std::string &className)
       std::ofstream outFile("ci.txt", std::ios::out | std::ios::app);
       if (outFile.is_open())
       {
-         outFile << className;  
+         outFile << className;
          outFile.close();
       }
    }
@@ -365,10 +365,10 @@ static std::unordered_map<std::string, std::vector<CallInfo>> reflectiveCallGrap
 
 // static map<int, PointsToGraph> _indexPTG;
 
-static std::unordered_set<int> _partiallyAnalysedMethodIndices;
+// static std::unordered_set<int> _partiallyAnalysedMethodIndices;
 
 // (int, classname)
-static std::unordered_map<int, std::string> _classIndices;
+// static std::unordered_map<int, std::string> _classIndices;
 
 // methods that were analyzed till now
 static std::unordered_set<TR_OpaqueMethodBlock *> _methodsAnalyzed;
@@ -377,22 +377,22 @@ static std::unordered_set<TR_OpaqueMethodBlock *> _methodsAnalyzed;
 static std::unordered_set<TR_OpaqueMethodBlock *> _methodsBeingAnalyzed;
 static std::unordered_set<std::string> _methodsNamesBeingAnalyzed;
 // (method, callsiteBCI, class indice)
-static std::unordered_map<int, std::map<int, std::set<int>>> _callsiteReceivers;
+// static std::unordered_map<int, std::map<int, std::set<int>>> _callsiteReceivers;
 
 // (method, mset)
-static std::unordered_map<TR_OpaqueMethodBlock *, MethodSet> methodDict;
+// static std::unordered_map<TR_OpaqueMethodBlock *, MethodSet> methodDict;
 
 // (method, callnode, method) -update - done
-static std::unordered_map<TR_OpaqueMethodBlock *, std::unordered_map<TR::Node *, std::unordered_set<TR_OpaqueMethodBlock *>>> myCallGraph;
+// static std::unordered_map<TR_OpaqueMethodBlock *, std::unordered_map<TR::Node *, std::unordered_set<TR_OpaqueMethodBlock *>>> myCallGraph;
 
 // edges that need to be deleted
-static std::unordered_map<TR_OpaqueMethodBlock *, std::unordered_map<TR::Node *, std::unordered_set<TR_OpaqueMethodBlock *>>> myCallGraphDelete;
+// static std::unordered_map<TR_OpaqueMethodBlock *, std::unordered_map<TR::Node *, std::unordered_set<TR_OpaqueMethodBlock *>>> myCallGraphDelete;
 
 // (method, method, callnode) - update - done
-static std::unordered_map<TR_OpaqueMethodBlock *, std::unordered_map<TR_OpaqueMethodBlock *, std::unordered_set<TR::Node *>>> myInverseCallGraph;
+// static std::unordered_map<TR_OpaqueMethodBlock *, std::unordered_map<TR_OpaqueMethodBlock *, std::unordered_set<TR::Node *>>> myInverseCallGraph;
 
 // edges that need to be deleted
-static std::unordered_map<TR_OpaqueMethodBlock *, std::unordered_map<TR_OpaqueMethodBlock *, std::unordered_set<TR::Node *>>> myInverseCallGraphDelete;
+// static std::unordered_map<TR_OpaqueMethodBlock *, std::unordered_map<TR_OpaqueMethodBlock *, std::unordered_set<TR::Node *>>> myInverseCallGraphDelete;
 
 // used to recognize thread type
 TR_OpaqueMethodBlock *_threadStartPersistentId;
@@ -404,10 +404,10 @@ std::unordered_set<std::string> alreadyAnalyzedMethods;
 static std::unordered_map<TR_OpaqueMethodBlock *, int> _methodIndicesPtr;
 
 // (method, callnode)
-static std::unordered_map<TR_OpaqueMethodBlock *, std::unordered_set<TR::Node *>> callNodeMap;
+// static std::unordered_map<TR_OpaqueMethodBlock *, std::unordered_set<TR::Node *>> callNodeMap;
 
 // (callnode, argument_list)
-static std::unordered_map<TR::Node *, std::vector<int>> callNodeArgumentList;
+// static std::unordered_map<TR::Node *, std::vector<int>> callNodeArgumentList;
 
 // static std::unordered_map<TR::Node*, std::map<int, std::set<Entry>>> callNodeArgs;
 
@@ -1597,14 +1597,14 @@ void OMR::Optimizer::optimize()
    comp()->setOptimizer(stackedOptimizer);
    _stackedOptimizer = false;
    //---------END OF EXISTING CODE--------------
-   if (comp()->getOption(TR_RunMyAnalysis)) // /*&& comp()->getOption(TR_DumpPAG)*/ && optimize_count == 1 && !done)
-   {
-      //    done = true;
-      //    if (comp()->getOption(TR_DumpPAG))
-      //       printPAG(comp());
+   // if (comp()->getOption(TR_RunMyAnalysis)) // /*&& comp()->getOption(TR_DumpPAG)*/ && optimize_count == 1 && !done)
+   // {
+   //    //    done = true;
+   //    //    if (comp()->getOption(TR_DumpPAG))
+   //    //       printPAG(comp());
 
-      // writeNodesToFile(comp(), pag);
-   }
+   //    // writeNodesToFile(comp(), pag);
+   // }
 
    //    std::ofstream outFile("analyzedMethods.txt");
 
@@ -1994,7 +1994,6 @@ int32_t OMR::Optimizer::performOptimization(const OptimizationStrategy *optimiza
 
    if (!isLibraryMethod(getMethodName(comp()->getMethodSymbol())))
    {
-
       if (comp()->getOption(TR_RunMyAnalysis))
       {
          // methodsSS.insert(getMethodName(comp()->getMethodSymbol()));
@@ -4379,253 +4378,253 @@ bool returnsObject(const std::string &methodSignature, std::string &returnStatic
    return returnTypeStart == 'L' || returnTypeStart == '[';
 }
 
-MethodSet computeMSetForMethod(TR::Compilation *comp, TR::ResolvedMethodSymbol *methodSymbol)
-{
+// MethodSet computeMSetForMethod(TR::Compilation *comp, TR::ResolvedMethodSymbol *methodSymbol)
+// {
 
-   // std::cout << "-----Computing Mset for method = " << getMethodName(methodSymbol) << " " << methodSymbol->getResolvedMethod()->getPersistentIdentifier() << "-----\n";
+//    // std::cout << "-----Computing Mset for method = " << getMethodName(methodSymbol) << " " << methodSymbol->getResolvedMethod()->getPersistentIdentifier() << "-----\n";
 
-   Counter counter(comp->getVisitCount(), -10);
+//    Counter counter(comp->getVisitCount(), -10);
 
-   std::string methodSignature = methodSymbol->signature(comp->trMemory());
-   std::string returnStaticType;
-   bool hasReturnType = returnsObject(methodSignature, returnStaticType);
-   TR_OpaqueMethodBlock *methodBlock = methodSymbol->getResolvedMethod()->getPersistentIdentifier();
-   int method = getOrInsertMethodIndex(methodSymbol, comp);
-   // if (hasReturnType)
-   // {
-   PAGNode *retn = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, methodBlock, -1, getOrInsertMethodIndex(methodSymbol, comp));
-   pag->methodIndex_to_returnNode[method] = retn;
-   pag->PAG_nodes.insert(pag->methodIndex_to_returnNode[method]);
-   pag->methodIndex_to_returnNode[method]->static_type = returnStaticType;
-   if (returnStaticType == "J" || returnStaticType == "D")
-   {
-      retn->comp_type = "COMP_TYPE_2";
-   }
-   pag->methodIndex_to_allMethodNodes[method].push_back(pag->methodIndex_to_returnNode[method]);
-   // }
-   int methodIndex = method;
+//    std::string methodSignature = methodSymbol->signature(comp->trMemory());
+//    std::string returnStaticType;
+//    bool hasReturnType = returnsObject(methodSignature, returnStaticType);
+//    TR_OpaqueMethodBlock *methodBlock = methodSymbol->getResolvedMethod()->getPersistentIdentifier();
+//    int method = getOrInsertMethodIndex(methodSymbol, comp);
+//    // if (hasReturnType)
+//    // {
+//    PAGNode *retn = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, methodBlock, -1, getOrInsertMethodIndex(methodSymbol, comp));
+//    pag->methodIndex_to_returnNode[method] = retn;
+//    pag->PAG_nodes.insert(pag->methodIndex_to_returnNode[method]);
+//    pag->methodIndex_to_returnNode[method]->static_type = returnStaticType;
+//    if (returnStaticType == "J" || returnStaticType == "D")
+//    {
+//       retn->comp_type = "COMP_TYPE_2";
+//    }
+//    pag->methodIndex_to_allMethodNodes[method].push_back(pag->methodIndex_to_returnNode[method]);
+//    // }
+//    int methodIndex = method;
 
-   // TR_OpaqueMethodBlock *methodPersistentId = methodSymbol->getResolvedMethod()->getPersistentIdentifier();
+//    // TR_OpaqueMethodBlock *methodPersistentId = methodSymbol->getResolvedMethod()->getPersistentIdentifier();
 
-   // create methodPTG here
-   // if(!exhaustive){
-   //    methodPTG[methodPersistentId] = &(_indexPTG[methodIndex]);
-   // }
-   // printing ptg after read
-   //_indexPTG[methodIndex].print();
+//    // create methodPTG here
+//    // if(!exhaustive){
+//    //    methodPTG[methodPersistentId] = &(_indexPTG[methodIndex]);
+//    // }
+//    // printing ptg after read
+//    //_indexPTG[methodIndex].print();
 
-   MethodSet mSet;
+//    MethodSet mSet;
 
-   // we begin from the start node of the CFG
-   // TODO: perform the topological sort of the CFG here, to identify the order in which the basic blocks are to be processed
-   TR::CFG *cfg = methodSymbol->getFlowGraph();
-   // if (!cfg)
-   // std::cout << "cfg is null!" << std::endl;
-   TR::Block *start = cfg->getStart()->asBlock();
-   TR_LinkHead1<TR::CFGNode> nodeList = cfg->getNodes();
+//    // we begin from the start node of the CFG
+//    // TODO: perform the topological sort of the CFG here, to identify the order in which the basic blocks are to be processed
+//    TR::CFG *cfg = methodSymbol->getFlowGraph();
+//    // if (!cfg)
+//    // std::cout << "cfg is null!" << std::endl;
+//    TR::Block *start = cfg->getStart()->asBlock();
+//    TR_LinkHead1<TR::CFGNode> nodeList = cfg->getNodes();
 
-   if (comp->getOption(TR_PrintCFG))
-   {
-      // printing the CFGNodes
-      // std::cout << "####" << getMethodName(methodSymbol) << "####" << std::endl;
-      while (!nodeList.isEmpty())
-      {
-         TR::CFGNode *cfg_node = nodeList.pop();
-         TR::Block *block = cfg_node->asBlock();
+//    if (comp->getOption(TR_PrintCFG))
+//    {
+//       // printing the CFGNodes
+//       // std::cout << "####" << getMethodName(methodSymbol) << "####" << std::endl;
+//       while (!nodeList.isEmpty())
+//       {
+//          TR::CFGNode *cfg_node = nodeList.pop();
+//          TR::Block *block = cfg_node->asBlock();
 
-         TR::TreeTop *tt = block->getEntry();
-         while (tt)
-         {
-            TR::Node *node = tt->getNode();
+//          TR::TreeTop *tt = block->getEntry();
+//          while (tt)
+//          {
+//             TR::Node *node = tt->getNode();
 
-            TR::FILE *file = new TR::FILE(stdout);
-            TR_Debug de(comp);
-            // de.print(file, node, 0,false);
-            print(node, 0, &de);
+//             TR::FILE *file = new TR::FILE(stdout);
+//             TR_Debug de(comp);
+//             // de.print(file, node, 0,false);
+//             print(node, 0, &de);
 
-            tt = tt->getNextRealTreeTop();
-         }
-      }
+//             tt = tt->getNextRealTreeTop();
+//          }
+//       }
 
-      // std::cout << "###### Printing CFG Done!! #####" << std::endl;
-   }
+//       // std::cout << "###### Printing CFG Done!! #####" << std::endl;
+//    }
 
-   // perform a topological sort of the CFG to determine the order in which the basic blocks are to be processed
-   std::vector<TR::Block *> gray;
-   std::vector<TR::Block *> black;
-   std::stack<TR::Block *> blockProcessingOrder;
-   std::stack<TR::Block *> bpo;
-   pseudoTopoSort(start, gray, black, blockProcessingOrder);
+//    // perform a topological sort of the CFG to determine the order in which the basic blocks are to be processed
+//    std::vector<TR::Block *> gray;
+//    std::vector<TR::Block *> black;
+//    std::stack<TR::Block *> blockProcessingOrder;
+//    std::stack<TR::Block *> bpo;
+//    pseudoTopoSort(start, gray, black, blockProcessingOrder);
 
-   while (!nodeList.isEmpty())
-   {
-      TR::Block *tempBlock = nodeList.pop()->asBlock();
-      pseudoTopoSort(tempBlock, gray, black, blockProcessingOrder);
-   }
+//    while (!nodeList.isEmpty())
+//    {
+//       TR::Block *tempBlock = nodeList.pop()->asBlock();
+//       pseudoTopoSort(tempBlock, gray, black, blockProcessingOrder);
+//    }
 
-   std::map<TR::Node *, int> evaluatedNodeValues;
+//    std::map<TR::Node *, int> evaluatedNodeValues;
 
-   while (!blockProcessingOrder.empty())
-   {
+//    while (!blockProcessingOrder.empty())
+//    {
 
-      ListIterator<TR::ParameterSymbol> paramIterator(&(methodSymbol->getParameterList()));
-      TR::ParameterSymbol *paramCursor = paramIterator.getFirst();
-      TR::SymbolReference *symRef;
+//       ListIterator<TR::ParameterSymbol> paramIterator(&(methodSymbol->getParameterList()));
+//       TR::ParameterSymbol *paramCursor = paramIterator.getFirst();
+//       TR::SymbolReference *symRef;
 
-      int argIndex = 0;
-      if (methodSymbol->isStatic())
-      {
-         // for static methods, our magic arg index begins from 1
-         argIndex = 1;
-         pag->methodIndex_to_formalNodes[method].push_back(NULL);
-      }
-      // std::cout << "Iterating for: "<<getMethodName(methodSymbol) <<" paramCursor is: "<<paramCursor <<std::endl;
-      for (; paramCursor != NULL; paramCursor = paramIterator.getNext())
-      {
-         int paramSlot = paramCursor->getSlot();
+//       int argIndex = 0;
+//       if (methodSymbol->isStatic())
+//       {
+//          // for static methods, our magic arg index begins from 1
+//          argIndex = 1;
+//          pag->methodIndex_to_formalNodes[method].push_back(NULL);
+//       }
+//       // std::cout << "Iterating for: "<<getMethodName(methodSymbol) <<" paramCursor is: "<<paramCursor <<std::endl;
+//       for (; paramCursor != NULL; paramCursor = paramIterator.getNext())
+//       {
+//          int paramSlot = paramCursor->getSlot();
 
-         // cout << "paramSlot = " << paramSlot << "\n";
+//          // cout << "paramSlot = " << paramSlot << "\n";
 
-         symRef = methodSymbol->getParmSymRef(paramSlot);
-         if (!symRef)
-            TR_ASSERT_FATAL(false, "param symref is null!");
-         // cout << "param symRef is null!\n";
-         if (symRef->getSymbol()->getType().isAddress())
-         {
-            int32_t symRefNumber = symRef->getReferenceNumber();
+//          symRef = methodSymbol->getParmSymRef(paramSlot);
+//          if (!symRef)
+//             TR_ASSERT_FATAL(false, "param symref is null!");
+//          // cout << "param symRef is null!\n";
+//          if (symRef->getSymbol()->getType().isAddress())
+//          {
+//             int32_t symRefNumber = symRef->getReferenceNumber();
 
-            argToSymRef[methodBlock][argIndex] = symRefNumber;
-            formalParMethod[methodBlock][symRefNumber] = argIndex;
-            formalParMethod[methodBlock][-3] = -3;
-            inverseFormalParMethod[methodBlock][argIndex] = symRefNumber;
-            inverseFormalParMethod[methodBlock][-3] = -3;
+//             argToSymRef[methodBlock][argIndex] = symRefNumber;
+//             formalParMethod[methodBlock][symRefNumber] = argIndex;
+//             formalParMethod[methodBlock][-3] = -3;
+//             inverseFormalParMethod[methodBlock][argIndex] = symRefNumber;
+//             inverseFormalParMethod[methodBlock][-3] = -3;
 
-            // if(getMethodName(methodSymbol) == "org/dacapo/parser/Token.<init>(ILjava/lang/String;)V")
-            // {
-            //    printf("%s\n",getMethodName(methodSymbol).c_str());
-            // }
-            if (symRefNumToPAGNode[methodBlock].find(symRefNumber) == symRefNumToPAGNode[methodBlock].end())
-            {
-               PAGNode *param_node_ptr = new PAGNode(VARIABLE, symRefNumber, nullptr, methodBlock, -1, getOrInsertMethodIndex(methodSymbol, comp));
-               pag->methodIndex_to_allMethodNodes[method].push_back(param_node_ptr);
-               pag->PAG_nodes.insert(param_node_ptr);
-               // nodeAllocationMap[] = null_node_ptr;
-               // std::cout << "Iterating for: "<<getMethodName(methodSymbol) <<" created formal param node: "<< symRefNumber <<std::endl;
-               symRefNumToPAGNode[methodBlock][symRefNumber] = param_node_ptr;
-               pag->methodIndex_to_formalNodes[method].push_back(param_node_ptr);
-            }
+//             // if(getMethodName(methodSymbol) == "org/dacapo/parser/Token.<init>(ILjava/lang/String;)V")
+//             // {
+//             //    printf("%s\n",getMethodName(methodSymbol).c_str());
+//             // }
+//             if (symRefNumToPAGNode[methodBlock].find(symRefNumber) == symRefNumToPAGNode[methodBlock].end())
+//             {
+//                PAGNode *param_node_ptr = new PAGNode(VARIABLE, symRefNumber, nullptr, methodBlock, -1, getOrInsertMethodIndex(methodSymbol, comp));
+//                pag->methodIndex_to_allMethodNodes[method].push_back(param_node_ptr);
+//                pag->PAG_nodes.insert(param_node_ptr);
+//                // nodeAllocationMap[] = null_node_ptr;
+//                // std::cout << "Iterating for: "<<getMethodName(methodSymbol) <<" created formal param node: "<< symRefNumber <<std::endl;
+//                symRefNumToPAGNode[methodBlock][symRefNumber] = param_node_ptr;
+//                pag->methodIndex_to_formalNodes[method].push_back(param_node_ptr);
+//             }
 
-            // cout << "symref num = " << symRefNumber << "\n";
+//             // cout << "symref num = " << symRefNumber << "\n";
 
-            // std::cout << "the symref number corresponding to param " << paramCursor->getSlot() << " is " << symRefNumber << " will be mapped to arg " << argIndex <<" in method name: "<< getMethodName(comp->getMethodSymbol())<< endl;
-            // std::cout<< paramCursor->getName() << std::endl;
-            // set<Entry> argsPointsTo = in->getArgPointsToSet(argIndex);
-            // std::set<Entry> argsPointsTo = in->getPointsToSet(argIndex);
-            // cout << "the argspointsto for arg " << argIndex << " is\n" ;
-            // for (Entry e : argsPointsTo) {
-            //    cout << e.getString()  << " ";
-            // } cout << "\n";
-            // in->assign(symRefNumber, argsPointsTo);
+//             // std::cout << "the symref number corresponding to param " << paramCursor->getSlot() << " is " << symRefNumber << " will be mapped to arg " << argIndex <<" in method name: "<< getMethodName(comp->getMethodSymbol())<< endl;
+//             // std::cout<< paramCursor->getName() << std::endl;
+//             // set<Entry> argsPointsTo = in->getArgPointsToSet(argIndex);
+//             // std::set<Entry> argsPointsTo = in->getPointsToSet(argIndex);
+//             // cout << "the argspointsto for arg " << argIndex << " is\n" ;
+//             // for (Entry e : argsPointsTo) {
+//             //    cout << e.getString()  << " ";
+//             // } cout << "\n";
+//             // in->assign(symRefNumber, argsPointsTo);
 
-            argIndex++;
-         }
-         else
-         {
-            // cout << "not an address symref!\n";
-            pag->methodIndex_to_formalNodes[method].push_back(pag->bottom_node);
-            argIndex++;
-         }
-      }
+//             argIndex++;
+//          }
+//          else
+//          {
+//             // cout << "not an address symref!\n";
+//             pag->methodIndex_to_formalNodes[method].push_back(pag->bottom_node);
+//             argIndex++;
+//          }
+//       }
 
-      TR::Block *currentBB = blockProcessingOrder.top();
-      blockProcessingOrder.pop();
+//       TR::Block *currentBB = blockProcessingOrder.top();
+//       blockProcessingOrder.pop();
 
-      int currentBBNumber = currentBB->getNumber();
+//       int currentBBNumber = currentBB->getNumber();
 
-      // if (_runtimeVerifierDiagnostics || methodIndex == 229)
-      //    cout << "popped BB" << currentBBNumber << " from the worklist" << endl;
+//       // if (_runtimeVerifierDiagnostics || methodIndex == 229)
+//       //    cout << "popped BB" << currentBBNumber << " from the worklist" << endl;
 
-      TR::TreeTop *tt = currentBB->getEntry();
-      // its possible that there are no entry treetops for certain basic blocks
-      // TODO: DOCUMENT THIS
-      if (tt)
-      {
-         // now we iterate over the treetops in the basic block
-         for (; tt; tt = tt->getNextRealTreeTop())
-         {
-            TR::Node *node = tt->getNode();
+//       TR::TreeTop *tt = currentBB->getEntry();
+//       // its possible that there are no entry treetops for certain basic blocks
+//       // TODO: DOCUMENT THIS
+//       if (tt)
+//       {
+//          // now we iterate over the treetops in the basic block
+//          for (; tt; tt = tt->getNextRealTreeTop())
+//          {
+//             TR::Node *node = tt->getNode();
 
-            // std::cout<<"node visitCount = "<<node->getVisitCount()<<std::endl;
-            // IFDIAGPRINT << "*** now processing node n" << node->getGlobalIndex() << "n, with opcode " << node->getOpCode().getName() << endl;
-            int nodeBCI = node->getByteCodeInfo().getByteCodeIndex();
-            // unfortunately it appears that the Start and End nodes are also valid treetops.
-            // TODO: is there a way around this check?
+//             // std::cout<<"node visitCount = "<<node->getVisitCount()<<std::endl;
+//             // IFDIAGPRINT << "*** now processing node n" << node->getGlobalIndex() << "n, with opcode " << node->getOpCode().getName() << endl;
+//             int nodeBCI = node->getByteCodeInfo().getByteCodeIndex();
+//             // unfortunately it appears that the Start and End nodes are also valid treetops.
+//             // TODO: is there a way around this check?
 
-            if (node->getOpCodeValue() == TR::BBStart)
-            {
-               continue;
-            }
-            else
-            {
-               if (node->getOpCodeValue() == TR::BBEnd)
-               {
-                  break;
-               }
-            }
+//             if (node->getOpCodeValue() == TR::BBStart)
+//             {
+//                continue;
+//             }
+//             else
+//             {
+//                if (node->getOpCodeValue() == TR::BBEnd)
+//                {
+//                   break;
+//                }
+//             }
 
-            // std::cout<< "hahahahahah "<<nodeBCI<<"   "<< tt <<"        "<< tt->getNode()<< " " << node->getOpCode().getName() <<std::endl;
+//             // std::cout<< "hahahahahah "<<nodeBCI<<"   "<< tt <<"        "<< tt->getNode()<< " " << node->getOpCode().getName() <<std::endl;
 
-            bool ft = !exhaustive;
+//             bool ft = !exhaustive;
 
-            int evaluatedValueForNode = evaluateNode(node, evaluatedNodeValues, counter, methodIndex, mSet, methodSymbol->getResolvedMethod()->getPersistentIdentifier(), comp, ft);
-         }
-      }
-   }
+//             // int evaluatedValueForNode = evaluateNode(node, evaluatedNodeValues, counter, methodIndex, mSet, methodSymbol->getResolvedMethod()->getPersistentIdentifier(), comp, ft);
+//          }
+//       }
+//    }
 
-   // std::map<int, std::set<Entry>>myRho = methodPTG[methodPersistentId]->getRho();
-   // std::map<int, std::set<Entry>>::iterator myIterator = myRho.begin();
-   // while(myIterator != myRho.end()){
-   //    int slot = myIterator->first;
-   //    if(slot > 400){
-   //       break;
-   //    }
-   //    if(slot == 0){
-   //       // methodPTG[methodPersistentId]->assignReturn(myRho[slot]);
-   //    }else{
-   //       // methodPTG[methodPersistentId]->setArg(slot-1, myRho[slot]);
-   //    }
-   //    myIterator++;
-   // }
+//    // std::map<int, std::set<Entry>>myRho = methodPTG[methodPersistentId]->getRho();
+//    // std::map<int, std::set<Entry>>::iterator myIterator = myRho.begin();
+//    // while(myIterator != myRho.end()){
+//    //    int slot = myIterator->first;
+//    //    if(slot > 400){
+//    //       break;
+//    //    }
+//    //    if(slot == 0){
+//    //       // methodPTG[methodPersistentId]->assignReturn(myRho[slot]);
+//    //    }else{
+//    //       // methodPTG[methodPersistentId]->setArg(slot-1, myRho[slot]);
+//    //    }
+//    //    myIterator++;
+//    // }
 
-   // mapping stack slot to symref
-   // std::map<int, std::set<Entry>> myRho = methodPTG[methodPersistentId]->getRho();
-   // map<int, set<Entry>>::iterator myIterator = myRho.begin();
-   // while (myIterator != myRho.end())
-   // {
-   //    int slot = myIterator->first;
+//    // mapping stack slot to symref
+//    // std::map<int, std::set<Entry>> myRho = methodPTG[methodPersistentId]->getRho();
+//    // map<int, set<Entry>>::iterator myIterator = myRho.begin();
+//    // while (myIterator != myRho.end())
+//    // {
+//    //    int slot = myIterator->first;
 
-   //    ListIterator<TR::SymbolReference> autos(&methodSymbol->getAutoSymRefs(slot));
-   //    // TODO: assert autos.size == 1 -- this is a sanity check to make sure there is no sharing of auto symbols
-   //    for (TR::SymbolReference *sr = autos.getFirst(); sr; sr = autos.getNext())
-   //    {
-   //       methodPTG[methodPersistentId]->assign(sr->getReferenceNumber(), methodPTG[methodPersistentId]->getPointsToSet(slot));
-   //    }
-   //    methodPTG[methodPersistentId]->killFromRho(slot);
+//    //    ListIterator<TR::SymbolReference> autos(&methodSymbol->getAutoSymRefs(slot));
+//    //    // TODO: assert autos.size == 1 -- this is a sanity check to make sure there is no sharing of auto symbols
+//    //    for (TR::SymbolReference *sr = autos.getFirst(); sr; sr = autos.getNext())
+//    //    {
+//    //       methodPTG[methodPersistentId]->assign(sr->getReferenceNumber(), methodPTG[methodPersistentId]->getPointsToSet(slot));
+//    //    }
+//    //    methodPTG[methodPersistentId]->killFromRho(slot);
 
-   //    myIterator++;
-   // }
+//    //    myIterator++;
+//    // }
 
-   // save this away as the summary for this method!
+//    // save this away as the summary for this method!
 
-   // if (_runtimeVerifierDiagnostics)
-   // {
-   //    cout << "completed runtime PTA for " << methodSignature << endl;
-   //    cout << "out-PTG:" << endl;
-   //    outForMethod->print();
-   // }
+//    // if (_runtimeVerifierDiagnostics)
+//    // {
+//    //    cout << "completed runtime PTA for " << methodSignature << endl;
+//    //    cout << "out-PTG:" << endl;
+//    //    outForMethod->print();
+//    // }
 
-   return mSet;
-}
+//    return mSet;
+// }
 int getOrInsertMethodIndex(TR::ResolvedMethodSymbol *methodSymbol, TR::Compilation *comp)
 {
    TR_OpaqueMethodBlock *methodPersistentId = methodSymbol->getResolvedMethod()->getPersistentIdentifier();
@@ -4703,1769 +4702,1769 @@ void getTargetsToPeek(std::queue<TR_OpaqueClassBlock *> &bfsList, std::unordered
    }
 }
 
-int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues, Counter &counter, int methodIndex, MethodSet &mSet, TR_OpaqueMethodBlock *currentMethod, TR::Compilation *comp, bool populatePTA)
-{
-
-   std::unordered_set<TR_OpaqueMethodBlock *> methodsToPeek;
-   int current_method_index = methodIndex;
-   int evaluatedSymRef = -2;
-
-   TR_OpaqueMethodBlock *methodPersistentId = currentMethod;
-
-   methodNameIDmapping[getMethodName(getCachedResolvedMethodSymbol(comp, currentMethod))] = methodPersistentId;
-   inverseMethodNameIDmapping[methodPersistentId] = getMethodName(getCachedResolvedMethodSymbol(comp, currentMethod));
-
-   TR::Node *usefulNode = getUsefulNode(node);
-
-   if (!usefulNode)
-      return evaluatedSymRef;
-
-   if (usefulNode->getVisitCount() >= counter.visitCount)
-   {
-      evaluatedSymRef = evaluatedNodeValues[usefulNode];
-      return evaluatedSymRef;
-   }
-   else
-   {
-
-      usefulNode->setVisitCount(counter.visitCount);
-
-      TR::ILOpCodes opCode = usefulNode->getOpCodeValue();
-      if (usefulNode->getOpCode().hasSymbolReference())
-         std::cout << usefulNode->getOpCode().getName() << " " << usefulNode->getSymbolReference()->getName(comp->getDebug()) << "\t[" << usefulNode->getSymbolReference()->getReferenceNumber() << "]" << std::endl;
-
-      if (usefulNode->getNumChildren() > 0 && usefulNode->getFirstChild()->getOpCode().hasSymbolReference())
-         std::cout << " --> CHILD 1. " << usefulNode->getFirstChild()->getOpCode().getName() << " " << usefulNode->getFirstChild()->getSymbolReference()->getName(comp->getDebug()) << "\t[" << usefulNode->getFirstChild()->getSymbolReference()->getReferenceNumber() << "]" << std::endl;
-
-      if (usefulNode->getNumChildren() > 1 && (usefulNode->getSecondChild()->getOpCode().hasSymbolReference()))
-         std::cout << " --> CHILD 2. " << usefulNode->getSecondChild()->getOpCode().getName() << " " << usefulNode->getSecondChild()->getSymbolReference()->getName(comp->getDebug()) << "\t[" << usefulNode->getSecondChild()->getSymbolReference()->getReferenceNumber() << "]" << std::endl;
-
-      if (usefulNode->getNumChildren() > 2 && usefulNode->getThirdChild()->getOpCode().hasSymbolReference())
-         std::cout << " --> CHILD 3. " << usefulNode->getThirdChild()->getOpCode().getName() << " " << usefulNode->getThirdChild()->getSymbolReference()->getName(comp->getDebug()) << "\t[" << usefulNode->getThirdChild()->getSymbolReference()->getReferenceNumber() << "]" << std::endl;
-
-      switch (opCode)
-      {
-
-      case TR::checkcast:
-      {
-         // evaluatedSymRef = evaluateNode(usefulNode->getFirstChild(), evaluatedNodeValues, counter, methodIndex, mSet, currentMethod, comp, populatePTA);
-         // if (usefulNode->stmtNumber == 0)
-         // {
-         //    counter.stmtCount++;
-         //    usefulNode->stmtNumber = counter.stmtCount;
-         // }
-         // stmtNumber[methodPersistentId][usefulNode->stmtNumber] = usefulNode;
-
-         // if (evaluatedSymRef <= -10 || evaluatedSymRef >= 0)
-         // {
-         //    mSet.stmtMap[evaluatedSymRef].insert(usefulNode->stmtNumber);
-         // }
-
-         break;
-      }
-      case TR::aconst:
-      {
-         // // this is needed for calls where the arg is null - it appears to map to aconst_null in bytecode
-         evaluatedSymRef = -1;
-         PAGNode *null_node_ptr;
-
-         if (nodeAllocationMap.find(usefulNode) != nodeAllocationMap.end())
-         {
-            null_node_ptr = nodeAllocationMap[usefulNode];
-         }
-         else
-         {
-            null_node_ptr = new PAGNode(NULL_OBJ, -1, nullptr, methodPersistentId, usefulNode->getByteCodeIndex(), methodIndex);
-            pag->methodIndex_to_allMethodNodes[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, currentMethod), comp)].push_back(null_node_ptr);
-            pag->PAG_nodes.insert(null_node_ptr);
-            nodeAllocationMap[usefulNode] = null_node_ptr;
-         }
-
-         // if(populatePTA){
-         //    processNodeValues[usefulNode].insert(PointsToGraph::nullEntry);
-         // }
-
-         break;
-      }
-      case TR::aladd: // OD : how to handle this ?
-      {
-         // if(populatePTA){
-         //    processNodeValues[usefulNode].insert(PointsToGraph::bottomEntry);
-         // }
-         break;
-      }
-      case TR::New:
-      { // add edge : abstractObj -> global_index
-         // process new here
-         evaluatedSymRef = usefulNode->getGlobalIndex();
-
-         PAGNode *alloc_node_ptr;
-
-         if (nodeAllocationMap.find(usefulNode) != nodeAllocationMap.end())
-         {
-            alloc_node_ptr = nodeAllocationMap[usefulNode];
-         }
-         else
-         {
-            alloc_node_ptr = evaluateAllocate(usefulNode, methodIndex, false, comp);
-            std::cout << "Alloc at global index = " << evaluatedSymRef << " MethodPersistent id = " << methodPersistentId << std::endl;
-            pag->methodIndex_to_allMethodNodes[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, currentMethod), comp)].push_back(alloc_node_ptr);
-         }
-
-         PAGNode *global_index_ptr = new PAGNode(VARIABLE, evaluatedSymRef, nullptr, methodPersistentId, usefulNode->getByteCodeIndex(), methodIndex);
-         pag->methodIndex_to_allMethodNodes[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, currentMethod), comp)].push_back(global_index_ptr);
-         pag->PAG_nodes.insert(global_index_ptr);
-         nodeAllocationMap[usefulNode] = global_index_ptr;
-         symRefNumToPAGNode[methodPersistentId][evaluatedSymRef] = global_index_ptr;
-
-         pag->addEdge(alloc_node_ptr, global_index_ptr, NEW);
-         global_index_ptr->pointee_class_names.insert(alloc_node_ptr->pointee_class_names.begin(), alloc_node_ptr->pointee_class_names.end());
-
-         // if(populatePTA){
-         //    Entry e = evaluateAllocate(usefulNode, methodIndex, false);
-
-         // TR_OpaqueClassBlock *tpSym = (TR_OpaqueClassBlock *)usefulNode->getFirstChild()->getSymbol()->castToStaticSymbol()->getStaticAddress();
-         // alloc_node_ptr->clazz_ptr = tpSym;
-         //    if(tpSym == NULL){
-         //       //e = PointsToGraph::bottomEntry;
-         //       //std::cout<<"tpsym null for "<<e.caller<<"-"<<e.bci<<"\n";
-         //    }
-         //    else{
-         //       e.clazz = tpSym;
-         //       if(cachedClassSignature.find(e.clazz) == cachedClassSignature.end()){
-         //          cachedClassSignature[e.clazz] = TR::Compiler->cls.classSignature(comp, e.clazz, comp->trMemory());
-         //       }
-         //       std::string className = cachedClassSignature[e.clazz];
-         //       if(className.find("Ljava/lang/String;") != std::string::npos ){
-         //          processNodeValues[usefulNode].insert(PointsToGraph::stringEntry);
-         //       }else{
-         //          processNodeValues[usefulNode].insert(e);
-         //       }
-         //    }
-
-         // }
-         break;
-      }
-
-      case TR::anewarray:
-      {
-         evaluatedSymRef = -1;
-
-         PAGNode *alloc_node_ptr;
-
-         if (nodeAllocationMap.find(usefulNode) != nodeAllocationMap.end())
-         {
-            alloc_node_ptr = nodeAllocationMap[usefulNode];
-         }
-         else
-         {
-            alloc_node_ptr = evaluateAllocate(usefulNode, methodIndex, true, comp);
-            pag->methodIndex_to_allMethodNodes[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, currentMethod), comp)].push_back(alloc_node_ptr);
-         }
-
-         // if(populatePTA){
-         //    Entry e = evaluateAllocate(usefulNode, methodIndex, true);
-         //    TR_OpaqueClassBlock *tpSym;
-         //    if(usefulNode->getSecondChild()->getOpCodeValue() == TR::loadaddr){
-
-         //       tpSym = (TR_OpaqueClassBlock *)usefulNode->getSecondChild()->getSymbol()->castToStaticSymbol()->getStaticAddress();
-         //       if(tpSym == NULL){
-         //          //e = PointsToGraph::bottomEntry;
-         //       }
-         //       else{
-         //          e.clazz = tpSym;
-         //          e.type = RefArray;
-         //          processNodeValues[usefulNode].insert(e);
-
-         //       }
-         //    }else{
-         //       e.type = RefArray;
-         //       e.clazz = NULL;
-         //       processNodeValues[usefulNode].insert(e);
-         //    }
-         // }
-         break;
-      }
-      case TR::newarray:
-      {
-         // process anewarray
-         // evaluatedSymRef = -1;
-
-         // if(populatePTA){
-         //    Entry e = evaluateAllocate(usefulNode, methodIndex, true,comp);
-         //    e.type = PrimitiveArray;
-         //    e.clazz = NULL;
-         //    processNodeValues[usefulNode].insert(e);
-         // }
-
-         break;
-      }
-
-      case TR::multianewarray:
-      {
-         // evaluatedSymRef = -1;
-
-         // if(populatePTA){
-         //    processNodeValues[usefulNode].insert(PointsToGraph::bottomEntry);
-         // }
-         break;
-      }
-
-      case TR::astore:
-      {
-         /*
-           child of astore could be
-                            EDGETYPE
-           1. new            ASSIGN (from globalIndex_ node to the var slot)
-           2. acalli         ASSIGN
-           3. aload          ASSIGN [GETFIELD for static field read]
-           4. aloadi         GETFIELD => use symRef
-           5. anewarray      NEW
-
-         */
-
-         TR::Node *storeChild = usefulNode->getFirstChild();
-         TR::ILOpCodes storeChild_opcode = storeChild->getOpCodeValue();
-         // std::cout << storeChild->getOpCodeValue()<< endl;
-         TR_ASSERT_FATAL(storeChild, "astore failed");
-
-         // IGNORE STMTS like these -> astore <temp slot 4 holds monitoredObject syncMethod>
-         const std::regex rx(R"(^<temp slot \d+ holds monitoredObject syncMethod>$)");
-         std::regex primitive_shadow(R"(<generic\s+(int|long|float|double|byte|short|char)\s+shadow>)");
-         std::string node_name = usefulNode->getSymbolReference()->getName(comp->getDebug());
-         if (std::regex_match(node_name, rx) || std::regex_search(node_name, primitive_shadow))
-         {
-            return -238933;
-         }
-         // std::cout << usefulNode->getFirstChild()->getOpCode().getName() << " " << usefulNode->getFirstChild()->getSymbolReference()->getName(comp->getDebug()) << std::endl;
-         // std::cout << getMethodName(comp->getOwningMethodSymbol(currentMethod)) << std::endl;
-
-         int loadSymRef = evaluateNode(storeChild, evaluatedNodeValues, counter, methodIndex, mSet, currentMethod, comp, populatePTA);
-         int storeSymRef = usefulNode->getSymbolReference()->getReferenceNumber();
-         PAGNode *storeChild_pagNode_ptr;
-         if (loadSymRef == -238933)
-            return -238933;
-
-         int32_t storeChildSymRef = -78765; // some random negative number
-         if (storeChild->getOpCode().hasSymbolReference() && storeChild->getSymbolReference())
-         {
-            storeChildSymRef = storeChild->getSymbolReference()->getReferenceNumber();
-         }
-
-         if (loadSymRef == STATIC_FIELD_READ)
-         {
-            std::string class_name = storeChild->getSymbolReference()->getName(comp->getDebug());
-            int dot_index = class_name.rfind(".");
-            class_name = class_name.substr(0, dot_index);
-
-            storeChild_pagNode_ptr = class_to_staticPAGNode[class_name];
-         }
-         else if (storeChild_opcode == TR::New)
-         {
-            int globalIndex_ = storeChild->getGlobalIndex();
-            storeChild_pagNode_ptr = symRefNumToPAGNode[methodPersistentId][globalIndex_];
-            symref_PAGNode[usefulNode->getSymbolReference()->getReferenceNumber()] = storeChild_pagNode_ptr;
-         }
-         else if (storeChildSymRef >= 0 && storeChild->getSymbolReference() && symRefNumToPAGNode[methodPersistentId].find(storeChildSymRef) != symRefNumToPAGNode[methodPersistentId].end())
-         {
-            storeChild_pagNode_ptr = symRefNumToPAGNode[methodPersistentId][storeChildSymRef];
-            nodeAllocationMap[storeChild] = storeChild_pagNode_ptr;
-         }
-         else if (nodeAllocationMap.find(storeChild) != nodeAllocationMap.end())
-         {
-            storeChild_pagNode_ptr = nodeAllocationMap[storeChild];
-            // std::cout << storeChild->getOpCode().getName()<<"2"<<std::endl;
-         }
-         else
-         {
-            storeChild_pagNode_ptr = new PAGNode(VARIABLE, storeSymRef, nullptr, methodPersistentId, storeChild->getByteCodeIndex(), methodIndex);
-            pag->methodIndex_to_allMethodNodes[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, currentMethod), comp)].push_back(storeChild_pagNode_ptr);
-            pag->PAG_nodes.insert(storeChild_pagNode_ptr);
-            nodeAllocationMap[storeChild] = storeChild_pagNode_ptr;
-            if (storeChildSymRef >= 0 && storeChild->getSymbolReference())
-            {
-               symRefNumToPAGNode[methodPersistentId][storeChildSymRef] = storeChild_pagNode_ptr;
-               symRefNumToNode[storeChildSymRef] = storeChild;
-            }
-         }
-
-         // TODO get clazz_ptr
-
-         PAGNode *lhs_node_ptr;
-         int32_t astore_lhs_symRef = usefulNode->getSymbolReference()->getReferenceNumber();
-
-         if (symRefNumToPAGNode[methodPersistentId].find(astore_lhs_symRef) != symRefNumToPAGNode[methodPersistentId].end())
-         {
-            lhs_node_ptr = symRefNumToPAGNode[methodPersistentId][astore_lhs_symRef];
-            nodeAllocationMap[usefulNode] = lhs_node_ptr;
-         }
-         else if (nodeAllocationMap.find(usefulNode) != nodeAllocationMap.end())
-         {
-            lhs_node_ptr = nodeAllocationMap[usefulNode];
-         }
-         else
-         {
-            lhs_node_ptr = new PAGNode(VARIABLE, storeSymRef, nullptr, methodPersistentId, usefulNode->getByteCodeIndex(), methodIndex);
-            pag->methodIndex_to_allMethodNodes[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, currentMethod), comp)].push_back(lhs_node_ptr);
-
-            pag->PAG_nodes.insert(lhs_node_ptr);
-            nodeAllocationMap[usefulNode] = lhs_node_ptr;
-
-            symRefNumToPAGNode[methodPersistentId][storeSymRef] = lhs_node_ptr;
-            symRefNumToNode[storeSymRef] = usefulNode;
-         }
-
-         EdgeType e_type;
-         if (storeChild_opcode == TR::New)
-         {
-            e_type = ASSIGN;
-            abstractNode_to_assignedVar[storeChild_pagNode_ptr] = lhs_node_ptr;
-         }
-         else if (storeChild_opcode == TR::aloadi)
-         {
-            // for stmt like `x= y.f`,
-            // usefulnode = x
-            // usefulnode.child = y.f
-            // usefulnode.child.child = y
-
-            e_type = GETFIELD;
-            TR::Node *y_node = storeChild->getFirstChild();
-            if (storeChild->getSymbol()->isArrayShadowSymbol())
-            {
-               *y_node = storeChild->getFirstChild()->getFirstChild();
-            }
-            PAGNode *y_PAGnode_ptr;
-            int32_t y_node_symRef = -78765; // some random negative number
-            if (y_node->getOpCode().hasSymbolReference() && y_node->getSymbolReference())
-            {
-               y_node_symRef = y_node->getSymbolReference()->getReferenceNumber();
-            }
-
-            if (y_node_symRef >= 0 && symRefNumToPAGNode[methodPersistentId].find(y_node_symRef) != symRefNumToPAGNode[methodPersistentId].end())
-            {
-               y_PAGnode_ptr = symRefNumToPAGNode[methodPersistentId][y_node_symRef];
-               y_node = symRefNumToNode[y_node_symRef];
-               nodeAllocationMap[y_node] = y_PAGnode_ptr;
-            }
-            else if (nodeAllocationMap.find(y_node) != nodeAllocationMap.end())
-            {
-               y_PAGnode_ptr = nodeAllocationMap[y_node];
-            }
-            else
-            {
-               TR::SymbolReference *y_symRef = y_node->getSymbolReference();
-               TR_ASSERT(y_symRef, "y_symRef is null");
-               int y_symref_num = y_symRef->getReferenceNumber();
-               y_PAGnode_ptr = new PAGNode(VARIABLE, y_symref_num, nullptr, methodPersistentId, y_node->getByteCodeIndex(), methodIndex);
-               pag->methodIndex_to_allMethodNodes[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, currentMethod), comp)].push_back(y_PAGnode_ptr);
-
-               pag->PAG_nodes.insert(y_PAGnode_ptr);
-               nodeAllocationMap[y_node] = y_PAGnode_ptr;
-
-               symRefNumToPAGNode[methodPersistentId][y_node_symRef] = y_PAGnode_ptr;
-               symRefNumToNode[y_node_symRef] = y_node;
-            }
-
-            // Add edge:  y --Getfield--> x
-            //            y_PAGnode_ptr --Getfield--> lhs_node_ptr
-            int32_t len;
-            string field_name = "$";
-
-            if (!storeChild->getSymbol()->isArrayShadowSymbol())
-            {
-               field_name = storeChild->getSymbolReference()->getOwningMethod(comp)->fieldNameChars(storeChild->getSymbolReference()->getCPIndex(), len);
-            }
-            field_name = field_name.substr(0, len);
-            // std::cout <<"Y_node: " << y_node->getOpCodeValue() << std::endl;
-            // std::cout << "In astore:field is "<<field_name<<" len = "<< len << std::endl;
-
-            // PAGEdge *new_edge = new PAGEdge(y_PAGnode_ptr, lhs_node_ptr, e_type, field_name);
-
-            // lhs_node_ptr->incoming.insert(new_edge);
-            // y_PAGnode_ptr->outgoing.insert(new_edge);
-            updateMatchEdges();
-            pag->addEdge(y_PAGnode_ptr, lhs_node_ptr, e_type, field_name);
-            for (auto *edge : pag->getMatchEdgesEndingAt(lhs_node_ptr))
-            {
-               PAGNode *src = edge->src;
-               lhs_node_ptr->pointee_class_names.insert(src->pointee_class_names.begin(), src->pointee_class_names.end());
-            }
-            evaluatedSymRef = storeSymRef;
-            break;
-         }
-         else if (storeChild_opcode == TR::anewarray)
-         {
-            e_type = NEW;
-         }
-         else if (storeChild_opcode == TR::aload && loadSymRef == STATIC_FIELD_READ)
-         {
-            e_type = GETFIELD;
-         }
-         else
-         {
-            e_type = ASSIGN;
-         }
-
-         if (storeChild_opcode == TR::acalli || storeChild_opcode == TR::acall)
-         {
-            // Add edge from return node of the called method to lhs_node_ptr
-            PAGNode *return_pag_node;
-            for (auto target : callsite_to_targets[storeChild])
-            {
-               return_pag_node = pag->methodIndex_to_returnNode[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, target), comp)];
-               // PAGEdge *new_edge = new PAGEdge(return_pag_node, lhs_node_ptr, ASSIGN, storeChild->getByteCodeIndex());
-               // lhs_node_ptr->incoming.insert(new_edge);
-               // return_pag_node->outgoing.insert(new_edge);
-               if (!return_pag_node)
-               {
-                  TR::ResolvedMethodSymbol *methodSymbol = getCachedResolvedMethodFromPtr(comp, currentMethod)->findOrCreateJittedMethodSymbol(comp);
-                  int methodInd = getOrInsertMethodIndex(methodSymbol, comp);
-                  pag->methodIndex_to_returnNode[methodInd] = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, currentMethod, -1, methodInd);
-                  pag->PAG_nodes.insert(pag->methodIndex_to_returnNode[methodInd]);
-                  pag->methodIndex_to_allMethodNodes[methodInd].push_back(pag->methodIndex_to_returnNode[methodInd]);
-                  return_pag_node = pag->methodIndex_to_returnNode[methodInd];
-               }
-
-               pag->addEdge(return_pag_node, lhs_node_ptr, ASSIGN, storeChild->getByteCodeIndex());
-               callsite_to_storeNode[storeChild->getByteCodeIndex()] = lhs_node_ptr;
-               lhs_node_ptr->pointee_class_names.insert(return_pag_node->pointee_class_names.begin(), return_pag_node->pointee_class_names.end());
-            }
-         }
-         else
-         {
-            // PAGEdge *new_edge = new PAGEdge(storeChild_pagNode_ptr, lhs_node_ptr, e_type);
-
-            // std::cout<<"e_type: "<<e_type<<" storeChild_pagNode_ptr: "<<storeChild_pagNode_ptr->bci<<storeChild_pagNode_ptr->name<<std::endl;
-
-            // lhs_node_ptr->incoming.insert(new_edge);
-            // storeChild_pagNode_ptr->outgoing.insert(new_edge);
-
-            pag->addEdge(storeChild_pagNode_ptr, lhs_node_ptr, e_type);
-            if (e_type == GETFIELD)
-            {
-               updateMatchEdges();
-               for (auto *edge : pag->getMatchEdgesEndingAt(lhs_node_ptr))
-               {
-                  PAGNode *src = edge->src;
-                  lhs_node_ptr->pointee_class_names.insert(src->pointee_class_names.begin(), src->pointee_class_names.end());
-               }
-            }
-            else if (e_type == ASSIGN)
-            {
-               lhs_node_ptr->pointee_class_names.insert(storeChild_pagNode_ptr->pointee_class_names.begin(), storeChild_pagNode_ptr->pointee_class_names.end());
-            }
-         }
-
-         // if (usefulNode->stmtNumber == 0)
-         // {
-         //    counter.stmtCount++;
-         //    usefulNode->stmtNumber = counter.stmtCount;
-         // }
-         // stmtNumber[methodPersistentId][usefulNode->stmtNumber] = usefulNode;
-
-         // if (loadSymRef <= -10 || loadSymRef >= 0)
-         // {
-         //    mSet.ds.unionDS(storeSymRef, loadSymRef);
-         //    mSet.stmtMap[storeSymRef].insert(usefulNode->stmtNumber);
-         //    // std::cout<<storeSymRef<< " " <<loadSymRef<<std::endl;
-         // }
-         // else
-         // {
-         //    if (loadSymRef == -1)
-         //    {
-         //       mSet.stmtMap[storeSymRef].insert(usefulNode->stmtNumber);
-         //    }
-         // }
-
-         evaluatedSymRef = storeSymRef;
-
-         break;
-      }
-      case TR::aload:
-      {
-         // // process load here
-
-         // // TODO - static field reads appear as follows:
-         // //         n1n       BBStart <block_2>
-         // //         n4n       astore  <auto slot 1>[#357  Auto] [flags 0x7 0x0 ]
-         // //         n3n         aload  B.a LA;[#356  notAccessed Static] [flags 0x307 0x0 ]
-         // //         n5n       return
-         // //         n2n       BBEnd </block_2> =====
-         // // we need a way to identify if the symref is a static or no
-
-         // Regex explanation: FOR entries like "aload <callSite entry @0        0x1212ef4a0>" -> SKIP THEM
-         // ^<callSite entry @  -> must start with this
-         // \\d+               -> one or more digits
-         // \\s+               -> one or more spaces
-         // 0x[0-9a-fA-F]+     -> hex address
-         // >$                 -> must end with '>'
-         std::regex pattern("^<callSite entry @\\d+\\s+0x[0-9a-fA-F]+>$");
-         std::string nm = usefulNode->getSymbolReference()->getName(comp->getDebug());
-         bool isNotFieldNode = std::regex_match(nm, pattern);
-
-         if (isNotFieldNode)
-         {
-            return -344565;
-         }
-
-         bool isStaticFieldRead = usefulNode->getSymbol()->isStaticField();
-         int loadSymRef = usefulNode->getSymbolReference()->getReferenceNumber();
-
-         PAGNode *pag_node_ptr;
-         if (symRefNumToPAGNode[methodPersistentId].find(loadSymRef) != symRefNumToPAGNode[methodPersistentId].end())
-         {
-            pag_node_ptr = symRefNumToPAGNode[methodPersistentId][loadSymRef];
-            nodeAllocationMap[usefulNode] = pag_node_ptr;
-         }
-         else if (nodeAllocationMap.find(usefulNode) == nodeAllocationMap.end())
-         {
-            pag_node_ptr = new PAGNode(VARIABLE, loadSymRef, nullptr, methodPersistentId, usefulNode->getByteCodeIndex(), methodIndex);
-            pag->methodIndex_to_allMethodNodes[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, currentMethod), comp)].push_back(pag_node_ptr);
-
-            pag->PAG_nodes.insert(pag_node_ptr);
-            nodeAllocationMap[usefulNode] = pag_node_ptr;
-
-            symRefNumToPAGNode[methodPersistentId][loadSymRef] = pag_node_ptr;
-            symRefNumToNode[loadSymRef] = usefulNode;
-
-            // std::cout<<"Inside aload 1\n ";
-            // std::cout << node->getSymbolReference()->getName(comp->getDebug())<< node->getByteCodeIndex()<<"\n";
-         }
-         // else
-         // {
-         //      pag_node_ptr = nodeAllocationMap[usefulNode];
-         // }
-
-         if (isStaticFieldRead)
-         {
-
-            evaluatedSymRef = STATIC_FIELD_READ;
-
-            // if(!exhaustive){
-            //    processNodeValues[usefulNode].insert(PointsToGraph::bottomEntry);
-            // }
-            int len;
-            // std::cout << usefulNode->getGlobalIndex() <<" " << usefulNode->getSymbolReference()->getReferenceNumber() << " " <<  << std::endl;
-            std::string field_name = usefulNode->getSymbolReference()->getOwningMethod(comp)->fieldNameChars(usefulNode->getSymbolReference()->getCPIndex(), len);
-            field_name = field_name.substr(0, len);
-
-            std::string class_name = usefulNode->getSymbolReference()->getName(comp->getDebug());
-            int dot_index = class_name.rfind(".");
-            class_name = class_name.substr(0, dot_index);
-            field_name = class_name + "." + field_name;
-            if (class_to_staticPAGNode.find(class_name) == class_to_staticPAGNode.end())
-            {
-               class_to_staticPAGNode[class_name] = new PAGNode(STATIC, class_name, methodIndex);
-               pag->methodIndex_to_allMethodNodes[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, currentMethod), comp)].push_back(class_to_staticPAGNode[class_name]);
-
-               pag->PAG_nodes.insert(class_to_staticPAGNode[class_name]);
-               nodeAllocationMap[usefulNode] = class_to_staticPAGNode[class_name];
-            }
-         }
-         else
-         {
-            int loadSymRef = usefulNode->getSymbolReference()->getReferenceNumber();
-
-            evaluatedSymRef = loadSymRef;
-
-            // if(populatePTA){
-            //    if(usefulNode->getSymbolReference()->getSymbol()->getKind() == TR::Symbol::IsMethodMetaData){
-            //       std::string loadName = comp->getDebug()->getMetaDataName(usefulNode->getSymbolReference());
-            //       if(loadName.find("ExceptionMeta") != std::string::npos){
-            //          processNodeValues[usefulNode].insert(PointsToGraph::bottomEntry);
-            //       }
-            //    }else if (usefulNode->getSymbolReference()->getSymbol()->castToStaticSymbol()->isConstString()){
-            //       processNodeValues[usefulNode].insert(PointsToGraph::stringEntry);
-            //    }else{
-
-            //       set<Entry> pointsToSet = methodPTG[currentMethod]->getPointsToSet(loadSymRef);
-            //       processNodeValues[usefulNode].insert(pointsToSet.begin(), pointsToSet.end());
-            //    }
-            // }
-         }
-         // std::cout<<"evaluatedSymRef: in aload"<<evaluatedSymRef<<std::endl;
-
-         break;
-      }
-
-      case TR::aloadi:
-      {
-
-         /*
-           A statement `x = y.f` is broken down as:
-
-            1. aload y -> Load the reference of y from a local variable.
-            2. aloadi f -> Load the field f from the object y.
-            3. astore x -> Store the result in x.
-
-            //NOTE: child of aloadi is only aload and not astore
-            // child of aloadi could be "==> acalli"
-         */
-
-         // std::cout<<"inside aloadi 2\n";
-         // std::cout << node->getSymbolReference()->getName(comp->getDebug()) << node->getByteCodeIndex()<<"\n";
-
-         // // TODO:
-         // // array subs look like this:
-         // //         n21n      compressedRefs
-         // //         n19n        aloadi  <array-shadow>[#232  Shadow] [flags 0x80000607 0x0 ]
-         // //         n18n          aladd (internalPtr sharedMemory )
-         // //         n8n             ==>aload
-         // //         n17n            ladd
-         // //         n15n              lshl
-         // //         n14n                i2l (X>=0 )
-         // //         n9n                   ==>iconst 9
-         // //         n13n                iconst 2
-         // //         n16n              lconst 16
-         // //         n20n        lconst 0
-
-         const std::regex rx(R"(^<temp slot \d+ holds monitoredObject syncMethod>$)");
-         std::regex primitive_shadow(R"(<generic\s+(int|long|float|double|byte|short|char)\s+shadow>)");
-         std::string node_name = usefulNode->getSymbolReference()->getName(comp->getDebug());
-         if (std::regex_match(node_name, rx) || std::regex_search(node_name, primitive_shadow))
-         {
-            return -238933;
-         }
-
-         std::string field;
-         if (usefulNode->getSymbol()->isArrayShadowSymbol()) // handle array load
-         {
-
-            TR::Node *receiverNode = usefulNode->getFirstChild()->getFirstChild();
-            evaluatedSymRef = evaluateNode(receiverNode, evaluatedNodeValues, counter, methodIndex, mSet, currentMethod, comp, populatePTA);
-
-            //    if(populatePTA){
-            //       // std::cout<<"array read "<<receiverNode<<"\n";
-            //       std::set<Entry> receiverNodeVals = processNodeValues[receiverNode];
-            //       field = "_$";
-            //       //std::cout<<"is this issue or no ?\n";
-            //       for (Entry receiver : receiverNodeVals)
-            //       {
-            //          set<Entry> rhsPointees = methodPTG[currentMethod]->getPointsToSet(receiver, field);
-            //          processNodeValues[usefulNode].insert(rhsPointees.begin(), rhsPointees.end());
-            //       }
-            //    }
-         }
-         else
-         {
-
-            TR::SymbolReference *symRef = usefulNode->getSymbolReference();
-            TR_ASSERT_FATAL(symRef, "aloadi fail 1");
-
-            // bool isUnresolved = symRef->isUnresolved();
-            // IFDIAGPRINT << "isUnresolved = " << isUnresolved << endl;
-
-            bool isShadow = symRef->getSymbol()->getKind() == TR::Symbol::IsShadow;
-            // IFDIAGPRINT << "isShadow = " << isShadow << endl;
-
-            int cpIndex = symRef->getCPIndex();
-            // IFDIAGPRINT << "cp index = " << cpIndex << endl;
-
-            if (/* !isUnresolved && */ isShadow && cpIndex > 0)
-            {
-               // this is most certainly a field access, until proven otherwise
-
-               // receiver,
-               TR::Node *receiverNode = usefulNode->getFirstChild();
-               TR_ASSERT_FATAL(receiverNode, "aloadi fail 2");
-
-               evaluatedSymRef = evaluateNode(receiverNode, evaluatedNodeValues, counter, methodIndex, mSet, currentMethod, comp, populatePTA);
-               // std::cout<<"evaluatedSymRef: in aloadi"<<evaluatedSymRef<<std::endl;
-               // if(populatePTA){
-               // std::set<Entry> receiverNodeVals = processNodeValues[receiverNode];
-               int32_t len;
-               const char *fieldName = usefulNode->getSymbolReference()->getOwningMethod(comp)->fieldNameChars(usefulNode->getSymbolReference()->getCPIndex(), len);
-               field.assign(fieldName, fieldName + len);
-               // for (Entry receiver : receiverNodeVals)
-               // {
-               //    set<Entry> rhsPointees = methodPTG[currentMethod]->getPointsToSet(receiver, field);
-               //    processNodeValues[usefulNode].insert(rhsPointees.begin(), rhsPointees.end());
-               // }
-               // }
-
-               PAGNode *receiver_pag_ptr;
-               int32_t receiver_symRef = -78765; // random negative number
-               if (receiverNode->getOpCode().hasSymbolReference() && receiverNode->getSymbolReference())
-               {
-                  receiver_symRef = receiverNode->getSymbolReference()->getReferenceNumber();
-               }
-
-               if (symRefNumToPAGNode[methodPersistentId].find(receiver_symRef) != symRefNumToPAGNode[methodPersistentId].end())
-               {
-                  receiver_pag_ptr = symRefNumToPAGNode[methodPersistentId][receiver_symRef];
-                  nodeAllocationMap[receiverNode] = receiver_pag_ptr;
-               }
-               else if (nodeAllocationMap.find(receiverNode) != nodeAllocationMap.end())
-               {
-                  receiver_pag_ptr = nodeAllocationMap[receiverNode];
-               }
-               else
-               {
-                  receiver_pag_ptr = new PAGNode(VARIABLE, receiverNode->getSymbolReference()->getReferenceNumber(), nullptr, methodPersistentId, receiverNode->getByteCodeIndex(), methodIndex);
-                  pag->methodIndex_to_allMethodNodes[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, currentMethod), comp)].push_back(receiver_pag_ptr);
-                  pag->PAG_nodes.insert(receiver_pag_ptr);
-                  nodeAllocationMap[receiverNode] = receiver_pag_ptr;
-                  if (receiver_symRef >= 0)
-                  {
-                     symRefNumToPAGNode[methodPersistentId][receiver_symRef] = receiver_pag_ptr;
-                     symRefNumToNode[receiver_symRef] = receiverNode;
-                  }
-               }
-            }
-         }
-
-         break;
-      }
-      case TR::awrtbar:
-      {
-         // the structure of the awrtbar node for a static store is as follows. We are interested only in the first child (corresponds to the rhs in A.f = x)
-
-         //   awrtbar  A.f LA;[#356  notAccessed Static] [flags 0x307 0x0 ]
-         //     aload  <auto slot 1>[#363  Auto] [flags 0x7 0x0 ]
-         //     aloadi  <javaLangClassFromClass>[#275  Shadow +48] [flags 0x607 0x0 ]
-         //       ==>loadaddr
-
-         // if (usefulNode->stmtNumber == 0)
-         // {
-         //    counter.stmtCount++;
-         //    usefulNode->stmtNumber = counter.stmtCount;
-
-         // }
-
-         evaluatedSymRef = evaluateNode(usefulNode->getFirstChild(), evaluatedNodeValues, counter, methodIndex, mSet, currentMethod, comp, populatePTA);
-
-         int len;
-         std::string field_name = usefulNode->getSymbolReference()->getOwningMethod(comp)->fieldNameChars(usefulNode->getSymbolReference()->getCPIndex(), len);
-         field_name = field_name.substr(0, len);
-
-         std::string class_name = usefulNode->getSymbolReference()->getName(comp->getDebug());
-         int dot_index = class_name.rfind(".");
-         class_name = class_name.substr(0, dot_index);
-         field_name = class_name + "." + field_name; // A.f
-         if (class_to_staticPAGNode.find(class_name) == class_to_staticPAGNode.end())
-         {
-            class_to_staticPAGNode[class_name] = new PAGNode(STATIC, class_name, methodIndex);
-            pag->methodIndex_to_allMethodNodes[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, currentMethod), comp)].push_back(class_to_staticPAGNode[class_name]);
-
-            pag->PAG_nodes.insert(class_to_staticPAGNode[class_name]);
-         }
-         // A.f1 = b1;   b1 --putf--> A
-         PAGNode *static_pag_ptr = class_to_staticPAGNode[class_name];
-
-         PAGNode *rhs_pag_ptr;
-         if (symRefNumToPAGNode[methodPersistentId].find(evaluatedSymRef) != symRefNumToPAGNode[methodPersistentId].end())
-         {
-
-            rhs_pag_ptr = symRefNumToPAGNode[methodPersistentId][evaluatedSymRef];
-            nodeAllocationMap[usefulNode->getFirstChild()] = rhs_pag_ptr;
-         }
-         else if (nodeAllocationMap.find(usefulNode->getFirstChild()) != nodeAllocationMap.end())
-         {
-
-            rhs_pag_ptr = nodeAllocationMap[usefulNode->getFirstChild()];
-         }
-         else
-         {
-
-            rhs_pag_ptr = new PAGNode(VARIABLE, evaluatedSymRef, nullptr, methodPersistentId, usefulNode->getFirstChild()->getByteCodeIndex(), methodIndex);
-            pag->methodIndex_to_allMethodNodes[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, currentMethod), comp)].push_back(rhs_pag_ptr);
-
-            pag->PAG_nodes.insert(rhs_pag_ptr);
-            nodeAllocationMap[usefulNode->getFirstChild()] = rhs_pag_ptr;
-            // if (rhs_node_symRef >= 0)
-            // {
-            symRefNumToPAGNode[methodPersistentId][evaluatedSymRef] = rhs_pag_ptr;
-            symRefNumToNode[evaluatedSymRef] = usefulNode->getFirstChild();
-            // }
-         }
-
-         // PAGEdge *new_edge = new PAGEdge(rhs_pag_ptr, static_pag_ptr, PUTFIELD, field_name);
-
-         // rhs_pag_ptr->outgoing.insert(new_edge);
-
-         // static_pag_ptr->incoming.insert(new_edge);
-
-         pag->addEdge(rhs_pag_ptr, static_pag_ptr, PUTFIELD, field_name);
-         updateMatchEdges();
-         pag->LeakyNodes.insert(rhs_pag_ptr);
-         staticField_to_Node[field_name] = static_pag_ptr;
-         // stmtNumber[methodPersistentId][usefulNode->stmtNumber] = usefulNode;
-         // mSet.stmtMap[evaluatedSymRef].insert(usefulNode->stmtNumber);
-
-         break;
-      }
-      case TR::awrtbari:
-      {
-         /*
-           The first child is the address being written to.
-           The second child is the object being stored (or the source object) -> acalli,aload,aconst
-           The third child is the object being stored into (or the destination object).
-         */
-         // process field store
-         // first we obtain the children of awrtbari
-         // obviously we only process if the RHS of the field write is a ref type
-
-         // awrtbari also performs array writes!
-
-         // if (usefulNode->stmtNumber == 0)
-         // {
-         //    counter.stmtCount++;
-         //    usefulNode->stmtNumber = counter.stmtCount;
-
-         // }
-
-         // stmtNumber[methodPersistentId][usefulNode->stmtNumber] = usefulNode;
-
-         // std::cout << getMethodName(comp->getOwningMethodSymbol(currentMethod)) << " is the method name in awrtbari$$$$\n";
-
-         TR::Node *rhsNode = usefulNode->getSecondChild();
-
-         TR_ASSERT_FATAL(rhsNode, "awrtbari fail");
-         TR::Node *receiverNode = usefulNode->getFirstChild();
-         TR_ASSERT_FATAL(receiverNode, "awrtbari fail 2");
-
-         if (rhsNode->getDataType() == TR::Address) // only process if the RHS of the field write is a ref type
-         {
-
-            int32_t rhs_node_symRef = -9876;
-            PAGNode *rhs_pag_ptr = nullptr;
-            rhs_node_symRef = evaluateNode(rhsNode, evaluatedNodeValues, counter, methodIndex, mSet, currentMethod, comp, populatePTA);
-            // std::cout << "rhs_node_symRef: " << rhs_node_symRef << std::endl;
-            // if (!usefulNode->getSymbol()->isArrayShadowSymbol())
-            // {
-            if (rhsNode->getOpCode().hasSymbolReference() && rhsNode->getOpCodeValue() != TR::New)
-            {
-               rhs_node_symRef = rhsNode->getSymbolReference()->getReferenceNumber();
-            }
-
-            if (usefulNode->getSymbol()->isArrayShadowSymbol())
-               receiverNode = usefulNode->getThirdChild();
-
-            // receiver
-            int32_t receiver_node_symRef = receiverNode->getSymbolReference()->getReferenceNumber();
-
-            if (symRefNumToPAGNode[methodPersistentId].find(rhs_node_symRef) != symRefNumToPAGNode[methodPersistentId].end())
-            {
-
-               rhs_pag_ptr = symRefNumToPAGNode[methodPersistentId][rhs_node_symRef];
-               nodeAllocationMap[rhsNode] = rhs_pag_ptr;
-            }
-            else if (nodeAllocationMap.find(rhsNode) != nodeAllocationMap.end())
-            {
-
-               rhs_pag_ptr = nodeAllocationMap[rhsNode];
-            }
-            else
-            {
-               rhs_pag_ptr = new PAGNode(VARIABLE, rhs_node_symRef, nullptr, methodPersistentId, rhsNode->getByteCodeIndex(), methodIndex);
-               pag->methodIndex_to_allMethodNodes[current_method_index].push_back(rhs_pag_ptr);
-
-               pag->PAG_nodes.insert(rhs_pag_ptr);
-               nodeAllocationMap[rhsNode] = rhs_pag_ptr;
-               if (rhs_node_symRef >= 0)
-               {
-                  symRefNumToPAGNode[methodPersistentId][rhs_node_symRef] = rhs_pag_ptr;
-                  symRefNumToNode[rhs_node_symRef] = rhsNode;
-               }
-            }
-
-            PAGNode *receiver_pag_ptr;
-            if (symRefNumToPAGNode[methodPersistentId].find(receiver_node_symRef) != symRefNumToPAGNode[methodPersistentId].end())
-            {
-               receiver_pag_ptr = symRefNumToPAGNode[methodPersistentId][receiver_node_symRef];
-               nodeAllocationMap[receiverNode] = receiver_pag_ptr;
-            }
-            else if (nodeAllocationMap.find(receiverNode) != nodeAllocationMap.end())
-            {
-               receiver_pag_ptr = nodeAllocationMap[receiverNode];
-            }
-            else
-            {
-               receiver_pag_ptr = new PAGNode(VARIABLE, receiverNode->getSymbolReference()->getReferenceNumber(), nullptr, methodPersistentId, receiverNode->getByteCodeIndex(), methodIndex);
-               pag->PAG_nodes.insert(receiver_pag_ptr);
-               pag->methodIndex_to_allMethodNodes[current_method_index].push_back(receiver_pag_ptr);
-
-               nodeAllocationMap[receiverNode] = receiver_pag_ptr;
-               if (rhs_node_symRef >= 0)
-               {
-                  symRefNumToPAGNode[methodPersistentId][receiver_node_symRef] = receiver_pag_ptr;
-                  symRefNumToNode[receiver_node_symRef] = receiverNode;
-               }
-            }
-            int len;
-            string field_name;
-            if (usefulNode->getSymbol()->isArrayShadowSymbol())
-            {
-               field_name = "$";
-            }
-            else
-            {
-               field_name = usefulNode->getSymbolReference()->getOwningMethod(comp)->fieldNameChars(usefulNode->getSymbolReference()->getCPIndex(), len);
-               field_name = field_name.substr(0, len);
-            }
-            // PAGEdge *new_edge = new PAGEdge(rhs_pag_ptr, receiver_pag_ptr, PUTFIELD, field_name);
-
-            // rhs_pag_ptr->outgoing.insert(new_edge);
-
-            // receiver_pag_ptr->incoming.insert(new_edge);
-            // TR_OpaqueMethodBlock *clazz = usefulNode->getSymbol()->getResolvedMethodSymbol()->getResolvedMethod()->getPersistentIdentifier();
-            // TR::SymbolReference *fieldSymRef = usefulNode->getSymbolReference();
-
-            // TR_OpaqueClassBlock *declaringClassBlock = fieldSymRef->getOwningMethod(comp)->getDeclaringClassFromFieldOrStatic(comp, fieldSymRef->getCPIndex());
-            // J9Class *resolvedClass = (J9Class *)declaringClassBlock;
-
-            // J9UTF8 *classNameutf8 = J9ROMCLASS_CLASSNAME(resolvedClass->romClass);
-            // const char *classNameData = (const char *)J9UTF8_DATA(classNameutf8);
-            // uint16_t classNameLength = J9UTF8_LENGTH(classNameutf8);
-            // std::string className(classNameData,classNameLength);
-
-            // field_name = className + "." + field_name;
-            std::string name = usefulNode->getSymbolReference()->getName(comp->getDebug());
-            std::string full_name = name.substr(0, name.find(' '));
-            ;
-            // std::cout << full_name << std::endl;
-            pag->addEdge(rhs_pag_ptr, receiver_pag_ptr, PUTFIELD, field_name);
-            if (pag->threadAccessibleFields.find(full_name) != pag->threadAccessibleFields.end())
-            {
-               pag->LeakyNodes.insert(rhs_pag_ptr);
-            }
-
-            //       TR::SymbolReference *symRef = usefulNode->getSymbolReference();
-            //       // bool isUnresolved = symRef->isUnresolved();
-            //       bool isShadow = symRef->getSymbol()->getKind() == TR::Symbol::IsShadow;
-            //       int cpIndex = symRef->getCPIndex();
-
-            //       if (/* !isUnresolved && */ isShadow && cpIndex > 0)
-            //       {
-            //          //    // this is most certainly a field access, until proven otherwise
-
-            //          if (loadSymRef <= -10 || loadSymRef >= 0)
-            //          {
-            //             mSet.ds.unionDS(storeSymRef, loadSymRef);
-            //             mSet.stmtMap[storeSymRef].insert(usefulNode->stmtNumber);
-            //          }
-            //          else
-            //          {
-            //             if (loadSymRef == -1)
-            //             {
-            //                mSet.stmtMap[storeSymRef].insert(usefulNode->stmtNumber);
-            //             }
-            //          }
-            //       }
-
-            //       evaluatedSymRef = storeSymRef;
-            //    }
-            //    else{
-            //          //array writes
-
-            //          TR::Node *receiverNode = usefulNode->getThirdChild();
-
-            //          // value
-            //          int storeSymRef = evaluateNode(receiverNode, evaluatedNodeValues, counter, methodIndex, mSet, currentMethod, comp, populatePTA);
-
-            //          // add edge rhsNode --putfield[$]--> receiverNode
-            //          PAGNode *receiver_pag_ptr;
-            //          if (symRefNumToPAGNode[methodPersistentId].find(receiver_node_symRef) != symRefNumToPAGNode[methodPersistentId].end())
-            //          {
-            //             receiver_pag_ptr = symRefNumToPAGNode[methodPersistentId][receiver_node_symRef];
-            //             nodeAllocationMap[receiverNode] = receiver_pag_ptr;
-            //          }
-            //          else if (nodeAllocationMap.find(receiverNode) != nodeAllocationMap.end())
-            //          {
-            //             receiver_pag_ptr = nodeAllocationMap[receiverNode];
-            //          }
-            //          else
-            //          {
-            //             receiver_pag_ptr = new PAGNode(VARIABLE, receiverNode->getSymbolReference()->getReferenceNumber(), nullptr, methodPersistentId, receiverNode->getByteCodeIndex());
-            //             pag->PAG_nodes.insert(receiver_pag_ptr);
-            // pag->methodIndex_to_allMethodNodes[currentMethod].push_back(receiver_pag_ptr);
-
-            //             nodeAllocationMap[receiverNode] = receiver_pag_ptr;
-            //             if (rhs_node_symRef >= 0)
-            //             {
-            //                symRefNumToPAGNode[methodPersistentId][receiver_node_symRef] = receiver_pag_ptr;
-            //                symRefNumToNode[receiver_node_symRef] = receiverNode;
-            //             }
-            //          }
-
-            //          // if ((storeSymRef <= -10 || storeSymRef >= 0) && (loadSymRef <= -10 || loadSymRef >= 0))
-            //          // {
-            //          //    mSet.ds.unionDS(storeSymRef, loadSymRef);
-            //          //    mSet.stmtMap[storeSymRef].insert(usefulNode->stmtNumber);
-            //          //    // std::cout<<storeSymRef<< " " <<loadSymRef<<std::endl;
-            //          // }
-            //          // else
-            //          // {
-            //          //    if ((storeSymRef <= -10 || storeSymRef >= 0) && loadSymRef == -1)
-            //          //    {
-            //          //       mSet.stmtMap[storeSymRef].insert(usefulNode->stmtNumber);
-            //          //    }
-            //          // }
-
-            //          evaluatedSymRef = storeSymRef;
-         }
-
-         //    //
-         // }
-
-         break;
-      }
-
-      case TR::icalli:
-      // case TR::vcalli:
-      case TR::lcalli:
-      case TR::fcalli:
-      case TR::dcalli:
-      case TR::acalli:
-      case TR::calli:
-      case TR::icall:
-      case TR::lcall:
-      case TR::fcall:
-      case TR::dcall:
-      case TR::acall:
-      case TR::call:
-      case TR::vcall:
-      {
-
-         // check if method is a helper
-         bool isHelperMethodCall = usefulNode->getSymbol()->castToMethodSymbol()->isHelper();
-         const char *methodName;
-         if (!isHelperMethodCall)
-         {
-            methodName = usefulNode->getSymbolReference()->getName(comp->getDebug());
-            // cache the name of method
-            cachedMethodName[usefulNode] = methodName;
-
-            std::cout << "Called method: " << cachedMethodName[usefulNode] << " usefull node " << usefulNode << std::endl;
-         }
-
-         // we do not want to process helper method calls (prepareForOSR, potentialOSRPointHelper, for example)
-         if (isHelperMethodCall) // || (usefulNode->getSymbolReference()->isUnresolved() && !usefulNode->getSymbol()->castToMethodSymbol()->isInterface()))
-         {
-            evaluatedSymRef = -1;
-            break;
-         }
-         else if (isLibraryMethod(methodName) && ((std::string)methodName).find("java/lang/Object.<init>") == std::string::npos)
-         {
-         }
-         else
-         {
-            // checks to determine the type of method call
-            bool isStatic = usefulNode->getSymbol()->castToMethodSymbol()->isStatic();
-            bool isInterfaceInvoke = usefulNode->getSymbol()->castToMethodSymbol()->isInterface();
-
-            // fetch the bci of method call
-            int callsiteBCI = usefulNode->getByteCodeIndex();
-            if (isInterfaceInvoke)
-            {
-               // in case of invokeinterface, J9 seems to increment the bci by 2. This causes a mismatch with static artifacts, so we adjust it back
-               callsiteBCI -= 2;
-            }
-
-            //  // methods to be peeked
-            //  std::unordered_set<TR_OpaqueMethodBlock *> methodsToPeek;
-            int argIndex = 0;
-            if (isStatic)
-            {
-               argIndex = 1;
-               // int classNameLength = usefulNode->getSymbol()->castToResolvedMethodSymbol()->getMethod()->classNameLength();
-               // string className = usefulNode->getSymbol()->castToResolvedMethodSymbol()->getMethod()->classNameChars();
-               // className = className.substr(0, classNameLength);
-
-               // TR_OpaqueClassBlock *type = comp->fe()->getClassFromSignature(className.c_str(), classNameLength, comp->getCurrentMethod(), true);
-               // TR_ASSERT_FATAL(type, "unable to get class pointer for receiver %s", className.c_str());
-               // int methodNameLength = usefulNode->getSymbol()->castToResolvedMethodSymbol()->getMethod()->nameLength();
-               // std::string methodNm;
-               // methodNm = usefulNode->getSymbol()->castToResolvedMethodSymbol()->getMethod()->nameChars();
-               // methodNm = methodNm.substr(0, methodNameLength);
-               // int sigLength = usefulNode->getSymbol()->castToResolvedMethodSymbol()->getMethod()->signatureLength();
-               // std::string signatureChars = usefulNode->getSymbol()->getMethodSymbol()->getMethod()->signatureChars();
-               // std::string sig = signatureChars.substr(0, sigLength);
-
-               // std::cout << "In isStatic :: Class name: " << className << " method_name: " << methodNm << " Signature " << sig << std::endl;
-
-               // if (type != NULL)
-               // {
-               //    TR_ResolvedMethod *targetMethod = getCachedResolvedMethod(comp, type, methodNm.c_str(), sig.c_str());
-               //    if (targetMethod != NULL)
-               //    {
-               //       methodsToPeek.insert(targetMethod->getPersistentIdentifier());
-               //       // cachedParameterType[targetMethod->getPersistentIdentifier()][0] = type;
-               //    }
-               // }
-
-               TR::ResolvedMethodSymbol *callNodeSymbol;
-               int methodNameLength = usefulNode->getSymbol()->castToMethodSymbol()->getMethod()->nameLength();
-
-               int mClazzlen = usefulNode->getSymbol()->castToMethodSymbol()->getMethod()->classNameLength();
-
-               std::string mClazzChars = usefulNode->getSymbol()->castToMethodSymbol()->getMethod()->classNameChars();
-
-               std::string mClazzName = mClazzChars.substr(0, mClazzlen);
-
-               TR_OpaqueClassBlock *mClazz = getCachedClass(comp, mClazzName, mClazzlen);
-               int sigLength = usefulNode->getSymbol()->castToMethodSymbol()->getMethod()->signatureLength();
-
-               std::string signatureChars = usefulNode->getSymbol()->castToMethodSymbol()->getMethod()->signatureChars();
-
-               std::string sig = signatureChars.substr(0, sigLength);
-               if (usefulNode->getSymbolReference()->isUnresolved())
-               {
-                  std::string methodNm = usefulNode->getSymbol()->castToMethodSymbol()->getMethod()->nameChars();
-                  methodNm = methodNm.substr(0, methodNameLength);
-                  TR_ResolvedMethod *yp = getCachedResolvedMethod(comp, mClazz, methodNm.c_str(), sig.c_str());
-
-                  callNodeSymbol = yp->findOrCreateJittedMethodSymbol(comp);
-               }
-               else
-               {
-                  callNodeSymbol = usefulNode->getSymbol()->getResolvedMethodSymbol();
-               }
-
-               methodsToPeek.insert(callNodeSymbol->getResolvedMethod()->getPersistentIdentifier());
-            }
-            else
-            {
-               int methodNameLength = usefulNode->getSymbol()->castToResolvedMethodSymbol()->getMethod()->nameLength();
-               std::string methodNm;
-
-               // std::cout<<"Failing after here: " << usefulNode->getSymbol()->castToResolvedMethodSymbol()->getMethod()->nameChars() << std::endl;
-               // TR_OpaqueMethodBlock* persistentIdentifier = usefulNode->getSymbol()->getResolvedMethodSymbol()->getResolvedMethod()->getPersistentIdentifier();
-               std::cout << usefulNode->getOpCode().getName() << " " << usefulNode->getSymbolReference()->getName(comp->getDebug()) << std::endl;
-
-               if (!usefulNode->getSymbolReference()->isUnresolved() && !isInterfaceInvoke && usefulNode->getSymbol()->getResolvedMethodSymbol()->getResolvedMethod()->getPersistentIdentifier() == _threadStartPersistentId)
-               {
-                  methodNm = "run";
-                  // std::cout << "short-circuit Thread.start with  .run()\n";
-               }
-               else
-               {
-
-                  // fetch method name
-                  methodNm = usefulNode->getSymbol()->castToResolvedMethodSymbol()->getMethod()->nameChars();
-                  methodNm = methodNm.substr(0, methodNameLength);
-               }
-               // if(methodNm.rfind("<init>")!=string::npos) break;
-
-               // fetch target method signature
-               int sigLength = usefulNode->getSymbol()->castToResolvedMethodSymbol()->getMethod()->signatureLength();
-               std::string signatureChars = usefulNode->getSymbol()->getMethodSymbol()->getMethod()->signatureChars();
-               std::string sig = signatureChars.substr(0, sigLength);
-
-               if (cachedMethodName[usefulNode].find("java/lang/Object.<init>()V") != std::string::npos)
-               {
-
-                  // for (auto ci : _classIndices)
-                  // {
-                  //    std::string className = ci.second;
-                  //    int len = strlen(className.c_str());
-                  //    TR_OpaqueClassBlock *type = comp->fe()->getClassFromSignature(className.c_str(), len, comp->getCurrentMethod(),true);
-                  //    if (type != NULL)
-                  //    {
-                  //       TR_ResolvedMethod *targetMethod = getCachedResolvedMethod(comp, type, methodNm.c_str(), sig.c_str());
-                  //       if (targetMethod != NULL)
-                  //       {
-                  //          methodsToPeek.insert(targetMethod->getPersistentIdentifier());
-                  //          cachedParameterType[targetMethod->getPersistentIdentifier()][0] = type;
-                  //       }
-                  //    }
-                  // }
-               }
-               else if (cachedMethodName[usefulNode].find("java/lang/reflect/Constructor.newInstance([Ljava/lang/Object;)Ljava/lang/Object") != std::string::npos || cachedMethodName[usefulNode].find("java/lang/reflect/Method.invoke(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;") != std::string::npos)
-               // reflective calls
-               {
-
-                  int lineNumber = getCachedLineNumber(usefulNode, comp);
-                  std::unordered_set<std::string> targets = getReflectiveTargets(inverseMethodNameIDmapping[methodPersistentId], lineNumber);
-                  for (std::string fullName : targets)
-                  {
-                     auto dotPos = fullName.find('.');
-                     auto parenPos = fullName.find('(');
-
-                     std::string className = fullName.substr(0, dotPos);
-                     std::string methodName = fullName.substr(dotPos + 1, parenPos - dotPos - 1);
-                     std::string signature = fullName.substr(parenPos);
-
-                     TR_OpaqueClassBlock *type = getCachedClass(comp, className, className.size());
-                     TR_ResolvedMethod *targetMethod = getCachedResolvedMethod(comp, type, methodName.c_str(), signature.c_str());
-
-                     // std::cout <<"Target method "<<getMethodName(targetMethod->findOrCreateJittedMethodSymbol(comp))<<std::endl;
-                     // if(!targetMethod) continue;
-
-                     if (targetMethod && !targetMethod->isAbstract())
-                     {
-
-                        //! TR::Compiler->cls.isInterfaceClass(comp, currentClass)){
-                        // std::cout<<"targetMethod in CHA is null\n";
-                        // if (classPtrToIndex[currentClass] == 0)
-                        // {
-                        //    // std::cout<<"didid 4 = "<<methodName<<"\n";
-                        // }
-                        // _callsiteReceivers[methodPtrToIndex[currentMethod]][callsiteBCI].insert(classPtrToIndex[currentClass]);
-                        if (!isLibraryMethod(getMethodName(targetMethod->findOrCreateJittedMethodSymbol(comp))))
-                        {
-                           methodsToPeek.insert(targetMethod->getPersistentIdentifier());
-                           std::cout << "Added to peek (in reflective block): " << getMethodName(targetMethod->findOrCreateJittedMethodSymbol(comp)) << " called  method: " << methodNm << sig << std::endl;
-                           cachedParameterType[targetMethod->getPersistentIdentifier()][0] = type;
-                        }
-                     }
-                  }
-               }
-               else
-               {
-                  // CHA based
-                  int classNameLength = usefulNode->getSymbol()->castToResolvedMethodSymbol()->getMethod()->classNameLength();
-                  char *classNameChars = usefulNode->getSymbol()->castToResolvedMethodSymbol()->getMethod()->classNameChars();
-                  string className(classNameChars, classNameLength);
-
-                  TR_OpaqueClassBlock *type = getCachedClass(comp, className, classNameLength);
-
-                  TR_ASSERT_FATAL(type, "unable to get class pointer for receiver %s", className.c_str());
-
-                  std::queue<TR_OpaqueClassBlock *> bfsList;
-                  std::unordered_set<TR_OpaqueClassBlock *> visitedClass;
-
-                  bfsList.push(type);
-                  visitedClass.insert(type);
-
-                  // std::string tpName = TR::Compiler->cls.classSignature(comp, type, comp->trMemory());
-                  // std::cout <<"Tyepc class name: "<<className << std::endl;
-
-                  // std::cout << methodNm << std::endl;
-                  std::cout << "type class name = " << className << " where method name = " << methodNm << "\n";
-
-                  if (cachedMethodName[usefulNode].find(".<init>") != std::string::npos) //&& cachedMethodName[usefulNode].find("java/lang/Object.<init>()V") == std::string::npos) // if this is a constructor call then directly peek
-                  {
-                     if (type != NULL)
-                     {
-                        TR_ResolvedMethod *targetMethod = getCachedResolvedMethod(comp, type, methodNm.c_str(), sig.c_str());
-                        if (targetMethod != NULL)
-                        {
-                           methodsToPeek.insert(targetMethod->getPersistentIdentifier());
-                           cachedParameterType[targetMethod->getPersistentIdentifier()][0] = type;
-                        }
-                     }
-                  }
-                  else
-                     getTargetsToPeek(bfsList, visitedClass, methodsToPeek, comp, methodNm, sig);
-               }
-            }
-            // std::cout<<"-------Methods to peek size-------"<<methodsToPeek.size()<<std::endl;
-            callsite_to_targets[usefulNode] = methodsToPeek;
-
-            for (auto calleeMethodPtr : methodsToPeek)
-            {
-
-               std::string calleeName = getMethodName(getCachedResolvedMethodFromPtr(comp, calleeMethodPtr)->findOrCreateJittedMethodSymbol(comp));
-               if (_methodsAnalyzed.find(calleeMethodPtr) == _methodsAnalyzed.end() && _methodsBeingAnalyzed.find(calleeMethodPtr) == _methodsBeingAnalyzed.end() && alreadyAnalyzedMethods.find(calleeName) == alreadyAnalyzedMethods.end())
-               {
-                  if (inverseMethodNameIDmapping[currentMethod].find("<init>()V") != std::string::npos && cachedMethodName[usefulNode].find("java/lang/Object.<init>()V") != std::string::npos)
-                  {
-                     continue;
-                  }
-
-                  // fetch the resolved method symbol
-
-                  TR_ResolvedMethod *calleeMethod = getCachedResolvedMethodFromPtr(comp, calleeMethodPtr);
-
-                  TR::ResolvedMethodSymbol *calleeResolvedMethodSymbol = calleeMethod->findOrCreateJittedMethodSymbol(comp);
-
-                  _methodsBeingAnalyzed.insert(calleeMethodPtr);
-
-                  // JIT compile
-                  bool ilGenFailed = NULL == calleeMethod->genMethodILForPeekingEvenUnderMethodRedefinition(calleeResolvedMethodSymbol, comp, false);
-                  TR_ASSERT_FATAL(!ilGenFailed, "IL Gen failed, cannot peek into method");
-
-                  // dump the JIT compiled method tree to log
-                  comp->dumpMethodTrees("Method tree about to peek", calleeResolvedMethodSymbol);
-
-                  TR_MethodParameterIterator *parIterator = getCachedResolvedMethodSymbol(comp, calleeMethodPtr)->getResolvedMethod()->getParameterIterator(*comp);
-                  for (int argNo = 1; !parIterator->atEnd(); parIterator->advanceCursor(), argNo++)
-                  {
-                     if (parIterator->isArray() || parIterator->isClass())
-                     {
-                        cachedParameterType[calleeMethodPtr][argNo] = parIterator->getOpaqueClass();
-                     }
-                  }
-               }
-
-               // if (usefulNode->getDataType() == TR::Address && fillCache && methodPTG[calleeMethodPtr]->contains(-3))
-               // {
-               //    cachedValues[usefulNode].insert(methodPTG[calleeMethodPtr]->getReturnPointsTo().begin(), methodPTG[calleeMethodPtr]->getReturnPointsTo().end());
-               //    // std::cout<<"caching return for "<<usefulNode<<" size = "<<cachedValues[usefulNode].size()<<"\n";
-               // }
-            }
-
-            // bool stmtSaved = false;
-            // if (usefulNode->getDataType() == TR::Address)
-            // {
-            //    // generate a dummy variable number to represent return of this callnode
-            //    counter.retCount--;
-
-            //    // evaluated value of this callnode will be return variable
-            //    evaluatedSymRef = counter.retCount;
-            //    methodDict[currentMethod].stmtMap[evaluatedSymRef].insert(usefulNode->stmtNumber);
-            //    stmtSaved = true;
-
-            //    // update mappings of call node, ret, etc
-            //    argCallNode[currentMethod][counter.retCount].insert(std::make_pair(usefulNode, -3));
-            //    inverseArgCallNode[currentMethod][usefulNode][-3] = counter.retCount;
-            // }
-
-            // first arg index points to receiver in case of non static
-            int32_t firstArgIndex = usefulNode->getFirstArgumentIndex();
-            int32_t numChildren = usefulNode->getNumChildren();
-            for (int32_t i = firstArgIndex; i < numChildren; i++)
-            {
-               TR::Node *actual_param_node = usefulNode->getChild(i);
-               if (actual_param_node->getDataType() != TR::Address)
-               {
-                  argIndex++;
-                  continue;
-               }
-               // get argument variable
-               int temp = evaluateNode(actual_param_node, evaluatedNodeValues, counter, methodIndex, mSet, currentMethod, comp, populatePTA);
-
-               // update mapping of var to stmt
-               // std::cout<<"temp = "<<temp<<"\n";
-               // methodDict[currentMethod].stmtMap[temp].insert(usefulNode->stmtNumber);
-               // stmtSaved = true;
-
-               // update mappings of call node, arg, etc
-               argCallNode[currentMethod][temp].insert(std::make_pair(usefulNode, argIndex));
-               inverseArgCallNode[currentMethod][usefulNode][argIndex] = temp;
-               EdgeType e_type = ASSIGN;
-               PAGNode *actual_param_pag_ptr = NULL;
-               std::string methodBeingComp = getMethodName(comp->getMethodSymbol());
-               // std::cout << "methodBeingComp" << methodBeingComp << std::endl;
-
-               if (cachedMethodName[usefulNode].find(".<init>") != std::string::npos && argIndex == 0 && methodBeingComp.find(".<init>") == std::string::npos)
-               {
-                  int globalIndex_ = usefulNode->getFirstChild()->getGlobalIndex();
-                  actual_param_pag_ptr = symRefNumToPAGNode[currentMethod][globalIndex_];
-                  if (!actual_param_pag_ptr)
-                  {
-                     actual_param_pag_ptr = symref_PAGNode[usefulNode->getFirstChild()->getSymbolReference()->getReferenceNumber()];
-                  }
-                  e_type = ASSIGN;
-               }
-               else if (symRefNumToPAGNode[methodPersistentId].find(temp) != symRefNumToPAGNode[methodPersistentId].end())
-               {
-                  actual_param_pag_ptr = symRefNumToPAGNode[methodPersistentId][temp];
-                  nodeAllocationMap[actual_param_node] = actual_param_pag_ptr;
-               }
-               else if (nodeAllocationMap.find(actual_param_node) == nodeAllocationMap.end())
-               {
-                  actual_param_pag_ptr = nodeAllocationMap[actual_param_node];
-                  if (!actual_param_pag_ptr)
-                  {
-                     // printf("%s -- %s\n",cachedMethodName[usefulNode].c_str(),inverseMethodNameIDmapping[methodPersistentId].c_str());
-                     // std::cout << usefulNode->getSymbolReference()->getName(comp->getDebug()) << std::endl;
-                     // std::cout << usefulNode->getFirstChild()->getSymbolReference()->getName(comp->getDebug()) << std::endl;
-                     actual_param_pag_ptr = pag->bottom_node;
-                  }
-               }
-               else
-               {
-                  int ref_no = -238933;
-                  if (actual_param_node->getOpCode().hasSymbolReference())
-                     ref_no = actual_param_node->getSymbolReference()->getReferenceNumber();
-                  actual_param_pag_ptr = new PAGNode(VARIABLE, ref_no, nullptr, methodPersistentId, actual_param_node->getByteCodeIndex(), methodIndex);
-                  pag->PAG_nodes.insert(actual_param_pag_ptr);
-                  pag->methodIndex_to_allMethodNodes[current_method_index].push_back(actual_param_pag_ptr);
-
-                  nodeAllocationMap[actual_param_node] = actual_param_pag_ptr;
-
-                  symRefNumToPAGNode[methodPersistentId][temp] = actual_param_pag_ptr;
-                  symRefNumToNode[temp] = actual_param_node;
-               }
-
-               for (auto target : callsite_to_targets[usefulNode])
-               {
-                  // std::cout << "IIIIformal_param_pag_ptr: " << " CURRENT Method: " << getMethodName(comp->getOwningMethodSymbol(currentMethod)) << " target " << target << " " << getMethodName(comp->getOwningMethodSymbol(target)) << std::endl;
-                  vector<PAGNode *> formal_nodes = pag->methodIndex_to_formalNodes[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, target), comp)];
-
-                  PAGNode *formal_param_pag_ptr = formal_nodes.empty() ? pag->bottom_node : formal_nodes[argIndex];
-
-                  // Add edge from actual to formal pag node
-                  // PAGEdge *call_edge = new PAGEdge(actual_param_pag_ptr, formal_param_pag_ptr, e_type, usefulNode->getByteCodeIndex());
-                  // actual_param_pag_ptr->outgoing.insert(call_edge);
-                  // formal_param_pag_ptr->incoming.insert(call_edge);
-                  // std::cout << "$$$$TArg index " << argIndex << std::endl;
-                  pag->addEdge(actual_param_pag_ptr, formal_param_pag_ptr, e_type, usefulNode->getByteCodeIndex());
-                  if (e_type == GETFIELD)
-                  {
-                     updateMatchEdges();
-                     for (auto *edge : pag->getMatchEdgesEndingAt(formal_param_pag_ptr))
-                     {
-                        PAGNode *src = edge->src;
-                        formal_param_pag_ptr->pointee_class_names.insert(src->pointee_class_names.begin(), src->pointee_class_names.end());
-                     }
-                  }
-                  else if (e_type == ASSIGN)
-                  {
-                     formal_param_pag_ptr->pointee_class_names.insert(actual_param_pag_ptr->pointee_class_names.begin(), actual_param_pag_ptr->pointee_class_names.end());
-                  }
-
-                  callsite_to_ActualParamPAGNodes[usefulNode->getByteCodeIndex()].insert(actual_param_pag_ptr);
-               }
-               // increment argument
-               argIndex++;
-            }
-
-            // if (!stmtSaved)
-            // {
-            //    methodDict[currentMethod].stmtMap[-2].insert(usefulNode->stmtNumber);
-            // }
-         }
-
-         break;
-      }
-
-      case TR::Return:
-      case TR::lreturn:
-      case TR::ireturn:
-      case TR::dreturn:
-      case TR::freturn:
-      case TR::areturn:
-      case TR::vreturn:
-      {
-         // handle the return value. We use a magic number (-99) to represent the pseudo-symref of the return var
-         // also, we only need to worry about the areturn. So why do we have the others here? Maybe want to process some cleanup
-         //   actions on encountering a return op
-
-         if (opCode == TR::areturn)
-         {
-            TR::Node *child_node = usefulNode->getFirstChild();
-            // the evaluated value of the first child (ie. the call node) will hold the respective call's return value - simply fetch and assign
-            int loadSymRef = evaluateNode(child_node, evaluatedNodeValues, counter, methodIndex, mSet, currentMethod, comp, populatePTA);
-
-            // Add edge from the child of the useful node(loadSymRef) to return_pag_node_ptr;
-            PAGNode *return_pag_node_ptr = pag->methodIndex_to_returnNode[current_method_index];
-            if (!return_pag_node_ptr)
-            {
-               TR::ResolvedMethodSymbol *methodSymbol = getCachedResolvedMethodFromPtr(comp, currentMethod)->findOrCreateJittedMethodSymbol(comp);
-               int methodInd = getOrInsertMethodIndex(methodSymbol, comp);
-               pag->methodIndex_to_returnNode[methodInd] = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, currentMethod, -1, methodInd);
-               pag->PAG_nodes.insert(pag->methodIndex_to_returnNode[methodInd]);
-               pag->methodIndex_to_allMethodNodes[methodInd].push_back(pag->methodIndex_to_returnNode[methodInd]);
-               return_pag_node_ptr = pag->methodIndex_to_returnNode[methodInd];
-            }
-
-            int symref = -238933;
-            if (child_node->getOpCode().hasSymbolReference())
-               symref = child_node->getSymbolReference()->getReferenceNumber();
-            // std::cout<< symref << std::endl;
-            if (child_node->getOpCodeValue() == TR::aloadi)
-            {
-
-               TR::Node *y_node = child_node->getFirstChild();
-               PAGNode *y_PAGnode_ptr;
-               int32_t y_node_symRef = -78765; // some random negative number
-               int y_ref_no = -238933;
-               if (y_node->getOpCode().hasSymbolReference())
-                  y_ref_no = y_node->getSymbolReference()->getReferenceNumber();
-
-               if (y_node->getOpCode().hasSymbolReference() && y_node->getSymbolReference())
-               {
-                  y_node_symRef = y_node->getSymbolReference()->getReferenceNumber();
-               }
-
-               if (y_node_symRef >= 0 && symRefNumToPAGNode[methodPersistentId].find(y_node_symRef) != symRefNumToPAGNode[methodPersistentId].end())
-               {
-                  y_PAGnode_ptr = symRefNumToPAGNode[methodPersistentId][y_node_symRef];
-                  y_node = symRefNumToNode[y_node_symRef];
-               }
-               else if (nodeAllocationMap.find(y_node) != nodeAllocationMap.end())
-               {
-                  y_PAGnode_ptr = nodeAllocationMap[y_node];
-               }
-               else
-               {
-                  y_PAGnode_ptr = new PAGNode(VARIABLE, y_ref_no, nullptr, methodPersistentId, y_node->getByteCodeIndex(), methodIndex);
-                  pag->PAG_nodes.insert(y_PAGnode_ptr);
-                  pag->methodIndex_to_allMethodNodes[current_method_index].push_back(y_PAGnode_ptr);
-
-                  nodeAllocationMap[y_node] = y_PAGnode_ptr;
-
-                  symRefNumToPAGNode[methodPersistentId][y_node_symRef] = y_PAGnode_ptr;
-                  symRefNumToNode[y_node_symRef] = y_node;
-               }
-
-               // Add edge:  y --Getfield--> x
-               //            y_PAGnode_ptr --Getfield--> lhs_node_ptr
-               int32_t len;
-               string field_name;
-               if (child_node->getSymbol()->isArrayShadowSymbol())
-               {
-                  field_name = "$";
-               }
-               else
-               {
-                  field_name = child_node->getSymbolReference()->getOwningMethod(comp)->fieldNameChars(child_node->getSymbolReference()->getCPIndex(), len);
-                  field_name = field_name.substr(0, len);
-               }
-
-               // std::cout <<"Y_node: " << y_node->getOpCodeValue() << std::endl;
-               // std::cout << "In astore:field is "<<field_name<<" len = "<< len << std::endl;
-
-               // PAGEdge *new_edge = new PAGEdge(y_PAGnode_ptr, return_pag_node_ptr, GETFIELD, field_name);
-
-               // return_pag_node_ptr->incoming.insert(new_edge);
-               // y_PAGnode_ptr->outgoing.insert(new_edge);
-               pag->addEdge(y_PAGnode_ptr, return_pag_node_ptr, GETFIELD, field_name);
-
-               updateMatchEdges();
-               for (auto *edge : pag->getMatchEdgesEndingAt(return_pag_node_ptr))
-               {
-                  PAGNode *src = edge->src;
-                  return_pag_node_ptr->pointee_class_names.insert(src->pointee_class_names.begin(), src->pointee_class_names.end());
-               }
-            }
-            else if (child_node->getOpCodeValue() == TR::New)
-            {
-
-               int globalIndex_ = child_node->getGlobalIndex();
-
-               // PAGEdge *new_edge = new PAGEdge(symRefNumToPAGNode[methodPersistentId][globalIndex_], return_pag_node_ptr, ASSIGN);
-               // symRefNumToPAGNode[methodPersistentId][globalIndex_]->outgoing.insert(new_edge);
-               // return_pag_node_ptr->incoming.insert(new_edge);
-               pag->addEdge(symRefNumToPAGNode[methodPersistentId][globalIndex_], return_pag_node_ptr, ASSIGN);
-               return_pag_node_ptr->pointee_class_names.insert(symRefNumToPAGNode[methodPersistentId][globalIndex_]->pointee_class_names.begin(), symRefNumToPAGNode[methodPersistentId][globalIndex_]->pointee_class_names.end());
-            }
-            else if (callsite_to_targets.find(child_node) != callsite_to_targets.end()) // return b.foo() type of stmts => add edge from return node of foo to the current method's return node
-            {
-               std::unordered_set<TR_OpaqueMethodBlock *> targets = callsite_to_targets[child_node];
-               for (auto target : targets)
-               {
-                  PAGNode *child_pag_ptr = pag->methodIndex_to_returnNode[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, target), comp)];
-
-                  // PAGEdge *new_edge = new PAGEdge(child_pag_ptr, return_pag_node_ptr, ASSIGN);
-
-                  // return_pag_node_ptr->incoming.insert(new_edge);
-                  // child_pag_ptr->outgoing.insert(new_edge);
-                  pag->addEdge(child_pag_ptr, return_pag_node_ptr, ASSIGN);
-                  return_pag_node_ptr->pointee_class_names.insert(child_pag_ptr->pointee_class_names.begin(), child_pag_ptr->pointee_class_names.end());
-               }
-            }
-            else
-            {
-               PAGNode *child_pag_ptr;
-               if (symRefNumToPAGNode[methodPersistentId].find(symref) != symRefNumToPAGNode[methodPersistentId].end())
-               {
-                  child_pag_ptr = symRefNumToPAGNode[methodPersistentId][symref];
-                  nodeAllocationMap[child_node] = child_pag_ptr;
-               }
-               else
-               {
-                  child_pag_ptr = new PAGNode(VARIABLE, symref, nullptr, methodPersistentId, child_node->getByteCodeIndex(), methodIndex);
-                  pag->PAG_nodes.insert(child_pag_ptr);
-                  pag->methodIndex_to_allMethodNodes[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, currentMethod), comp)].push_back(child_pag_ptr);
-
-                  nodeAllocationMap[child_node] = child_pag_ptr;
-
-                  symRefNumToPAGNode[methodPersistentId][symref] = child_pag_ptr;
-                  symRefNumToNode[symref] = child_node;
-               }
-               // std::cout<< child_pag_ptr << "Is the child"<<std::endl;
-               // PAGEdge *new_edge = new PAGEdge(child_pag_ptr, return_pag_node_ptr, ASSIGN);
-
-               // return_pag_node_ptr->incoming.insert(new_edge);
-               // child_pag_ptr->outgoing.insert(new_edge);
-               pag->addEdge(child_pag_ptr, return_pag_node_ptr, ASSIGN);
-               return_pag_node_ptr->pointee_class_names.insert(child_pag_ptr->pointee_class_names.begin(), child_pag_ptr->pointee_class_names.end());
-            }
-
-            evaluatedSymRef = loadSymRef;
-         }
-         break;
-      }
-
-      default:
-      {
-         //         TR_ASSERT_FATAL(true, "opcode %s not recognized", usefulNode->getOpCode().getName());
-         break;
-      }
-      }
-   }
-
-   // TODO: update the evaluated values here, or in the caller? Lets do it here, for now
-   evaluatedNodeValues[usefulNode] = evaluatedSymRef;
-   return evaluatedSymRef;
-}
-TR::Node *getUsefulNode(TR::Node *node)
-{
-   TR::Node *ret = NULL;
-   if (node == NULL)
-      return ret;
-   else
-   {
-      TR::ILOpCodes opCode = node->getOpCodeValue();
-      // if the opcodes is one of the following, we need to dig deeper
-      if (opCode == TR::treetop || opCode == TR::ResolveAndNULLCHK || opCode == TR::ResolveCHK || opCode == TR::compressedRefs || opCode == TR::NULLCHK || opCode == TR::ArrayStoreCHK)
-         return getUsefulNode(node->getFirstChild());
-
-      else
-      {
-         // these are the interesting nodes
-         if (opCode == TR::New ||     ///
-             opCode == TR::astore ||  ///  refStore
-             opCode == TR::astorei || ///   ????
-             opCode == TR::Return ||
-             opCode == TR::areturn ||
-             opCode == TR::aload ||  ///  refLoad
-             opCode == TR::aloadi || /// field and array read
-             opCode == TR::call ||
-             opCode == TR::calli ||
-             opCode == TR::acalli ||
-             opCode == TR::acall ||
-             opCode == TR::calli ||
-             opCode == TR::awrtbari ||  /// field and array write
-             opCode == TR::awrtbar ||   // this should be only static   ///
-             opCode == TR::ardbari ||   ///  ???
-             opCode == TR::anewarray || ///
-             opCode == TR::newarray ||  ///
-             // this is needed for calls where the arg is null - it appears to map to aconst_null in bytecode
-             opCode == TR::aconst || ///
-             opCode == TR::aladd ||  ///
-             opCode == TR::checkcast ||
-             opCode == TR::multianewarray ||
-             node->getOpCode().isCall())
-         {
-            // IFDIAGPRINT << "found useful node at n" << node->getGlobalIndex() << "n" << endl;
-            ret = node;
-         }
-         else
-         {
-            // TODO: Shashin: insert an assert failure here - done
-            // there are 41 "address" type nodes, out of those - some are handled above.
-            //    create an assert fail for the rest of the address nodes,
-            //    and let the other "safe" nodes trickle through - since they deal with non-ref types
-            if (
-                opCode == TR::ardbar ||
-                opCode == TR::i2a ||
-                opCode == TR::iu2a ||
-                opCode == TR::l2a ||
-                opCode == TR::lu2a ||
-                opCode == TR::b2a ||
-                opCode == TR::bu2a ||
-                opCode == TR::s2a ||
-                opCode == TR::su2a ||
-                opCode == TR::aRegLoad ||
-                opCode == TR::aRegStore ||
-                opCode == TR::aselect ||
-                opCode == TR::checkcastAndNULLCHK ||
-                opCode == TR::newvalue ||
-                opCode == TR::variableNew ||
-                opCode == TR::variableNewArray ||
-                opCode == TR::aiadd ||
-                opCode == TR::ArrayCHK)
-            {
-               std::cout << "did not expect op code " << node->getOpCode().getName() << " node " << node->getGlobalIndex() << std::endl;
-               TR_ASSERT_FATAL(false, "unexpected op codes");
-            }
-            else
-            {
-               // just let them go
-
-               // below were encountered in tests and determined to be "safe" (i.e., not relevant to PTA)
-               //  opCode == TR::loadaddr ||
-               //  opCode == TR::ArrayStoreCHK || -- encountered in Harness.Main (avrora)
-            }
-         }
-      }
-   }
-
-   return ret;
-}
-
-PAGNode *evaluateAllocate(TR::Node *node, int methodIndex, bool isArray, TR::Compilation *comp)
-{
-   int allocationBCI = node->getByteCodeIndex();
-   int callerIndex = methodIndex;
-   // if(exhaustive)
-   // {
-   if (nodeAllocationMap.find(node) != nodeAllocationMap.end())
-   {
-      return nodeAllocationMap[node];
-   }
-
-   PAGNode *obj_ptr = new PAGNode(OBJECT, -1, nullptr, comp->getMethodSymbol()->getResolvedMethod()->getPersistentIdentifier(), allocationBCI, methodIndex);
-   int32_t node_symRef = -7675;
-   if (node->getOpCode().hasSymbolReference() && node->getSymbolReference())
-      node_symRef = node->getSymbolReference()->getReferenceNumber();
-
-   if (node_symRef >= 0)
-   {
-      symRefNumToPAGNode[comp->getMethodSymbol()->getResolvedMethod()->getPersistentIdentifier()][node_symRef] = obj_ptr;
-      symRefNumToNode[node_symRef] = node;
-   }
-   pag->PAG_nodes.insert(obj_ptr);
-
-   // if (_runtimeVerifierDiagnostics)
-   //    cout << "evaluated an allocation node at n" << node->getGlobalIndex() << "n" << endl;
-
-   // check the loadaddr child node to ensure that the instantiated type is resolved
-   TR::Node *loadaddrNode;
-   if (isArray)
-   {
-      loadaddrNode = node->getSecondChild();
-   }
-   else
-   {
-      loadaddrNode = node->getFirstChild();
-   }
-
-   nodeAllocationMap[node] = obj_ptr;
-   // TR_Debug de(comp);
-   // TR_Debug *deb = &de;
-   // std::string obj_type = loadaddrNode->getSymbolReference()->getName(comp->getDebug());
-   int len;
-   TR::SymbolReference *symRef = loadaddrNode->getSymbolReference();
-   std::cout << symRef << std::endl;
-
-   // std::cout << "NAME IS " << loadaddrNode->getSymbolReference()->getName(comp->getDebug()) << std::endl;
-   char *objc = TR::Compiler->cls.classNameChars(comp, symRef, len);
-   std::string obj_type(objc, len);
-   std::cout << "Allocate object type: " << obj_type << std::endl;
-   nodeAllocationMap[node]->pointee_class_names.insert(obj_type);
-   // std::cout<<"loadaddr node is "<<loadaddrNode<<"\n";
-   // TR_ASSERT_FATAL(loadaddrNode->getOpCodeValue() == TR::loadaddr, "expected first child of jitnewobject to be loadaddr op");
-   // if (loadaddrNode->getOpCodeValue() == TR::loadaddr && loadaddrNode->getSymbolReference()->isUnresolved())
-   // {
-   //    /*
-   //    * the instantiated type is unresolved, we interpret that as "not on classpath and/or unresolved"
-   //    *
-   //    * assign an empty set at the allocation site and call it a day
-   //    */
-
-   //    // return null as a stopgap, we do't have an object to represent "empty" yet. This is fine since we ignore nulls anyway
-   //    std::cout<<"loaddr null for "<<methodIndex<<"-"<<node->getByteCodeIndex()<<"\n";
-   //    // std::cout<<"bci of null entry is "<<node->getByteCodeIndex()<<"\n";
-   //    obj = PointsToGraph::nullEntry;
-   //    //obj.bci = node->getByteCodeIndex();
-
-   //    //org/dacapo/parser/TokenMgrError.addEscapes(Ljava/lang/String;)Ljava/lang/String;
-   // }
-   // else
-   // {
-
-   //    PAGNode node;
-   //    node.bci = allocationBCI;
-   //    node.caller = methodIndex;
-   //    node.type = Reference;
-   //    node.clazz = NULL;
-
-   //    obj = node;
-   // // }
-
-   // nodeAllocationMap[node] = obj;
-   // }else{
-   //    Entry e = rawNode[to_string(callerIndex) + "-" + to_string(allocationBCI)];
-   //    nodeAllocationMap[node] = e;
-   // }
-   return nodeAllocationMap[node];
-}
+// int evaluateNode(TR::Node *node, std::map<TR::Node *, int> &evaluatedNodeValues, Counter &counter, int methodIndex, MethodSet &mSet, TR_OpaqueMethodBlock *currentMethod, TR::Compilation *comp, bool populatePTA)
+// {
+
+//    std::unordered_set<TR_OpaqueMethodBlock *> methodsToPeek;
+//    int current_method_index = methodIndex;
+//    int evaluatedSymRef = -2;
+
+//    TR_OpaqueMethodBlock *methodPersistentId = currentMethod;
+
+//    methodNameIDmapping[getMethodName(getCachedResolvedMethodSymbol(comp, currentMethod))] = methodPersistentId;
+//    inverseMethodNameIDmapping[methodPersistentId] = getMethodName(getCachedResolvedMethodSymbol(comp, currentMethod));
+
+//    TR::Node *usefulNode = getUsefulNode(node);
+
+//    if (!usefulNode)
+//       return evaluatedSymRef;
+
+//    if (usefulNode->getVisitCount() >= counter.visitCount)
+//    {
+//       evaluatedSymRef = evaluatedNodeValues[usefulNode];
+//       return evaluatedSymRef;
+//    }
+//    else
+//    {
+
+//       usefulNode->setVisitCount(counter.visitCount);
+
+//       TR::ILOpCodes opCode = usefulNode->getOpCodeValue();
+//       if (usefulNode->getOpCode().hasSymbolReference())
+//          std::cout << usefulNode->getOpCode().getName() << " " << usefulNode->getSymbolReference()->getName(comp->getDebug()) << "\t[" << usefulNode->getSymbolReference()->getReferenceNumber() << "]" << std::endl;
+
+//       if (usefulNode->getNumChildren() > 0 && usefulNode->getFirstChild()->getOpCode().hasSymbolReference())
+//          std::cout << " --> CHILD 1. " << usefulNode->getFirstChild()->getOpCode().getName() << " " << usefulNode->getFirstChild()->getSymbolReference()->getName(comp->getDebug()) << "\t[" << usefulNode->getFirstChild()->getSymbolReference()->getReferenceNumber() << "]" << std::endl;
+
+//       if (usefulNode->getNumChildren() > 1 && (usefulNode->getSecondChild()->getOpCode().hasSymbolReference()))
+//          std::cout << " --> CHILD 2. " << usefulNode->getSecondChild()->getOpCode().getName() << " " << usefulNode->getSecondChild()->getSymbolReference()->getName(comp->getDebug()) << "\t[" << usefulNode->getSecondChild()->getSymbolReference()->getReferenceNumber() << "]" << std::endl;
+
+//       if (usefulNode->getNumChildren() > 2 && usefulNode->getThirdChild()->getOpCode().hasSymbolReference())
+//          std::cout << " --> CHILD 3. " << usefulNode->getThirdChild()->getOpCode().getName() << " " << usefulNode->getThirdChild()->getSymbolReference()->getName(comp->getDebug()) << "\t[" << usefulNode->getThirdChild()->getSymbolReference()->getReferenceNumber() << "]" << std::endl;
+
+//       switch (opCode)
+//       {
+
+//       case TR::checkcast:
+//       {
+//          // evaluatedSymRef = evaluateNode(usefulNode->getFirstChild(), evaluatedNodeValues, counter, methodIndex, mSet, currentMethod, comp, populatePTA);
+//          // if (usefulNode->stmtNumber == 0)
+//          // {
+//          //    counter.stmtCount++;
+//          //    usefulNode->stmtNumber = counter.stmtCount;
+//          // }
+//          // stmtNumber[methodPersistentId][usefulNode->stmtNumber] = usefulNode;
+
+//          // if (evaluatedSymRef <= -10 || evaluatedSymRef >= 0)
+//          // {
+//          //    mSet.stmtMap[evaluatedSymRef].insert(usefulNode->stmtNumber);
+//          // }
+
+//          break;
+//       }
+//       case TR::aconst:
+//       {
+//          // // this is needed for calls where the arg is null - it appears to map to aconst_null in bytecode
+//          evaluatedSymRef = -1;
+//          PAGNode *null_node_ptr;
+
+//          if (nodeAllocationMap.find(usefulNode) != nodeAllocationMap.end())
+//          {
+//             null_node_ptr = nodeAllocationMap[usefulNode];
+//          }
+//          else
+//          {
+//             null_node_ptr = new PAGNode(NULL_OBJ, -1, nullptr, methodPersistentId, usefulNode->getByteCodeIndex(), methodIndex);
+//             pag->methodIndex_to_allMethodNodes[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, currentMethod), comp)].push_back(null_node_ptr);
+//             pag->PAG_nodes.insert(null_node_ptr);
+//             nodeAllocationMap[usefulNode] = null_node_ptr;
+//          }
+
+//          // if(populatePTA){
+//          //    processNodeValues[usefulNode].insert(PointsToGraph::nullEntry);
+//          // }
+
+//          break;
+//       }
+//       case TR::aladd: // OD : how to handle this ?
+//       {
+//          // if(populatePTA){
+//          //    processNodeValues[usefulNode].insert(PointsToGraph::bottomEntry);
+//          // }
+//          break;
+//       }
+//       case TR::New:
+//       { // add edge : abstractObj -> global_index
+//          // process new here
+//          evaluatedSymRef = usefulNode->getGlobalIndex();
+
+//          PAGNode *alloc_node_ptr;
+
+//          if (nodeAllocationMap.find(usefulNode) != nodeAllocationMap.end())
+//          {
+//             alloc_node_ptr = nodeAllocationMap[usefulNode];
+//          }
+//          else
+//          {
+//             alloc_node_ptr = evaluateAllocate(usefulNode, methodIndex, false, comp);
+//             std::cout << "Alloc at global index = " << evaluatedSymRef << " MethodPersistent id = " << methodPersistentId << std::endl;
+//             pag->methodIndex_to_allMethodNodes[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, currentMethod), comp)].push_back(alloc_node_ptr);
+//          }
+
+//          PAGNode *global_index_ptr = new PAGNode(VARIABLE, evaluatedSymRef, nullptr, methodPersistentId, usefulNode->getByteCodeIndex(), methodIndex);
+//          pag->methodIndex_to_allMethodNodes[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, currentMethod), comp)].push_back(global_index_ptr);
+//          pag->PAG_nodes.insert(global_index_ptr);
+//          nodeAllocationMap[usefulNode] = global_index_ptr;
+//          symRefNumToPAGNode[methodPersistentId][evaluatedSymRef] = global_index_ptr;
+
+//          pag->addEdge(alloc_node_ptr, global_index_ptr, NEW);
+//          global_index_ptr->pointee_class_names.insert(alloc_node_ptr->pointee_class_names.begin(), alloc_node_ptr->pointee_class_names.end());
+
+//          // if(populatePTA){
+//          //    Entry e = evaluateAllocate(usefulNode, methodIndex, false);
+
+//          // TR_OpaqueClassBlock *tpSym = (TR_OpaqueClassBlock *)usefulNode->getFirstChild()->getSymbol()->castToStaticSymbol()->getStaticAddress();
+//          // alloc_node_ptr->clazz_ptr = tpSym;
+//          //    if(tpSym == NULL){
+//          //       //e = PointsToGraph::bottomEntry;
+//          //       //std::cout<<"tpsym null for "<<e.caller<<"-"<<e.bci<<"\n";
+//          //    }
+//          //    else{
+//          //       e.clazz = tpSym;
+//          //       if(cachedClassSignature.find(e.clazz) == cachedClassSignature.end()){
+//          //          cachedClassSignature[e.clazz] = TR::Compiler->cls.classSignature(comp, e.clazz, comp->trMemory());
+//          //       }
+//          //       std::string className = cachedClassSignature[e.clazz];
+//          //       if(className.find("Ljava/lang/String;") != std::string::npos ){
+//          //          processNodeValues[usefulNode].insert(PointsToGraph::stringEntry);
+//          //       }else{
+//          //          processNodeValues[usefulNode].insert(e);
+//          //       }
+//          //    }
+
+//          // }
+//          break;
+//       }
+
+//       case TR::anewarray:
+//       {
+//          evaluatedSymRef = -1;
+
+//          PAGNode *alloc_node_ptr;
+
+//          if (nodeAllocationMap.find(usefulNode) != nodeAllocationMap.end())
+//          {
+//             alloc_node_ptr = nodeAllocationMap[usefulNode];
+//          }
+//          else
+//          {
+//             alloc_node_ptr = evaluateAllocate(usefulNode, methodIndex, true, comp);
+//             pag->methodIndex_to_allMethodNodes[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, currentMethod), comp)].push_back(alloc_node_ptr);
+//          }
+
+//          // if(populatePTA){
+//          //    Entry e = evaluateAllocate(usefulNode, methodIndex, true);
+//          //    TR_OpaqueClassBlock *tpSym;
+//          //    if(usefulNode->getSecondChild()->getOpCodeValue() == TR::loadaddr){
+
+//          //       tpSym = (TR_OpaqueClassBlock *)usefulNode->getSecondChild()->getSymbol()->castToStaticSymbol()->getStaticAddress();
+//          //       if(tpSym == NULL){
+//          //          //e = PointsToGraph::bottomEntry;
+//          //       }
+//          //       else{
+//          //          e.clazz = tpSym;
+//          //          e.type = RefArray;
+//          //          processNodeValues[usefulNode].insert(e);
+
+//          //       }
+//          //    }else{
+//          //       e.type = RefArray;
+//          //       e.clazz = NULL;
+//          //       processNodeValues[usefulNode].insert(e);
+//          //    }
+//          // }
+//          break;
+//       }
+//       case TR::newarray:
+//       {
+//          // process anewarray
+//          // evaluatedSymRef = -1;
+
+//          // if(populatePTA){
+//          //    Entry e = evaluateAllocate(usefulNode, methodIndex, true,comp);
+//          //    e.type = PrimitiveArray;
+//          //    e.clazz = NULL;
+//          //    processNodeValues[usefulNode].insert(e);
+//          // }
+
+//          break;
+//       }
+
+//       case TR::multianewarray:
+//       {
+//          // evaluatedSymRef = -1;
+
+//          // if(populatePTA){
+//          //    processNodeValues[usefulNode].insert(PointsToGraph::bottomEntry);
+//          // }
+//          break;
+//       }
+
+//       case TR::astore:
+//       {
+//          /*
+//            child of astore could be
+//                             EDGETYPE
+//            1. new            ASSIGN (from globalIndex_ node to the var slot)
+//            2. acalli         ASSIGN
+//            3. aload          ASSIGN [GETFIELD for static field read]
+//            4. aloadi         GETFIELD => use symRef
+//            5. anewarray      NEW
+
+//          */
+
+//          TR::Node *storeChild = usefulNode->getFirstChild();
+//          TR::ILOpCodes storeChild_opcode = storeChild->getOpCodeValue();
+//          // std::cout << storeChild->getOpCodeValue()<< endl;
+//          TR_ASSERT_FATAL(storeChild, "astore failed");
+
+//          // IGNORE STMTS like these -> astore <temp slot 4 holds monitoredObject syncMethod>
+//          const std::regex rx(R"(^<temp slot \d+ holds monitoredObject syncMethod>$)");
+//          std::regex primitive_shadow(R"(<generic\s+(int|long|float|double|byte|short|char)\s+shadow>)");
+//          std::string node_name = usefulNode->getSymbolReference()->getName(comp->getDebug());
+//          if (std::regex_match(node_name, rx) || std::regex_search(node_name, primitive_shadow))
+//          {
+//             return -238933;
+//          }
+//          // std::cout << usefulNode->getFirstChild()->getOpCode().getName() << " " << usefulNode->getFirstChild()->getSymbolReference()->getName(comp->getDebug()) << std::endl;
+//          // std::cout << getMethodName(comp->getOwningMethodSymbol(currentMethod)) << std::endl;
+
+//          int loadSymRef = evaluateNode(storeChild, evaluatedNodeValues, counter, methodIndex, mSet, currentMethod, comp, populatePTA);
+//          int storeSymRef = usefulNode->getSymbolReference()->getReferenceNumber();
+//          PAGNode *storeChild_pagNode_ptr;
+//          if (loadSymRef == -238933)
+//             return -238933;
+
+//          int32_t storeChildSymRef = -78765; // some random negative number
+//          if (storeChild->getOpCode().hasSymbolReference() && storeChild->getSymbolReference())
+//          {
+//             storeChildSymRef = storeChild->getSymbolReference()->getReferenceNumber();
+//          }
+
+//          if (loadSymRef == STATIC_FIELD_READ)
+//          {
+//             std::string class_name = storeChild->getSymbolReference()->getName(comp->getDebug());
+//             int dot_index = class_name.rfind(".");
+//             class_name = class_name.substr(0, dot_index);
+
+//             storeChild_pagNode_ptr = class_to_staticPAGNode[class_name];
+//          }
+//          else if (storeChild_opcode == TR::New)
+//          {
+//             int globalIndex_ = storeChild->getGlobalIndex();
+//             storeChild_pagNode_ptr = symRefNumToPAGNode[methodPersistentId][globalIndex_];
+//             symref_PAGNode[usefulNode->getSymbolReference()->getReferenceNumber()] = storeChild_pagNode_ptr;
+//          }
+//          else if (storeChildSymRef >= 0 && storeChild->getSymbolReference() && symRefNumToPAGNode[methodPersistentId].find(storeChildSymRef) != symRefNumToPAGNode[methodPersistentId].end())
+//          {
+//             storeChild_pagNode_ptr = symRefNumToPAGNode[methodPersistentId][storeChildSymRef];
+//             nodeAllocationMap[storeChild] = storeChild_pagNode_ptr;
+//          }
+//          else if (nodeAllocationMap.find(storeChild) != nodeAllocationMap.end())
+//          {
+//             storeChild_pagNode_ptr = nodeAllocationMap[storeChild];
+//             // std::cout << storeChild->getOpCode().getName()<<"2"<<std::endl;
+//          }
+//          else
+//          {
+//             storeChild_pagNode_ptr = new PAGNode(VARIABLE, storeSymRef, nullptr, methodPersistentId, storeChild->getByteCodeIndex(), methodIndex);
+//             pag->methodIndex_to_allMethodNodes[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, currentMethod), comp)].push_back(storeChild_pagNode_ptr);
+//             pag->PAG_nodes.insert(storeChild_pagNode_ptr);
+//             nodeAllocationMap[storeChild] = storeChild_pagNode_ptr;
+//             if (storeChildSymRef >= 0 && storeChild->getSymbolReference())
+//             {
+//                symRefNumToPAGNode[methodPersistentId][storeChildSymRef] = storeChild_pagNode_ptr;
+//                symRefNumToNode[storeChildSymRef] = storeChild;
+//             }
+//          }
+
+//          // TODO get clazz_ptr
+
+//          PAGNode *lhs_node_ptr;
+//          int32_t astore_lhs_symRef = usefulNode->getSymbolReference()->getReferenceNumber();
+
+//          if (symRefNumToPAGNode[methodPersistentId].find(astore_lhs_symRef) != symRefNumToPAGNode[methodPersistentId].end())
+//          {
+//             lhs_node_ptr = symRefNumToPAGNode[methodPersistentId][astore_lhs_symRef];
+//             nodeAllocationMap[usefulNode] = lhs_node_ptr;
+//          }
+//          else if (nodeAllocationMap.find(usefulNode) != nodeAllocationMap.end())
+//          {
+//             lhs_node_ptr = nodeAllocationMap[usefulNode];
+//          }
+//          else
+//          {
+//             lhs_node_ptr = new PAGNode(VARIABLE, storeSymRef, nullptr, methodPersistentId, usefulNode->getByteCodeIndex(), methodIndex);
+//             pag->methodIndex_to_allMethodNodes[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, currentMethod), comp)].push_back(lhs_node_ptr);
+
+//             pag->PAG_nodes.insert(lhs_node_ptr);
+//             nodeAllocationMap[usefulNode] = lhs_node_ptr;
+
+//             symRefNumToPAGNode[methodPersistentId][storeSymRef] = lhs_node_ptr;
+//             symRefNumToNode[storeSymRef] = usefulNode;
+//          }
+
+//          EdgeType e_type;
+//          if (storeChild_opcode == TR::New)
+//          {
+//             e_type = ASSIGN;
+//             abstractNode_to_assignedVar[storeChild_pagNode_ptr] = lhs_node_ptr;
+//          }
+//          else if (storeChild_opcode == TR::aloadi)
+//          {
+//             // for stmt like `x= y.f`,
+//             // usefulnode = x
+//             // usefulnode.child = y.f
+//             // usefulnode.child.child = y
+
+//             e_type = GETFIELD;
+//             TR::Node *y_node = storeChild->getFirstChild();
+//             if (storeChild->getSymbol()->isArrayShadowSymbol())
+//             {
+//                *y_node = storeChild->getFirstChild()->getFirstChild();
+//             }
+//             PAGNode *y_PAGnode_ptr;
+//             int32_t y_node_symRef = -78765; // some random negative number
+//             if (y_node->getOpCode().hasSymbolReference() && y_node->getSymbolReference())
+//             {
+//                y_node_symRef = y_node->getSymbolReference()->getReferenceNumber();
+//             }
+
+//             if (y_node_symRef >= 0 && symRefNumToPAGNode[methodPersistentId].find(y_node_symRef) != symRefNumToPAGNode[methodPersistentId].end())
+//             {
+//                y_PAGnode_ptr = symRefNumToPAGNode[methodPersistentId][y_node_symRef];
+//                y_node = symRefNumToNode[y_node_symRef];
+//                nodeAllocationMap[y_node] = y_PAGnode_ptr;
+//             }
+//             else if (nodeAllocationMap.find(y_node) != nodeAllocationMap.end())
+//             {
+//                y_PAGnode_ptr = nodeAllocationMap[y_node];
+//             }
+//             else
+//             {
+//                TR::SymbolReference *y_symRef = y_node->getSymbolReference();
+//                TR_ASSERT(y_symRef, "y_symRef is null");
+//                int y_symref_num = y_symRef->getReferenceNumber();
+//                y_PAGnode_ptr = new PAGNode(VARIABLE, y_symref_num, nullptr, methodPersistentId, y_node->getByteCodeIndex(), methodIndex);
+//                pag->methodIndex_to_allMethodNodes[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, currentMethod), comp)].push_back(y_PAGnode_ptr);
+
+//                pag->PAG_nodes.insert(y_PAGnode_ptr);
+//                nodeAllocationMap[y_node] = y_PAGnode_ptr;
+
+//                symRefNumToPAGNode[methodPersistentId][y_node_symRef] = y_PAGnode_ptr;
+//                symRefNumToNode[y_node_symRef] = y_node;
+//             }
+
+//             // Add edge:  y --Getfield--> x
+//             //            y_PAGnode_ptr --Getfield--> lhs_node_ptr
+//             int32_t len;
+//             string field_name = "$";
+
+//             if (!storeChild->getSymbol()->isArrayShadowSymbol())
+//             {
+//                field_name = storeChild->getSymbolReference()->getOwningMethod(comp)->fieldNameChars(storeChild->getSymbolReference()->getCPIndex(), len);
+//             }
+//             field_name = field_name.substr(0, len);
+//             // std::cout <<"Y_node: " << y_node->getOpCodeValue() << std::endl;
+//             // std::cout << "In astore:field is "<<field_name<<" len = "<< len << std::endl;
+
+//             // PAGEdge *new_edge = new PAGEdge(y_PAGnode_ptr, lhs_node_ptr, e_type, field_name);
+
+//             // lhs_node_ptr->incoming.insert(new_edge);
+//             // y_PAGnode_ptr->outgoing.insert(new_edge);
+//             updateMatchEdges();
+//             pag->addEdge(y_PAGnode_ptr, lhs_node_ptr, e_type, field_name);
+//             for (auto *edge : pag->getMatchEdgesEndingAt(lhs_node_ptr))
+//             {
+//                PAGNode *src = edge->src;
+//                lhs_node_ptr->pointee_class_names.insert(src->pointee_class_names.begin(), src->pointee_class_names.end());
+//             }
+//             evaluatedSymRef = storeSymRef;
+//             break;
+//          }
+//          else if (storeChild_opcode == TR::anewarray)
+//          {
+//             e_type = NEW;
+//          }
+//          else if (storeChild_opcode == TR::aload && loadSymRef == STATIC_FIELD_READ)
+//          {
+//             e_type = GETFIELD;
+//          }
+//          else
+//          {
+//             e_type = ASSIGN;
+//          }
+
+//          if (storeChild_opcode == TR::acalli || storeChild_opcode == TR::acall)
+//          {
+//             // Add edge from return node of the called method to lhs_node_ptr
+//             PAGNode *return_pag_node;
+//             for (auto target : callsite_to_targets[storeChild])
+//             {
+//                return_pag_node = pag->methodIndex_to_returnNode[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, target), comp)];
+//                // PAGEdge *new_edge = new PAGEdge(return_pag_node, lhs_node_ptr, ASSIGN, storeChild->getByteCodeIndex());
+//                // lhs_node_ptr->incoming.insert(new_edge);
+//                // return_pag_node->outgoing.insert(new_edge);
+//                if (!return_pag_node)
+//                {
+//                   TR::ResolvedMethodSymbol *methodSymbol = getCachedResolvedMethodFromPtr(comp, currentMethod)->findOrCreateJittedMethodSymbol(comp);
+//                   int methodInd = getOrInsertMethodIndex(methodSymbol, comp);
+//                   pag->methodIndex_to_returnNode[methodInd] = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, currentMethod, -1, methodInd);
+//                   pag->PAG_nodes.insert(pag->methodIndex_to_returnNode[methodInd]);
+//                   pag->methodIndex_to_allMethodNodes[methodInd].push_back(pag->methodIndex_to_returnNode[methodInd]);
+//                   return_pag_node = pag->methodIndex_to_returnNode[methodInd];
+//                }
+
+//                pag->addEdge(return_pag_node, lhs_node_ptr, ASSIGN, storeChild->getByteCodeIndex());
+//                callsite_to_storeNode[storeChild->getByteCodeIndex()] = lhs_node_ptr;
+//                lhs_node_ptr->pointee_class_names.insert(return_pag_node->pointee_class_names.begin(), return_pag_node->pointee_class_names.end());
+//             }
+//          }
+//          else
+//          {
+//             // PAGEdge *new_edge = new PAGEdge(storeChild_pagNode_ptr, lhs_node_ptr, e_type);
+
+//             // std::cout<<"e_type: "<<e_type<<" storeChild_pagNode_ptr: "<<storeChild_pagNode_ptr->bci<<storeChild_pagNode_ptr->name<<std::endl;
+
+//             // lhs_node_ptr->incoming.insert(new_edge);
+//             // storeChild_pagNode_ptr->outgoing.insert(new_edge);
+
+//             pag->addEdge(storeChild_pagNode_ptr, lhs_node_ptr, e_type);
+//             if (e_type == GETFIELD)
+//             {
+//                updateMatchEdges();
+//                for (auto *edge : pag->getMatchEdgesEndingAt(lhs_node_ptr))
+//                {
+//                   PAGNode *src = edge->src;
+//                   lhs_node_ptr->pointee_class_names.insert(src->pointee_class_names.begin(), src->pointee_class_names.end());
+//                }
+//             }
+//             else if (e_type == ASSIGN)
+//             {
+//                lhs_node_ptr->pointee_class_names.insert(storeChild_pagNode_ptr->pointee_class_names.begin(), storeChild_pagNode_ptr->pointee_class_names.end());
+//             }
+//          }
+
+//          // if (usefulNode->stmtNumber == 0)
+//          // {
+//          //    counter.stmtCount++;
+//          //    usefulNode->stmtNumber = counter.stmtCount;
+//          // }
+//          // stmtNumber[methodPersistentId][usefulNode->stmtNumber] = usefulNode;
+
+//          // if (loadSymRef <= -10 || loadSymRef >= 0)
+//          // {
+//          //    mSet.ds.unionDS(storeSymRef, loadSymRef);
+//          //    mSet.stmtMap[storeSymRef].insert(usefulNode->stmtNumber);
+//          //    // std::cout<<storeSymRef<< " " <<loadSymRef<<std::endl;
+//          // }
+//          // else
+//          // {
+//          //    if (loadSymRef == -1)
+//          //    {
+//          //       mSet.stmtMap[storeSymRef].insert(usefulNode->stmtNumber);
+//          //    }
+//          // }
+
+//          evaluatedSymRef = storeSymRef;
+
+//          break;
+//       }
+//       case TR::aload:
+//       {
+//          // // process load here
+
+//          // // TODO - static field reads appear as follows:
+//          // //         n1n       BBStart <block_2>
+//          // //         n4n       astore  <auto slot 1>[#357  Auto] [flags 0x7 0x0 ]
+//          // //         n3n         aload  B.a LA;[#356  notAccessed Static] [flags 0x307 0x0 ]
+//          // //         n5n       return
+//          // //         n2n       BBEnd </block_2> =====
+//          // // we need a way to identify if the symref is a static or no
+
+//          // Regex explanation: FOR entries like "aload <callSite entry @0        0x1212ef4a0>" -> SKIP THEM
+//          // ^<callSite entry @  -> must start with this
+//          // \\d+               -> one or more digits
+//          // \\s+               -> one or more spaces
+//          // 0x[0-9a-fA-F]+     -> hex address
+//          // >$                 -> must end with '>'
+//          std::regex pattern("^<callSite entry @\\d+\\s+0x[0-9a-fA-F]+>$");
+//          std::string nm = usefulNode->getSymbolReference()->getName(comp->getDebug());
+//          bool isNotFieldNode = std::regex_match(nm, pattern);
+
+//          if (isNotFieldNode)
+//          {
+//             return -344565;
+//          }
+
+//          bool isStaticFieldRead = usefulNode->getSymbol()->isStaticField();
+//          int loadSymRef = usefulNode->getSymbolReference()->getReferenceNumber();
+
+//          PAGNode *pag_node_ptr;
+//          if (symRefNumToPAGNode[methodPersistentId].find(loadSymRef) != symRefNumToPAGNode[methodPersistentId].end())
+//          {
+//             pag_node_ptr = symRefNumToPAGNode[methodPersistentId][loadSymRef];
+//             nodeAllocationMap[usefulNode] = pag_node_ptr;
+//          }
+//          else if (nodeAllocationMap.find(usefulNode) == nodeAllocationMap.end())
+//          {
+//             pag_node_ptr = new PAGNode(VARIABLE, loadSymRef, nullptr, methodPersistentId, usefulNode->getByteCodeIndex(), methodIndex);
+//             pag->methodIndex_to_allMethodNodes[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, currentMethod), comp)].push_back(pag_node_ptr);
+
+//             pag->PAG_nodes.insert(pag_node_ptr);
+//             nodeAllocationMap[usefulNode] = pag_node_ptr;
+
+//             symRefNumToPAGNode[methodPersistentId][loadSymRef] = pag_node_ptr;
+//             symRefNumToNode[loadSymRef] = usefulNode;
+
+//             // std::cout<<"Inside aload 1\n ";
+//             // std::cout << node->getSymbolReference()->getName(comp->getDebug())<< node->getByteCodeIndex()<<"\n";
+//          }
+//          // else
+//          // {
+//          //      pag_node_ptr = nodeAllocationMap[usefulNode];
+//          // }
+
+//          if (isStaticFieldRead)
+//          {
+
+//             evaluatedSymRef = STATIC_FIELD_READ;
+
+//             // if(!exhaustive){
+//             //    processNodeValues[usefulNode].insert(PointsToGraph::bottomEntry);
+//             // }
+//             int len;
+//             // std::cout << usefulNode->getGlobalIndex() <<" " << usefulNode->getSymbolReference()->getReferenceNumber() << " " <<  << std::endl;
+//             std::string field_name = usefulNode->getSymbolReference()->getOwningMethod(comp)->fieldNameChars(usefulNode->getSymbolReference()->getCPIndex(), len);
+//             field_name = field_name.substr(0, len);
+
+//             std::string class_name = usefulNode->getSymbolReference()->getName(comp->getDebug());
+//             int dot_index = class_name.rfind(".");
+//             class_name = class_name.substr(0, dot_index);
+//             field_name = class_name + "." + field_name;
+//             if (class_to_staticPAGNode.find(class_name) == class_to_staticPAGNode.end())
+//             {
+//                class_to_staticPAGNode[class_name] = new PAGNode(STATIC, class_name, methodIndex);
+//                pag->methodIndex_to_allMethodNodes[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, currentMethod), comp)].push_back(class_to_staticPAGNode[class_name]);
+
+//                pag->PAG_nodes.insert(class_to_staticPAGNode[class_name]);
+//                nodeAllocationMap[usefulNode] = class_to_staticPAGNode[class_name];
+//             }
+//          }
+//          else
+//          {
+//             int loadSymRef = usefulNode->getSymbolReference()->getReferenceNumber();
+
+//             evaluatedSymRef = loadSymRef;
+
+//             // if(populatePTA){
+//             //    if(usefulNode->getSymbolReference()->getSymbol()->getKind() == TR::Symbol::IsMethodMetaData){
+//             //       std::string loadName = comp->getDebug()->getMetaDataName(usefulNode->getSymbolReference());
+//             //       if(loadName.find("ExceptionMeta") != std::string::npos){
+//             //          processNodeValues[usefulNode].insert(PointsToGraph::bottomEntry);
+//             //       }
+//             //    }else if (usefulNode->getSymbolReference()->getSymbol()->castToStaticSymbol()->isConstString()){
+//             //       processNodeValues[usefulNode].insert(PointsToGraph::stringEntry);
+//             //    }else{
+
+//             //       set<Entry> pointsToSet = methodPTG[currentMethod]->getPointsToSet(loadSymRef);
+//             //       processNodeValues[usefulNode].insert(pointsToSet.begin(), pointsToSet.end());
+//             //    }
+//             // }
+//          }
+//          // std::cout<<"evaluatedSymRef: in aload"<<evaluatedSymRef<<std::endl;
+
+//          break;
+//       }
+
+//       case TR::aloadi:
+//       {
+
+//          /*
+//            A statement `x = y.f` is broken down as:
+
+//             1. aload y -> Load the reference of y from a local variable.
+//             2. aloadi f -> Load the field f from the object y.
+//             3. astore x -> Store the result in x.
+
+//             //NOTE: child of aloadi is only aload and not astore
+//             // child of aloadi could be "==> acalli"
+//          */
+
+//          // std::cout<<"inside aloadi 2\n";
+//          // std::cout << node->getSymbolReference()->getName(comp->getDebug()) << node->getByteCodeIndex()<<"\n";
+
+//          // // TODO:
+//          // // array subs look like this:
+//          // //         n21n      compressedRefs
+//          // //         n19n        aloadi  <array-shadow>[#232  Shadow] [flags 0x80000607 0x0 ]
+//          // //         n18n          aladd (internalPtr sharedMemory )
+//          // //         n8n             ==>aload
+//          // //         n17n            ladd
+//          // //         n15n              lshl
+//          // //         n14n                i2l (X>=0 )
+//          // //         n9n                   ==>iconst 9
+//          // //         n13n                iconst 2
+//          // //         n16n              lconst 16
+//          // //         n20n        lconst 0
+
+//          const std::regex rx(R"(^<temp slot \d+ holds monitoredObject syncMethod>$)");
+//          std::regex primitive_shadow(R"(<generic\s+(int|long|float|double|byte|short|char)\s+shadow>)");
+//          std::string node_name = usefulNode->getSymbolReference()->getName(comp->getDebug());
+//          if (std::regex_match(node_name, rx) || std::regex_search(node_name, primitive_shadow))
+//          {
+//             return -238933;
+//          }
+
+//          std::string field;
+//          if (usefulNode->getSymbol()->isArrayShadowSymbol()) // handle array load
+//          {
+
+//             TR::Node *receiverNode = usefulNode->getFirstChild()->getFirstChild();
+//             evaluatedSymRef = evaluateNode(receiverNode, evaluatedNodeValues, counter, methodIndex, mSet, currentMethod, comp, populatePTA);
+
+//             //    if(populatePTA){
+//             //       // std::cout<<"array read "<<receiverNode<<"\n";
+//             //       std::set<Entry> receiverNodeVals = processNodeValues[receiverNode];
+//             //       field = "_$";
+//             //       //std::cout<<"is this issue or no ?\n";
+//             //       for (Entry receiver : receiverNodeVals)
+//             //       {
+//             //          set<Entry> rhsPointees = methodPTG[currentMethod]->getPointsToSet(receiver, field);
+//             //          processNodeValues[usefulNode].insert(rhsPointees.begin(), rhsPointees.end());
+//             //       }
+//             //    }
+//          }
+//          else
+//          {
+
+//             TR::SymbolReference *symRef = usefulNode->getSymbolReference();
+//             TR_ASSERT_FATAL(symRef, "aloadi fail 1");
+
+//             // bool isUnresolved = symRef->isUnresolved();
+//             // IFDIAGPRINT << "isUnresolved = " << isUnresolved << endl;
+
+//             bool isShadow = symRef->getSymbol()->getKind() == TR::Symbol::IsShadow;
+//             // IFDIAGPRINT << "isShadow = " << isShadow << endl;
+
+//             int cpIndex = symRef->getCPIndex();
+//             // IFDIAGPRINT << "cp index = " << cpIndex << endl;
+
+//             if (/* !isUnresolved && */ isShadow && cpIndex > 0)
+//             {
+//                // this is most certainly a field access, until proven otherwise
+
+//                // receiver,
+//                TR::Node *receiverNode = usefulNode->getFirstChild();
+//                TR_ASSERT_FATAL(receiverNode, "aloadi fail 2");
+
+//                evaluatedSymRef = evaluateNode(receiverNode, evaluatedNodeValues, counter, methodIndex, mSet, currentMethod, comp, populatePTA);
+//                // std::cout<<"evaluatedSymRef: in aloadi"<<evaluatedSymRef<<std::endl;
+//                // if(populatePTA){
+//                // std::set<Entry> receiverNodeVals = processNodeValues[receiverNode];
+//                int32_t len;
+//                const char *fieldName = usefulNode->getSymbolReference()->getOwningMethod(comp)->fieldNameChars(usefulNode->getSymbolReference()->getCPIndex(), len);
+//                field.assign(fieldName, fieldName + len);
+//                // for (Entry receiver : receiverNodeVals)
+//                // {
+//                //    set<Entry> rhsPointees = methodPTG[currentMethod]->getPointsToSet(receiver, field);
+//                //    processNodeValues[usefulNode].insert(rhsPointees.begin(), rhsPointees.end());
+//                // }
+//                // }
+
+//                PAGNode *receiver_pag_ptr;
+//                int32_t receiver_symRef = -78765; // random negative number
+//                if (receiverNode->getOpCode().hasSymbolReference() && receiverNode->getSymbolReference())
+//                {
+//                   receiver_symRef = receiverNode->getSymbolReference()->getReferenceNumber();
+//                }
+
+//                if (symRefNumToPAGNode[methodPersistentId].find(receiver_symRef) != symRefNumToPAGNode[methodPersistentId].end())
+//                {
+//                   receiver_pag_ptr = symRefNumToPAGNode[methodPersistentId][receiver_symRef];
+//                   nodeAllocationMap[receiverNode] = receiver_pag_ptr;
+//                }
+//                else if (nodeAllocationMap.find(receiverNode) != nodeAllocationMap.end())
+//                {
+//                   receiver_pag_ptr = nodeAllocationMap[receiverNode];
+//                }
+//                else
+//                {
+//                   receiver_pag_ptr = new PAGNode(VARIABLE, receiverNode->getSymbolReference()->getReferenceNumber(), nullptr, methodPersistentId, receiverNode->getByteCodeIndex(), methodIndex);
+//                   pag->methodIndex_to_allMethodNodes[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, currentMethod), comp)].push_back(receiver_pag_ptr);
+//                   pag->PAG_nodes.insert(receiver_pag_ptr);
+//                   nodeAllocationMap[receiverNode] = receiver_pag_ptr;
+//                   if (receiver_symRef >= 0)
+//                   {
+//                      symRefNumToPAGNode[methodPersistentId][receiver_symRef] = receiver_pag_ptr;
+//                      symRefNumToNode[receiver_symRef] = receiverNode;
+//                   }
+//                }
+//             }
+//          }
+
+//          break;
+//       }
+//       case TR::awrtbar:
+//       {
+//          // the structure of the awrtbar node for a static store is as follows. We are interested only in the first child (corresponds to the rhs in A.f = x)
+
+//          //   awrtbar  A.f LA;[#356  notAccessed Static] [flags 0x307 0x0 ]
+//          //     aload  <auto slot 1>[#363  Auto] [flags 0x7 0x0 ]
+//          //     aloadi  <javaLangClassFromClass>[#275  Shadow +48] [flags 0x607 0x0 ]
+//          //       ==>loadaddr
+
+//          // if (usefulNode->stmtNumber == 0)
+//          // {
+//          //    counter.stmtCount++;
+//          //    usefulNode->stmtNumber = counter.stmtCount;
+
+//          // }
+
+//          evaluatedSymRef = evaluateNode(usefulNode->getFirstChild(), evaluatedNodeValues, counter, methodIndex, mSet, currentMethod, comp, populatePTA);
+
+//          int len;
+//          std::string field_name = usefulNode->getSymbolReference()->getOwningMethod(comp)->fieldNameChars(usefulNode->getSymbolReference()->getCPIndex(), len);
+//          field_name = field_name.substr(0, len);
+
+//          std::string class_name = usefulNode->getSymbolReference()->getName(comp->getDebug());
+//          int dot_index = class_name.rfind(".");
+//          class_name = class_name.substr(0, dot_index);
+//          field_name = class_name + "." + field_name; // A.f
+//          if (class_to_staticPAGNode.find(class_name) == class_to_staticPAGNode.end())
+//          {
+//             class_to_staticPAGNode[class_name] = new PAGNode(STATIC, class_name, methodIndex);
+//             pag->methodIndex_to_allMethodNodes[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, currentMethod), comp)].push_back(class_to_staticPAGNode[class_name]);
+
+//             pag->PAG_nodes.insert(class_to_staticPAGNode[class_name]);
+//          }
+//          // A.f1 = b1;   b1 --putf--> A
+//          PAGNode *static_pag_ptr = class_to_staticPAGNode[class_name];
+
+//          PAGNode *rhs_pag_ptr;
+//          if (symRefNumToPAGNode[methodPersistentId].find(evaluatedSymRef) != symRefNumToPAGNode[methodPersistentId].end())
+//          {
+
+//             rhs_pag_ptr = symRefNumToPAGNode[methodPersistentId][evaluatedSymRef];
+//             nodeAllocationMap[usefulNode->getFirstChild()] = rhs_pag_ptr;
+//          }
+//          else if (nodeAllocationMap.find(usefulNode->getFirstChild()) != nodeAllocationMap.end())
+//          {
+
+//             rhs_pag_ptr = nodeAllocationMap[usefulNode->getFirstChild()];
+//          }
+//          else
+//          {
+
+//             rhs_pag_ptr = new PAGNode(VARIABLE, evaluatedSymRef, nullptr, methodPersistentId, usefulNode->getFirstChild()->getByteCodeIndex(), methodIndex);
+//             pag->methodIndex_to_allMethodNodes[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, currentMethod), comp)].push_back(rhs_pag_ptr);
+
+//             pag->PAG_nodes.insert(rhs_pag_ptr);
+//             nodeAllocationMap[usefulNode->getFirstChild()] = rhs_pag_ptr;
+//             // if (rhs_node_symRef >= 0)
+//             // {
+//             symRefNumToPAGNode[methodPersistentId][evaluatedSymRef] = rhs_pag_ptr;
+//             symRefNumToNode[evaluatedSymRef] = usefulNode->getFirstChild();
+//             // }
+//          }
+
+//          // PAGEdge *new_edge = new PAGEdge(rhs_pag_ptr, static_pag_ptr, PUTFIELD, field_name);
+
+//          // rhs_pag_ptr->outgoing.insert(new_edge);
+
+//          // static_pag_ptr->incoming.insert(new_edge);
+
+//          pag->addEdge(rhs_pag_ptr, static_pag_ptr, PUTFIELD, field_name);
+//          updateMatchEdges();
+//          pag->LeakyNodes.insert(rhs_pag_ptr);
+//          staticField_to_Node[field_name] = static_pag_ptr;
+//          // stmtNumber[methodPersistentId][usefulNode->stmtNumber] = usefulNode;
+//          // mSet.stmtMap[evaluatedSymRef].insert(usefulNode->stmtNumber);
+
+//          break;
+//       }
+//       case TR::awrtbari:
+//       {
+//          /*
+//            The first child is the address being written to.
+//            The second child is the object being stored (or the source object) -> acalli,aload,aconst
+//            The third child is the object being stored into (or the destination object).
+//          */
+//          // process field store
+//          // first we obtain the children of awrtbari
+//          // obviously we only process if the RHS of the field write is a ref type
+
+//          // awrtbari also performs array writes!
+
+//          // if (usefulNode->stmtNumber == 0)
+//          // {
+//          //    counter.stmtCount++;
+//          //    usefulNode->stmtNumber = counter.stmtCount;
+
+//          // }
+
+//          // stmtNumber[methodPersistentId][usefulNode->stmtNumber] = usefulNode;
+
+//          // std::cout << getMethodName(comp->getOwningMethodSymbol(currentMethod)) << " is the method name in awrtbari$$$$\n";
+
+//          TR::Node *rhsNode = usefulNode->getSecondChild();
+
+//          TR_ASSERT_FATAL(rhsNode, "awrtbari fail");
+//          TR::Node *receiverNode = usefulNode->getFirstChild();
+//          TR_ASSERT_FATAL(receiverNode, "awrtbari fail 2");
+
+//          if (rhsNode->getDataType() == TR::Address) // only process if the RHS of the field write is a ref type
+//          {
+
+//             int32_t rhs_node_symRef = -9876;
+//             PAGNode *rhs_pag_ptr = nullptr;
+//             rhs_node_symRef = evaluateNode(rhsNode, evaluatedNodeValues, counter, methodIndex, mSet, currentMethod, comp, populatePTA);
+//             // std::cout << "rhs_node_symRef: " << rhs_node_symRef << std::endl;
+//             // if (!usefulNode->getSymbol()->isArrayShadowSymbol())
+//             // {
+//             if (rhsNode->getOpCode().hasSymbolReference() && rhsNode->getOpCodeValue() != TR::New)
+//             {
+//                rhs_node_symRef = rhsNode->getSymbolReference()->getReferenceNumber();
+//             }
+
+//             if (usefulNode->getSymbol()->isArrayShadowSymbol())
+//                receiverNode = usefulNode->getThirdChild();
+
+//             // receiver
+//             int32_t receiver_node_symRef = receiverNode->getSymbolReference()->getReferenceNumber();
+
+//             if (symRefNumToPAGNode[methodPersistentId].find(rhs_node_symRef) != symRefNumToPAGNode[methodPersistentId].end())
+//             {
+
+//                rhs_pag_ptr = symRefNumToPAGNode[methodPersistentId][rhs_node_symRef];
+//                nodeAllocationMap[rhsNode] = rhs_pag_ptr;
+//             }
+//             else if (nodeAllocationMap.find(rhsNode) != nodeAllocationMap.end())
+//             {
+
+//                rhs_pag_ptr = nodeAllocationMap[rhsNode];
+//             }
+//             else
+//             {
+//                rhs_pag_ptr = new PAGNode(VARIABLE, rhs_node_symRef, nullptr, methodPersistentId, rhsNode->getByteCodeIndex(), methodIndex);
+//                pag->methodIndex_to_allMethodNodes[current_method_index].push_back(rhs_pag_ptr);
+
+//                pag->PAG_nodes.insert(rhs_pag_ptr);
+//                nodeAllocationMap[rhsNode] = rhs_pag_ptr;
+//                if (rhs_node_symRef >= 0)
+//                {
+//                   symRefNumToPAGNode[methodPersistentId][rhs_node_symRef] = rhs_pag_ptr;
+//                   symRefNumToNode[rhs_node_symRef] = rhsNode;
+//                }
+//             }
+
+//             PAGNode *receiver_pag_ptr;
+//             if (symRefNumToPAGNode[methodPersistentId].find(receiver_node_symRef) != symRefNumToPAGNode[methodPersistentId].end())
+//             {
+//                receiver_pag_ptr = symRefNumToPAGNode[methodPersistentId][receiver_node_symRef];
+//                nodeAllocationMap[receiverNode] = receiver_pag_ptr;
+//             }
+//             else if (nodeAllocationMap.find(receiverNode) != nodeAllocationMap.end())
+//             {
+//                receiver_pag_ptr = nodeAllocationMap[receiverNode];
+//             }
+//             else
+//             {
+//                receiver_pag_ptr = new PAGNode(VARIABLE, receiverNode->getSymbolReference()->getReferenceNumber(), nullptr, methodPersistentId, receiverNode->getByteCodeIndex(), methodIndex);
+//                pag->PAG_nodes.insert(receiver_pag_ptr);
+//                pag->methodIndex_to_allMethodNodes[current_method_index].push_back(receiver_pag_ptr);
+
+//                nodeAllocationMap[receiverNode] = receiver_pag_ptr;
+//                if (rhs_node_symRef >= 0)
+//                {
+//                   symRefNumToPAGNode[methodPersistentId][receiver_node_symRef] = receiver_pag_ptr;
+//                   symRefNumToNode[receiver_node_symRef] = receiverNode;
+//                }
+//             }
+//             int len;
+//             string field_name;
+//             if (usefulNode->getSymbol()->isArrayShadowSymbol())
+//             {
+//                field_name = "$";
+//             }
+//             else
+//             {
+//                field_name = usefulNode->getSymbolReference()->getOwningMethod(comp)->fieldNameChars(usefulNode->getSymbolReference()->getCPIndex(), len);
+//                field_name = field_name.substr(0, len);
+//             }
+//             // PAGEdge *new_edge = new PAGEdge(rhs_pag_ptr, receiver_pag_ptr, PUTFIELD, field_name);
+
+//             // rhs_pag_ptr->outgoing.insert(new_edge);
+
+//             // receiver_pag_ptr->incoming.insert(new_edge);
+//             // TR_OpaqueMethodBlock *clazz = usefulNode->getSymbol()->getResolvedMethodSymbol()->getResolvedMethod()->getPersistentIdentifier();
+//             // TR::SymbolReference *fieldSymRef = usefulNode->getSymbolReference();
+
+//             // TR_OpaqueClassBlock *declaringClassBlock = fieldSymRef->getOwningMethod(comp)->getDeclaringClassFromFieldOrStatic(comp, fieldSymRef->getCPIndex());
+//             // J9Class *resolvedClass = (J9Class *)declaringClassBlock;
+
+//             // J9UTF8 *classNameutf8 = J9ROMCLASS_CLASSNAME(resolvedClass->romClass);
+//             // const char *classNameData = (const char *)J9UTF8_DATA(classNameutf8);
+//             // uint16_t classNameLength = J9UTF8_LENGTH(classNameutf8);
+//             // std::string className(classNameData,classNameLength);
+
+//             // field_name = className + "." + field_name;
+//             std::string name = usefulNode->getSymbolReference()->getName(comp->getDebug());
+//             std::string full_name = name.substr(0, name.find(' '));
+//             ;
+//             // std::cout << full_name << std::endl;
+//             pag->addEdge(rhs_pag_ptr, receiver_pag_ptr, PUTFIELD, field_name);
+//             if (pag->threadAccessibleFields.find(full_name) != pag->threadAccessibleFields.end())
+//             {
+//                pag->LeakyNodes.insert(rhs_pag_ptr);
+//             }
+
+//             //       TR::SymbolReference *symRef = usefulNode->getSymbolReference();
+//             //       // bool isUnresolved = symRef->isUnresolved();
+//             //       bool isShadow = symRef->getSymbol()->getKind() == TR::Symbol::IsShadow;
+//             //       int cpIndex = symRef->getCPIndex();
+
+//             //       if (/* !isUnresolved && */ isShadow && cpIndex > 0)
+//             //       {
+//             //          //    // this is most certainly a field access, until proven otherwise
+
+//             //          if (loadSymRef <= -10 || loadSymRef >= 0)
+//             //          {
+//             //             mSet.ds.unionDS(storeSymRef, loadSymRef);
+//             //             mSet.stmtMap[storeSymRef].insert(usefulNode->stmtNumber);
+//             //          }
+//             //          else
+//             //          {
+//             //             if (loadSymRef == -1)
+//             //             {
+//             //                mSet.stmtMap[storeSymRef].insert(usefulNode->stmtNumber);
+//             //             }
+//             //          }
+//             //       }
+
+//             //       evaluatedSymRef = storeSymRef;
+//             //    }
+//             //    else{
+//             //          //array writes
+
+//             //          TR::Node *receiverNode = usefulNode->getThirdChild();
+
+//             //          // value
+//             //          int storeSymRef = evaluateNode(receiverNode, evaluatedNodeValues, counter, methodIndex, mSet, currentMethod, comp, populatePTA);
+
+//             //          // add edge rhsNode --putfield[$]--> receiverNode
+//             //          PAGNode *receiver_pag_ptr;
+//             //          if (symRefNumToPAGNode[methodPersistentId].find(receiver_node_symRef) != symRefNumToPAGNode[methodPersistentId].end())
+//             //          {
+//             //             receiver_pag_ptr = symRefNumToPAGNode[methodPersistentId][receiver_node_symRef];
+//             //             nodeAllocationMap[receiverNode] = receiver_pag_ptr;
+//             //          }
+//             //          else if (nodeAllocationMap.find(receiverNode) != nodeAllocationMap.end())
+//             //          {
+//             //             receiver_pag_ptr = nodeAllocationMap[receiverNode];
+//             //          }
+//             //          else
+//             //          {
+//             //             receiver_pag_ptr = new PAGNode(VARIABLE, receiverNode->getSymbolReference()->getReferenceNumber(), nullptr, methodPersistentId, receiverNode->getByteCodeIndex());
+//             //             pag->PAG_nodes.insert(receiver_pag_ptr);
+//             // pag->methodIndex_to_allMethodNodes[currentMethod].push_back(receiver_pag_ptr);
+
+//             //             nodeAllocationMap[receiverNode] = receiver_pag_ptr;
+//             //             if (rhs_node_symRef >= 0)
+//             //             {
+//             //                symRefNumToPAGNode[methodPersistentId][receiver_node_symRef] = receiver_pag_ptr;
+//             //                symRefNumToNode[receiver_node_symRef] = receiverNode;
+//             //             }
+//             //          }
+
+//             //          // if ((storeSymRef <= -10 || storeSymRef >= 0) && (loadSymRef <= -10 || loadSymRef >= 0))
+//             //          // {
+//             //          //    mSet.ds.unionDS(storeSymRef, loadSymRef);
+//             //          //    mSet.stmtMap[storeSymRef].insert(usefulNode->stmtNumber);
+//             //          //    // std::cout<<storeSymRef<< " " <<loadSymRef<<std::endl;
+//             //          // }
+//             //          // else
+//             //          // {
+//             //          //    if ((storeSymRef <= -10 || storeSymRef >= 0) && loadSymRef == -1)
+//             //          //    {
+//             //          //       mSet.stmtMap[storeSymRef].insert(usefulNode->stmtNumber);
+//             //          //    }
+//             //          // }
+
+//             //          evaluatedSymRef = storeSymRef;
+//          }
+
+//          //    //
+//          // }
+
+//          break;
+//       }
+
+//       case TR::icalli:
+//       // case TR::vcalli:
+//       case TR::lcalli:
+//       case TR::fcalli:
+//       case TR::dcalli:
+//       case TR::acalli:
+//       case TR::calli:
+//       case TR::icall:
+//       case TR::lcall:
+//       case TR::fcall:
+//       case TR::dcall:
+//       case TR::acall:
+//       case TR::call:
+//       case TR::vcall:
+//       {
+
+//          // check if method is a helper
+//          bool isHelperMethodCall = usefulNode->getSymbol()->castToMethodSymbol()->isHelper();
+//          const char *methodName;
+//          if (!isHelperMethodCall)
+//          {
+//             methodName = usefulNode->getSymbolReference()->getName(comp->getDebug());
+//             // cache the name of method
+//             cachedMethodName[usefulNode] = methodName;
+
+//             std::cout << "Called method: " << cachedMethodName[usefulNode] << " usefull node " << usefulNode << std::endl;
+//          }
+
+//          // we do not want to process helper method calls (prepareForOSR, potentialOSRPointHelper, for example)
+//          if (isHelperMethodCall) // || (usefulNode->getSymbolReference()->isUnresolved() && !usefulNode->getSymbol()->castToMethodSymbol()->isInterface()))
+//          {
+//             evaluatedSymRef = -1;
+//             break;
+//          }
+//          else if (isLibraryMethod(methodName) && ((std::string)methodName).find("java/lang/Object.<init>") == std::string::npos)
+//          {
+//          }
+//          else
+//          {
+//             // checks to determine the type of method call
+//             bool isStatic = usefulNode->getSymbol()->castToMethodSymbol()->isStatic();
+//             bool isInterfaceInvoke = usefulNode->getSymbol()->castToMethodSymbol()->isInterface();
+
+//             // fetch the bci of method call
+//             int callsiteBCI = usefulNode->getByteCodeIndex();
+//             if (isInterfaceInvoke)
+//             {
+//                // in case of invokeinterface, J9 seems to increment the bci by 2. This causes a mismatch with static artifacts, so we adjust it back
+//                callsiteBCI -= 2;
+//             }
+
+//             //  // methods to be peeked
+//             //  std::unordered_set<TR_OpaqueMethodBlock *> methodsToPeek;
+//             int argIndex = 0;
+//             if (isStatic)
+//             {
+//                argIndex = 1;
+//                // int classNameLength = usefulNode->getSymbol()->castToResolvedMethodSymbol()->getMethod()->classNameLength();
+//                // string className = usefulNode->getSymbol()->castToResolvedMethodSymbol()->getMethod()->classNameChars();
+//                // className = className.substr(0, classNameLength);
+
+//                // TR_OpaqueClassBlock *type = comp->fe()->getClassFromSignature(className.c_str(), classNameLength, comp->getCurrentMethod(), true);
+//                // TR_ASSERT_FATAL(type, "unable to get class pointer for receiver %s", className.c_str());
+//                // int methodNameLength = usefulNode->getSymbol()->castToResolvedMethodSymbol()->getMethod()->nameLength();
+//                // std::string methodNm;
+//                // methodNm = usefulNode->getSymbol()->castToResolvedMethodSymbol()->getMethod()->nameChars();
+//                // methodNm = methodNm.substr(0, methodNameLength);
+//                // int sigLength = usefulNode->getSymbol()->castToResolvedMethodSymbol()->getMethod()->signatureLength();
+//                // std::string signatureChars = usefulNode->getSymbol()->getMethodSymbol()->getMethod()->signatureChars();
+//                // std::string sig = signatureChars.substr(0, sigLength);
+
+//                // std::cout << "In isStatic :: Class name: " << className << " method_name: " << methodNm << " Signature " << sig << std::endl;
+
+//                // if (type != NULL)
+//                // {
+//                //    TR_ResolvedMethod *targetMethod = getCachedResolvedMethod(comp, type, methodNm.c_str(), sig.c_str());
+//                //    if (targetMethod != NULL)
+//                //    {
+//                //       methodsToPeek.insert(targetMethod->getPersistentIdentifier());
+//                //       // cachedParameterType[targetMethod->getPersistentIdentifier()][0] = type;
+//                //    }
+//                // }
+
+//                TR::ResolvedMethodSymbol *callNodeSymbol;
+//                int methodNameLength = usefulNode->getSymbol()->castToMethodSymbol()->getMethod()->nameLength();
+
+//                int mClazzlen = usefulNode->getSymbol()->castToMethodSymbol()->getMethod()->classNameLength();
+
+//                std::string mClazzChars = usefulNode->getSymbol()->castToMethodSymbol()->getMethod()->classNameChars();
+
+//                std::string mClazzName = mClazzChars.substr(0, mClazzlen);
+
+//                TR_OpaqueClassBlock *mClazz = getCachedClass(comp, mClazzName, mClazzlen);
+//                int sigLength = usefulNode->getSymbol()->castToMethodSymbol()->getMethod()->signatureLength();
+
+//                std::string signatureChars = usefulNode->getSymbol()->castToMethodSymbol()->getMethod()->signatureChars();
+
+//                std::string sig = signatureChars.substr(0, sigLength);
+//                if (usefulNode->getSymbolReference()->isUnresolved())
+//                {
+//                   std::string methodNm = usefulNode->getSymbol()->castToMethodSymbol()->getMethod()->nameChars();
+//                   methodNm = methodNm.substr(0, methodNameLength);
+//                   TR_ResolvedMethod *yp = getCachedResolvedMethod(comp, mClazz, methodNm.c_str(), sig.c_str());
+
+//                   callNodeSymbol = yp->findOrCreateJittedMethodSymbol(comp);
+//                }
+//                else
+//                {
+//                   callNodeSymbol = usefulNode->getSymbol()->getResolvedMethodSymbol();
+//                }
+
+//                methodsToPeek.insert(callNodeSymbol->getResolvedMethod()->getPersistentIdentifier());
+//             }
+//             else
+//             {
+//                int methodNameLength = usefulNode->getSymbol()->castToResolvedMethodSymbol()->getMethod()->nameLength();
+//                std::string methodNm;
+
+//                // std::cout<<"Failing after here: " << usefulNode->getSymbol()->castToResolvedMethodSymbol()->getMethod()->nameChars() << std::endl;
+//                // TR_OpaqueMethodBlock* persistentIdentifier = usefulNode->getSymbol()->getResolvedMethodSymbol()->getResolvedMethod()->getPersistentIdentifier();
+//                std::cout << usefulNode->getOpCode().getName() << " " << usefulNode->getSymbolReference()->getName(comp->getDebug()) << std::endl;
+
+//                if (!usefulNode->getSymbolReference()->isUnresolved() && !isInterfaceInvoke && usefulNode->getSymbol()->getResolvedMethodSymbol()->getResolvedMethod()->getPersistentIdentifier() == _threadStartPersistentId)
+//                {
+//                   methodNm = "run";
+//                   // std::cout << "short-circuit Thread.start with  .run()\n";
+//                }
+//                else
+//                {
+
+//                   // fetch method name
+//                   methodNm = usefulNode->getSymbol()->castToResolvedMethodSymbol()->getMethod()->nameChars();
+//                   methodNm = methodNm.substr(0, methodNameLength);
+//                }
+//                // if(methodNm.rfind("<init>")!=string::npos) break;
+
+//                // fetch target method signature
+//                int sigLength = usefulNode->getSymbol()->castToResolvedMethodSymbol()->getMethod()->signatureLength();
+//                std::string signatureChars = usefulNode->getSymbol()->getMethodSymbol()->getMethod()->signatureChars();
+//                std::string sig = signatureChars.substr(0, sigLength);
+
+//                if (cachedMethodName[usefulNode].find("java/lang/Object.<init>()V") != std::string::npos)
+//                {
+
+//                   // for (auto ci : _classIndices)
+//                   // {
+//                   //    std::string className = ci.second;
+//                   //    int len = strlen(className.c_str());
+//                   //    TR_OpaqueClassBlock *type = comp->fe()->getClassFromSignature(className.c_str(), len, comp->getCurrentMethod(),true);
+//                   //    if (type != NULL)
+//                   //    {
+//                   //       TR_ResolvedMethod *targetMethod = getCachedResolvedMethod(comp, type, methodNm.c_str(), sig.c_str());
+//                   //       if (targetMethod != NULL)
+//                   //       {
+//                   //          methodsToPeek.insert(targetMethod->getPersistentIdentifier());
+//                   //          cachedParameterType[targetMethod->getPersistentIdentifier()][0] = type;
+//                   //       }
+//                   //    }
+//                   // }
+//                }
+//                else if (cachedMethodName[usefulNode].find("java/lang/reflect/Constructor.newInstance([Ljava/lang/Object;)Ljava/lang/Object") != std::string::npos || cachedMethodName[usefulNode].find("java/lang/reflect/Method.invoke(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;") != std::string::npos)
+//                // reflective calls
+//                {
+
+//                   int lineNumber = getCachedLineNumber(usefulNode, comp);
+//                   std::unordered_set<std::string> targets = getReflectiveTargets(inverseMethodNameIDmapping[methodPersistentId], lineNumber);
+//                   for (std::string fullName : targets)
+//                   {
+//                      auto dotPos = fullName.find('.');
+//                      auto parenPos = fullName.find('(');
+
+//                      std::string className = fullName.substr(0, dotPos);
+//                      std::string methodName = fullName.substr(dotPos + 1, parenPos - dotPos - 1);
+//                      std::string signature = fullName.substr(parenPos);
+
+//                      TR_OpaqueClassBlock *type = getCachedClass(comp, className, className.size());
+//                      TR_ResolvedMethod *targetMethod = getCachedResolvedMethod(comp, type, methodName.c_str(), signature.c_str());
+
+//                      // std::cout <<"Target method "<<getMethodName(targetMethod->findOrCreateJittedMethodSymbol(comp))<<std::endl;
+//                      // if(!targetMethod) continue;
+
+//                      if (targetMethod && !targetMethod->isAbstract())
+//                      {
+
+//                         //! TR::Compiler->cls.isInterfaceClass(comp, currentClass)){
+//                         // std::cout<<"targetMethod in CHA is null\n";
+//                         // if (classPtrToIndex[currentClass] == 0)
+//                         // {
+//                         //    // std::cout<<"didid 4 = "<<methodName<<"\n";
+//                         // }
+//                         // _callsiteReceivers[methodPtrToIndex[currentMethod]][callsiteBCI].insert(classPtrToIndex[currentClass]);
+//                         if (!isLibraryMethod(getMethodName(targetMethod->findOrCreateJittedMethodSymbol(comp))))
+//                         {
+//                            methodsToPeek.insert(targetMethod->getPersistentIdentifier());
+//                            std::cout << "Added to peek (in reflective block): " << getMethodName(targetMethod->findOrCreateJittedMethodSymbol(comp)) << " called  method: " << methodNm << sig << std::endl;
+//                            cachedParameterType[targetMethod->getPersistentIdentifier()][0] = type;
+//                         }
+//                      }
+//                   }
+//                }
+//                else
+//                {
+//                   // CHA based
+//                   int classNameLength = usefulNode->getSymbol()->castToResolvedMethodSymbol()->getMethod()->classNameLength();
+//                   char *classNameChars = usefulNode->getSymbol()->castToResolvedMethodSymbol()->getMethod()->classNameChars();
+//                   string className(classNameChars, classNameLength);
+
+//                   TR_OpaqueClassBlock *type = getCachedClass(comp, className, classNameLength);
+
+//                   TR_ASSERT_FATAL(type, "unable to get class pointer for receiver %s", className.c_str());
+
+//                   std::queue<TR_OpaqueClassBlock *> bfsList;
+//                   std::unordered_set<TR_OpaqueClassBlock *> visitedClass;
+
+//                   bfsList.push(type);
+//                   visitedClass.insert(type);
+
+//                   // std::string tpName = TR::Compiler->cls.classSignature(comp, type, comp->trMemory());
+//                   // std::cout <<"Tyepc class name: "<<className << std::endl;
+
+//                   // std::cout << methodNm << std::endl;
+//                   std::cout << "type class name = " << className << " where method name = " << methodNm << "\n";
+
+//                   if (cachedMethodName[usefulNode].find(".<init>") != std::string::npos) //&& cachedMethodName[usefulNode].find("java/lang/Object.<init>()V") == std::string::npos) // if this is a constructor call then directly peek
+//                   {
+//                      if (type != NULL)
+//                      {
+//                         TR_ResolvedMethod *targetMethod = getCachedResolvedMethod(comp, type, methodNm.c_str(), sig.c_str());
+//                         if (targetMethod != NULL)
+//                         {
+//                            methodsToPeek.insert(targetMethod->getPersistentIdentifier());
+//                            cachedParameterType[targetMethod->getPersistentIdentifier()][0] = type;
+//                         }
+//                      }
+//                   }
+//                   else
+//                      getTargetsToPeek(bfsList, visitedClass, methodsToPeek, comp, methodNm, sig);
+//                }
+//             }
+//             // std::cout<<"-------Methods to peek size-------"<<methodsToPeek.size()<<std::endl;
+//             callsite_to_targets[usefulNode] = methodsToPeek;
+
+//             for (auto calleeMethodPtr : methodsToPeek)
+//             {
+
+//                std::string calleeName = getMethodName(getCachedResolvedMethodFromPtr(comp, calleeMethodPtr)->findOrCreateJittedMethodSymbol(comp));
+//                if (_methodsAnalyzed.find(calleeMethodPtr) == _methodsAnalyzed.end() && _methodsBeingAnalyzed.find(calleeMethodPtr) == _methodsBeingAnalyzed.end() && alreadyAnalyzedMethods.find(calleeName) == alreadyAnalyzedMethods.end())
+//                {
+//                   if (inverseMethodNameIDmapping[currentMethod].find("<init>()V") != std::string::npos && cachedMethodName[usefulNode].find("java/lang/Object.<init>()V") != std::string::npos)
+//                   {
+//                      continue;
+//                   }
+
+//                   // fetch the resolved method symbol
+
+//                   TR_ResolvedMethod *calleeMethod = getCachedResolvedMethodFromPtr(comp, calleeMethodPtr);
+
+//                   TR::ResolvedMethodSymbol *calleeResolvedMethodSymbol = calleeMethod->findOrCreateJittedMethodSymbol(comp);
+
+//                   _methodsBeingAnalyzed.insert(calleeMethodPtr);
+
+//                   // JIT compile
+//                   bool ilGenFailed = NULL == calleeMethod->genMethodILForPeekingEvenUnderMethodRedefinition(calleeResolvedMethodSymbol, comp, false);
+//                   TR_ASSERT_FATAL(!ilGenFailed, "IL Gen failed, cannot peek into method");
+
+//                   // dump the JIT compiled method tree to log
+//                   comp->dumpMethodTrees("Method tree about to peek", calleeResolvedMethodSymbol);
+
+//                   TR_MethodParameterIterator *parIterator = getCachedResolvedMethodSymbol(comp, calleeMethodPtr)->getResolvedMethod()->getParameterIterator(*comp);
+//                   for (int argNo = 1; !parIterator->atEnd(); parIterator->advanceCursor(), argNo++)
+//                   {
+//                      if (parIterator->isArray() || parIterator->isClass())
+//                      {
+//                         cachedParameterType[calleeMethodPtr][argNo] = parIterator->getOpaqueClass();
+//                      }
+//                   }
+//                }
+
+//                // if (usefulNode->getDataType() == TR::Address && fillCache && methodPTG[calleeMethodPtr]->contains(-3))
+//                // {
+//                //    cachedValues[usefulNode].insert(methodPTG[calleeMethodPtr]->getReturnPointsTo().begin(), methodPTG[calleeMethodPtr]->getReturnPointsTo().end());
+//                //    // std::cout<<"caching return for "<<usefulNode<<" size = "<<cachedValues[usefulNode].size()<<"\n";
+//                // }
+//             }
+
+//             // bool stmtSaved = false;
+//             // if (usefulNode->getDataType() == TR::Address)
+//             // {
+//             //    // generate a dummy variable number to represent return of this callnode
+//             //    counter.retCount--;
+
+//             //    // evaluated value of this callnode will be return variable
+//             //    evaluatedSymRef = counter.retCount;
+//             //    methodDict[currentMethod].stmtMap[evaluatedSymRef].insert(usefulNode->stmtNumber);
+//             //    stmtSaved = true;
+
+//             //    // update mappings of call node, ret, etc
+//             //    argCallNode[currentMethod][counter.retCount].insert(std::make_pair(usefulNode, -3));
+//             //    inverseArgCallNode[currentMethod][usefulNode][-3] = counter.retCount;
+//             // }
+
+//             // first arg index points to receiver in case of non static
+//             int32_t firstArgIndex = usefulNode->getFirstArgumentIndex();
+//             int32_t numChildren = usefulNode->getNumChildren();
+//             for (int32_t i = firstArgIndex; i < numChildren; i++)
+//             {
+//                TR::Node *actual_param_node = usefulNode->getChild(i);
+//                if (actual_param_node->getDataType() != TR::Address)
+//                {
+//                   argIndex++;
+//                   continue;
+//                }
+//                // get argument variable
+//                int temp = evaluateNode(actual_param_node, evaluatedNodeValues, counter, methodIndex, mSet, currentMethod, comp, populatePTA);
+
+//                // update mapping of var to stmt
+//                // std::cout<<"temp = "<<temp<<"\n";
+//                // methodDict[currentMethod].stmtMap[temp].insert(usefulNode->stmtNumber);
+//                // stmtSaved = true;
+
+//                // update mappings of call node, arg, etc
+//                argCallNode[currentMethod][temp].insert(std::make_pair(usefulNode, argIndex));
+//                inverseArgCallNode[currentMethod][usefulNode][argIndex] = temp;
+//                EdgeType e_type = ASSIGN;
+//                PAGNode *actual_param_pag_ptr = NULL;
+//                std::string methodBeingComp = getMethodName(comp->getMethodSymbol());
+//                // std::cout << "methodBeingComp" << methodBeingComp << std::endl;
+
+//                if (cachedMethodName[usefulNode].find(".<init>") != std::string::npos && argIndex == 0 && methodBeingComp.find(".<init>") == std::string::npos)
+//                {
+//                   int globalIndex_ = usefulNode->getFirstChild()->getGlobalIndex();
+//                   actual_param_pag_ptr = symRefNumToPAGNode[currentMethod][globalIndex_];
+//                   if (!actual_param_pag_ptr)
+//                   {
+//                      actual_param_pag_ptr = symref_PAGNode[usefulNode->getFirstChild()->getSymbolReference()->getReferenceNumber()];
+//                   }
+//                   e_type = ASSIGN;
+//                }
+//                else if (symRefNumToPAGNode[methodPersistentId].find(temp) != symRefNumToPAGNode[methodPersistentId].end())
+//                {
+//                   actual_param_pag_ptr = symRefNumToPAGNode[methodPersistentId][temp];
+//                   nodeAllocationMap[actual_param_node] = actual_param_pag_ptr;
+//                }
+//                else if (nodeAllocationMap.find(actual_param_node) == nodeAllocationMap.end())
+//                {
+//                   actual_param_pag_ptr = nodeAllocationMap[actual_param_node];
+//                   if (!actual_param_pag_ptr)
+//                   {
+//                      // printf("%s -- %s\n",cachedMethodName[usefulNode].c_str(),inverseMethodNameIDmapping[methodPersistentId].c_str());
+//                      // std::cout << usefulNode->getSymbolReference()->getName(comp->getDebug()) << std::endl;
+//                      // std::cout << usefulNode->getFirstChild()->getSymbolReference()->getName(comp->getDebug()) << std::endl;
+//                      actual_param_pag_ptr = pag->bottom_node;
+//                   }
+//                }
+//                else
+//                {
+//                   int ref_no = -238933;
+//                   if (actual_param_node->getOpCode().hasSymbolReference())
+//                      ref_no = actual_param_node->getSymbolReference()->getReferenceNumber();
+//                   actual_param_pag_ptr = new PAGNode(VARIABLE, ref_no, nullptr, methodPersistentId, actual_param_node->getByteCodeIndex(), methodIndex);
+//                   pag->PAG_nodes.insert(actual_param_pag_ptr);
+//                   pag->methodIndex_to_allMethodNodes[current_method_index].push_back(actual_param_pag_ptr);
+
+//                   nodeAllocationMap[actual_param_node] = actual_param_pag_ptr;
+
+//                   symRefNumToPAGNode[methodPersistentId][temp] = actual_param_pag_ptr;
+//                   symRefNumToNode[temp] = actual_param_node;
+//                }
+
+//                for (auto target : callsite_to_targets[usefulNode])
+//                {
+//                   // std::cout << "IIIIformal_param_pag_ptr: " << " CURRENT Method: " << getMethodName(comp->getOwningMethodSymbol(currentMethod)) << " target " << target << " " << getMethodName(comp->getOwningMethodSymbol(target)) << std::endl;
+//                   vector<PAGNode *> formal_nodes = pag->methodIndex_to_formalNodes[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, target), comp)];
+
+//                   PAGNode *formal_param_pag_ptr = formal_nodes.empty() ? pag->bottom_node : formal_nodes[argIndex];
+
+//                   // Add edge from actual to formal pag node
+//                   // PAGEdge *call_edge = new PAGEdge(actual_param_pag_ptr, formal_param_pag_ptr, e_type, usefulNode->getByteCodeIndex());
+//                   // actual_param_pag_ptr->outgoing.insert(call_edge);
+//                   // formal_param_pag_ptr->incoming.insert(call_edge);
+//                   // std::cout << "$$$$TArg index " << argIndex << std::endl;
+//                   pag->addEdge(actual_param_pag_ptr, formal_param_pag_ptr, e_type, usefulNode->getByteCodeIndex());
+//                   if (e_type == GETFIELD)
+//                   {
+//                      updateMatchEdges();
+//                      for (auto *edge : pag->getMatchEdgesEndingAt(formal_param_pag_ptr))
+//                      {
+//                         PAGNode *src = edge->src;
+//                         formal_param_pag_ptr->pointee_class_names.insert(src->pointee_class_names.begin(), src->pointee_class_names.end());
+//                      }
+//                   }
+//                   else if (e_type == ASSIGN)
+//                   {
+//                      formal_param_pag_ptr->pointee_class_names.insert(actual_param_pag_ptr->pointee_class_names.begin(), actual_param_pag_ptr->pointee_class_names.end());
+//                   }
+
+//                   callsite_to_ActualParamPAGNodes[usefulNode->getByteCodeIndex()].insert(actual_param_pag_ptr);
+//                }
+//                // increment argument
+//                argIndex++;
+//             }
+
+//             // if (!stmtSaved)
+//             // {
+//             //    methodDict[currentMethod].stmtMap[-2].insert(usefulNode->stmtNumber);
+//             // }
+//          }
+
+//          break;
+//       }
+
+//       case TR::Return:
+//       case TR::lreturn:
+//       case TR::ireturn:
+//       case TR::dreturn:
+//       case TR::freturn:
+//       case TR::areturn:
+//       case TR::vreturn:
+//       {
+//          // handle the return value. We use a magic number (-99) to represent the pseudo-symref of the return var
+//          // also, we only need to worry about the areturn. So why do we have the others here? Maybe want to process some cleanup
+//          //   actions on encountering a return op
+
+//          if (opCode == TR::areturn)
+//          {
+//             TR::Node *child_node = usefulNode->getFirstChild();
+//             // the evaluated value of the first child (ie. the call node) will hold the respective call's return value - simply fetch and assign
+//             int loadSymRef = evaluateNode(child_node, evaluatedNodeValues, counter, methodIndex, mSet, currentMethod, comp, populatePTA);
+
+//             // Add edge from the child of the useful node(loadSymRef) to return_pag_node_ptr;
+//             PAGNode *return_pag_node_ptr = pag->methodIndex_to_returnNode[current_method_index];
+//             if (!return_pag_node_ptr)
+//             {
+//                TR::ResolvedMethodSymbol *methodSymbol = getCachedResolvedMethodFromPtr(comp, currentMethod)->findOrCreateJittedMethodSymbol(comp);
+//                int methodInd = getOrInsertMethodIndex(methodSymbol, comp);
+//                pag->methodIndex_to_returnNode[methodInd] = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, currentMethod, -1, methodInd);
+//                pag->PAG_nodes.insert(pag->methodIndex_to_returnNode[methodInd]);
+//                pag->methodIndex_to_allMethodNodes[methodInd].push_back(pag->methodIndex_to_returnNode[methodInd]);
+//                return_pag_node_ptr = pag->methodIndex_to_returnNode[methodInd];
+//             }
+
+//             int symref = -238933;
+//             if (child_node->getOpCode().hasSymbolReference())
+//                symref = child_node->getSymbolReference()->getReferenceNumber();
+//             // std::cout<< symref << std::endl;
+//             if (child_node->getOpCodeValue() == TR::aloadi)
+//             {
+
+//                TR::Node *y_node = child_node->getFirstChild();
+//                PAGNode *y_PAGnode_ptr;
+//                int32_t y_node_symRef = -78765; // some random negative number
+//                int y_ref_no = -238933;
+//                if (y_node->getOpCode().hasSymbolReference())
+//                   y_ref_no = y_node->getSymbolReference()->getReferenceNumber();
+
+//                if (y_node->getOpCode().hasSymbolReference() && y_node->getSymbolReference())
+//                {
+//                   y_node_symRef = y_node->getSymbolReference()->getReferenceNumber();
+//                }
+
+//                if (y_node_symRef >= 0 && symRefNumToPAGNode[methodPersistentId].find(y_node_symRef) != symRefNumToPAGNode[methodPersistentId].end())
+//                {
+//                   y_PAGnode_ptr = symRefNumToPAGNode[methodPersistentId][y_node_symRef];
+//                   y_node = symRefNumToNode[y_node_symRef];
+//                }
+//                else if (nodeAllocationMap.find(y_node) != nodeAllocationMap.end())
+//                {
+//                   y_PAGnode_ptr = nodeAllocationMap[y_node];
+//                }
+//                else
+//                {
+//                   y_PAGnode_ptr = new PAGNode(VARIABLE, y_ref_no, nullptr, methodPersistentId, y_node->getByteCodeIndex(), methodIndex);
+//                   pag->PAG_nodes.insert(y_PAGnode_ptr);
+//                   pag->methodIndex_to_allMethodNodes[current_method_index].push_back(y_PAGnode_ptr);
+
+//                   nodeAllocationMap[y_node] = y_PAGnode_ptr;
+
+//                   symRefNumToPAGNode[methodPersistentId][y_node_symRef] = y_PAGnode_ptr;
+//                   symRefNumToNode[y_node_symRef] = y_node;
+//                }
+
+//                // Add edge:  y --Getfield--> x
+//                //            y_PAGnode_ptr --Getfield--> lhs_node_ptr
+//                int32_t len;
+//                string field_name;
+//                if (child_node->getSymbol()->isArrayShadowSymbol())
+//                {
+//                   field_name = "$";
+//                }
+//                else
+//                {
+//                   field_name = child_node->getSymbolReference()->getOwningMethod(comp)->fieldNameChars(child_node->getSymbolReference()->getCPIndex(), len);
+//                   field_name = field_name.substr(0, len);
+//                }
+
+//                // std::cout <<"Y_node: " << y_node->getOpCodeValue() << std::endl;
+//                // std::cout << "In astore:field is "<<field_name<<" len = "<< len << std::endl;
+
+//                // PAGEdge *new_edge = new PAGEdge(y_PAGnode_ptr, return_pag_node_ptr, GETFIELD, field_name);
+
+//                // return_pag_node_ptr->incoming.insert(new_edge);
+//                // y_PAGnode_ptr->outgoing.insert(new_edge);
+//                pag->addEdge(y_PAGnode_ptr, return_pag_node_ptr, GETFIELD, field_name);
+
+//                updateMatchEdges();
+//                for (auto *edge : pag->getMatchEdgesEndingAt(return_pag_node_ptr))
+//                {
+//                   PAGNode *src = edge->src;
+//                   return_pag_node_ptr->pointee_class_names.insert(src->pointee_class_names.begin(), src->pointee_class_names.end());
+//                }
+//             }
+//             else if (child_node->getOpCodeValue() == TR::New)
+//             {
+
+//                int globalIndex_ = child_node->getGlobalIndex();
+
+//                // PAGEdge *new_edge = new PAGEdge(symRefNumToPAGNode[methodPersistentId][globalIndex_], return_pag_node_ptr, ASSIGN);
+//                // symRefNumToPAGNode[methodPersistentId][globalIndex_]->outgoing.insert(new_edge);
+//                // return_pag_node_ptr->incoming.insert(new_edge);
+//                pag->addEdge(symRefNumToPAGNode[methodPersistentId][globalIndex_], return_pag_node_ptr, ASSIGN);
+//                return_pag_node_ptr->pointee_class_names.insert(symRefNumToPAGNode[methodPersistentId][globalIndex_]->pointee_class_names.begin(), symRefNumToPAGNode[methodPersistentId][globalIndex_]->pointee_class_names.end());
+//             }
+//             else if (callsite_to_targets.find(child_node) != callsite_to_targets.end()) // return b.foo() type of stmts => add edge from return node of foo to the current method's return node
+//             {
+//                std::unordered_set<TR_OpaqueMethodBlock *> targets = callsite_to_targets[child_node];
+//                for (auto target : targets)
+//                {
+//                   PAGNode *child_pag_ptr = pag->methodIndex_to_returnNode[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, target), comp)];
+
+//                   // PAGEdge *new_edge = new PAGEdge(child_pag_ptr, return_pag_node_ptr, ASSIGN);
+
+//                   // return_pag_node_ptr->incoming.insert(new_edge);
+//                   // child_pag_ptr->outgoing.insert(new_edge);
+//                   pag->addEdge(child_pag_ptr, return_pag_node_ptr, ASSIGN);
+//                   return_pag_node_ptr->pointee_class_names.insert(child_pag_ptr->pointee_class_names.begin(), child_pag_ptr->pointee_class_names.end());
+//                }
+//             }
+//             else
+//             {
+//                PAGNode *child_pag_ptr;
+//                if (symRefNumToPAGNode[methodPersistentId].find(symref) != symRefNumToPAGNode[methodPersistentId].end())
+//                {
+//                   child_pag_ptr = symRefNumToPAGNode[methodPersistentId][symref];
+//                   nodeAllocationMap[child_node] = child_pag_ptr;
+//                }
+//                else
+//                {
+//                   child_pag_ptr = new PAGNode(VARIABLE, symref, nullptr, methodPersistentId, child_node->getByteCodeIndex(), methodIndex);
+//                   pag->PAG_nodes.insert(child_pag_ptr);
+//                   pag->methodIndex_to_allMethodNodes[getOrInsertMethodIndex(getCachedResolvedMethodSymbol(comp, currentMethod), comp)].push_back(child_pag_ptr);
+
+//                   nodeAllocationMap[child_node] = child_pag_ptr;
+
+//                   symRefNumToPAGNode[methodPersistentId][symref] = child_pag_ptr;
+//                   symRefNumToNode[symref] = child_node;
+//                }
+//                // std::cout<< child_pag_ptr << "Is the child"<<std::endl;
+//                // PAGEdge *new_edge = new PAGEdge(child_pag_ptr, return_pag_node_ptr, ASSIGN);
+
+//                // return_pag_node_ptr->incoming.insert(new_edge);
+//                // child_pag_ptr->outgoing.insert(new_edge);
+//                pag->addEdge(child_pag_ptr, return_pag_node_ptr, ASSIGN);
+//                return_pag_node_ptr->pointee_class_names.insert(child_pag_ptr->pointee_class_names.begin(), child_pag_ptr->pointee_class_names.end());
+//             }
+
+//             evaluatedSymRef = loadSymRef;
+//          }
+//          break;
+//       }
+
+//       default:
+//       {
+//          //         TR_ASSERT_FATAL(true, "opcode %s not recognized", usefulNode->getOpCode().getName());
+//          break;
+//       }
+//       }
+//    }
+
+//    // TODO: update the evaluated values here, or in the caller? Lets do it here, for now
+//    evaluatedNodeValues[usefulNode] = evaluatedSymRef;
+//    return evaluatedSymRef;
+// }
+// TR::Node *getUsefulNode(TR::Node *node)
+// {
+//    TR::Node *ret = NULL;
+//    if (node == NULL)
+//       return ret;
+//    else
+//    {
+//       TR::ILOpCodes opCode = node->getOpCodeValue();
+//       // if the opcodes is one of the following, we need to dig deeper
+//       if (opCode == TR::treetop || opCode == TR::ResolveAndNULLCHK || opCode == TR::ResolveCHK || opCode == TR::compressedRefs || opCode == TR::NULLCHK || opCode == TR::ArrayStoreCHK)
+//          return getUsefulNode(node->getFirstChild());
+
+//       else
+//       {
+//          // these are the interesting nodes
+//          if (opCode == TR::New ||     ///
+//              opCode == TR::astore ||  ///  refStore
+//              opCode == TR::astorei || ///   ????
+//              opCode == TR::Return ||
+//              opCode == TR::areturn ||
+//              opCode == TR::aload ||  ///  refLoad
+//              opCode == TR::aloadi || /// field and array read
+//              opCode == TR::call ||
+//              opCode == TR::calli ||
+//              opCode == TR::acalli ||
+//              opCode == TR::acall ||
+//              opCode == TR::calli ||
+//              opCode == TR::awrtbari ||  /// field and array write
+//              opCode == TR::awrtbar ||   // this should be only static   ///
+//              opCode == TR::ardbari ||   ///  ???
+//              opCode == TR::anewarray || ///
+//              opCode == TR::newarray ||  ///
+//              // this is needed for calls where the arg is null - it appears to map to aconst_null in bytecode
+//              opCode == TR::aconst || ///
+//              opCode == TR::aladd ||  ///
+//              opCode == TR::checkcast ||
+//              opCode == TR::multianewarray ||
+//              node->getOpCode().isCall())
+//          {
+//             // IFDIAGPRINT << "found useful node at n" << node->getGlobalIndex() << "n" << endl;
+//             ret = node;
+//          }
+//          else
+//          {
+//             // TODO: Shashin: insert an assert failure here - done
+//             // there are 41 "address" type nodes, out of those - some are handled above.
+//             //    create an assert fail for the rest of the address nodes,
+//             //    and let the other "safe" nodes trickle through - since they deal with non-ref types
+//             if (
+//                 opCode == TR::ardbar ||
+//                 opCode == TR::i2a ||
+//                 opCode == TR::iu2a ||
+//                 opCode == TR::l2a ||
+//                 opCode == TR::lu2a ||
+//                 opCode == TR::b2a ||
+//                 opCode == TR::bu2a ||
+//                 opCode == TR::s2a ||
+//                 opCode == TR::su2a ||
+//                 opCode == TR::aRegLoad ||
+//                 opCode == TR::aRegStore ||
+//                 opCode == TR::aselect ||
+//                 opCode == TR::checkcastAndNULLCHK ||
+//                 opCode == TR::newvalue ||
+//                 opCode == TR::variableNew ||
+//                 opCode == TR::variableNewArray ||
+//                 opCode == TR::aiadd ||
+//                 opCode == TR::ArrayCHK)
+//             {
+//                std::cout << "did not expect op code " << node->getOpCode().getName() << " node " << node->getGlobalIndex() << std::endl;
+//                TR_ASSERT_FATAL(false, "unexpected op codes");
+//             }
+//             else
+//             {
+//                // just let them go
+
+//                // below were encountered in tests and determined to be "safe" (i.e., not relevant to PTA)
+//                //  opCode == TR::loadaddr ||
+//                //  opCode == TR::ArrayStoreCHK || -- encountered in Harness.Main (avrora)
+//             }
+//          }
+//       }
+//    }
+
+//    return ret;
+// }
+
+// PAGNode *evaluateAllocate(TR::Node *node, int methodIndex, bool isArray, TR::Compilation *comp)
+// {
+//    int allocationBCI = node->getByteCodeIndex();
+//    int callerIndex = methodIndex;
+//    // if(exhaustive)
+//    // {
+//    if (nodeAllocationMap.find(node) != nodeAllocationMap.end())
+//    {
+//       return nodeAllocationMap[node];
+//    }
+
+//    PAGNode *obj_ptr = new PAGNode(OBJECT, -1, nullptr, comp->getMethodSymbol()->getResolvedMethod()->getPersistentIdentifier(), allocationBCI, methodIndex);
+//    int32_t node_symRef = -7675;
+//    if (node->getOpCode().hasSymbolReference() && node->getSymbolReference())
+//       node_symRef = node->getSymbolReference()->getReferenceNumber();
+
+//    if (node_symRef >= 0)
+//    {
+//       symRefNumToPAGNode[comp->getMethodSymbol()->getResolvedMethod()->getPersistentIdentifier()][node_symRef] = obj_ptr;
+//       symRefNumToNode[node_symRef] = node;
+//    }
+//    pag->PAG_nodes.insert(obj_ptr);
+
+//    // if (_runtimeVerifierDiagnostics)
+//    //    cout << "evaluated an allocation node at n" << node->getGlobalIndex() << "n" << endl;
+
+//    // check the loadaddr child node to ensure that the instantiated type is resolved
+//    TR::Node *loadaddrNode;
+//    if (isArray)
+//    {
+//       loadaddrNode = node->getSecondChild();
+//    }
+//    else
+//    {
+//       loadaddrNode = node->getFirstChild();
+//    }
+
+//    nodeAllocationMap[node] = obj_ptr;
+//    // TR_Debug de(comp);
+//    // TR_Debug *deb = &de;
+//    // std::string obj_type = loadaddrNode->getSymbolReference()->getName(comp->getDebug());
+//    int len;
+//    TR::SymbolReference *symRef = loadaddrNode->getSymbolReference();
+//    std::cout << symRef << std::endl;
+
+//    // std::cout << "NAME IS " << loadaddrNode->getSymbolReference()->getName(comp->getDebug()) << std::endl;
+//    char *objc = TR::Compiler->cls.classNameChars(comp, symRef, len);
+//    std::string obj_type(objc, len);
+//    std::cout << "Allocate object type: " << obj_type << std::endl;
+//    nodeAllocationMap[node]->pointee_class_names.insert(obj_type);
+//    // std::cout<<"loadaddr node is "<<loadaddrNode<<"\n";
+//    // TR_ASSERT_FATAL(loadaddrNode->getOpCodeValue() == TR::loadaddr, "expected first child of jitnewobject to be loadaddr op");
+//    // if (loadaddrNode->getOpCodeValue() == TR::loadaddr && loadaddrNode->getSymbolReference()->isUnresolved())
+//    // {
+//    //    /*
+//    //    * the instantiated type is unresolved, we interpret that as "not on classpath and/or unresolved"
+//    //    *
+//    //    * assign an empty set at the allocation site and call it a day
+//    //    */
+
+//    //    // return null as a stopgap, we do't have an object to represent "empty" yet. This is fine since we ignore nulls anyway
+//    //    std::cout<<"loaddr null for "<<methodIndex<<"-"<<node->getByteCodeIndex()<<"\n";
+//    //    // std::cout<<"bci of null entry is "<<node->getByteCodeIndex()<<"\n";
+//    //    obj = PointsToGraph::nullEntry;
+//    //    //obj.bci = node->getByteCodeIndex();
+
+//    //    //org/dacapo/parser/TokenMgrError.addEscapes(Ljava/lang/String;)Ljava/lang/String;
+//    // }
+//    // else
+//    // {
+
+//    //    PAGNode node;
+//    //    node.bci = allocationBCI;
+//    //    node.caller = methodIndex;
+//    //    node.type = Reference;
+//    //    node.clazz = NULL;
+
+//    //    obj = node;
+//    // // }
+
+//    // nodeAllocationMap[node] = obj;
+//    // }else{
+//    //    Entry e = rawNode[to_string(callerIndex) + "-" + to_string(allocationBCI)];
+//    //    nodeAllocationMap[node] = e;
+//    // }
+//    return nodeAllocationMap[node];
+// }
 bool isLibraryMethod(std::string methodName)
 {
 
@@ -6620,31 +6619,31 @@ void getAlreadyAnalyzedMethodNames()
    }
 }
 
-void updateMatchEdges()
-{
-   for (PAGEdge *e1 : pag->getStoreEdges())
-   {
-      for (PAGEdge *e2 : pag->getLoadEdges())
-      {
-         if (e1->field == e2->field)
-         {
-            bool exists = false;
-            for (PAGEdge *outEdge : e1->src->outgoing)
-            {
-               if (outEdge->dest == e2->dest && outEdge->type == MATCH)
-               {
-                  exists = true;
-                  break;
-               }
-            }
-            if (!exists)
-            {
-               pag->addEdge(e1->src, e2->dest, MATCH);
-            }
-         }
-      }
-   }
-}
+// void updateMatchEdges()
+// {
+//    for (PAGEdge *e1 : pag->getStoreEdges())
+//    {
+//       for (PAGEdge *e2 : pag->getLoadEdges())
+//       {
+//          if (e1->field == e2->field)
+//          {
+//             bool exists = false;
+//             for (PAGEdge *outEdge : e1->src->outgoing)
+//             {
+//                if (outEdge->dest == e2->dest && outEdge->type == MATCH)
+//                {
+//                   exists = true;
+//                   break;
+//                }
+//             }
+//             if (!exists)
+//             {
+//                pag->addEdge(e1->src, e2->dest, MATCH);
+//             }
+//          }
+//       }
+//    }
+// }
 
 void getResolvedReflectiveCalls()
 {
@@ -7320,7 +7319,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
             pag->addEdge(value, arrayRef, PUTFIELD, "$");
          }
       }
-      updateMatchEdges(pag);
+      // updateMatchEdges(pag);
       break;
    }
 
@@ -8168,7 +8167,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
 
       stack->pushRef(temp_node_ptr);
       // update match edges
-      updateMatchEdges(pag);
+      // updateMatchEdges(pag);
 
       // to get the dynamic type of field
       for (auto *edge : pag->getMatchEdgesEndingAt(temp_node_ptr))
@@ -8246,7 +8245,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       }
 
       // update match edges
-      updateMatchEdges(pag);
+      // updateMatchEdges(pag);
 
       break;
    }
@@ -8259,38 +8258,53 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
 
       U_16 callSiteIndex = pc[1];
 
-      // Get name and signature from callSiteData (THIS WORKS - you had it before)
       J9ROMNameAndSignature *nameAndSig =
           SRP_PTR_GET(callSiteData + callSiteIndex, J9ROMNameAndSignature *);
 
       // Null check!
       if (nameAndSig == NULL)
       {
-         printf("ERROR: nameAndSig is NULL\n");
-         return;
+         // printf("ERROR: nameAndSig is NULL\n");
+         TR_ASSERT_FATAL(1, "ERROR: nameAndSig is NULL\n");
+         // return;
       }
 
       J9UTF8 *callSiteName = J9ROMNAMEANDSIGNATURE_NAME(nameAndSig);
       J9UTF8 *callSiteSig = J9ROMNAMEANDSIGNATURE_SIGNATURE(nameAndSig);
 
-      printf("InvokeDynamic callsite: %.*s%.*s\n",
-             J9UTF8_LENGTH(callSiteName), J9UTF8_DATA(callSiteName),
-             J9UTF8_LENGTH(callSiteSig), J9UTF8_DATA(callSiteSig));
+      // printf("InvokeDynamic callsite: %.*s%.*s\n",J9UTF8_LENGTH(callSiteName), J9UTF8_DATA(callSiteName),J9UTF8_LENGTH(callSiteSig), J9UTF8_DATA(callSiteSig));
 
       std::string returnType = std::string(reinterpret_cast<const char *>(J9UTF8_DATA(callSiteSig)), J9UTF8_LENGTH(callSiteSig));
 
       size_t pos = returnType.find(')');
-
       returnType = returnType.substr(pos + 1);
 
-      PAGNode *retNode = new PAGNode(VARIABLE, -1, nullptr, method_block, bci, methodIndex);
-      pag->PAG_nodes.insert(retNode);
-      pag->methodIndex_to_allMethodNodes[methodIndex].push_back(retNode);
+      // 1. Parse the signature and POP the arguments first
+      char *sigChars = (char *)J9UTF8_DATA(callSiteSig);
+      int parameter_count = count_parameters(sigChars);
+      for (int i = parameter_count - 1; i >= 0; i--)
+      {
+         stack->popRef();
+      }
 
-      retNode->pointee_class_names.insert(returnType);
-      stack->pushRef(retNode);
+      // 2. Only create and PUSH a return node if it actually returns something (not 'V' for void)
+      if (returnType != "V")
+      {
+         PAGNode *retNode = new PAGNode(VARIABLE, -1, nullptr, method_block, bci, methodIndex);
+
+         if (returnType == "J" || returnType == "D")
+         {
+            retNode->comp_type = "COMP_TYPE_2";
+         }
+
+         pag->PAG_nodes.insert(retNode);
+         pag->methodIndex_to_allMethodNodes[methodIndex].push_back(retNode);
+
+         retNode->pointee_class_names.insert(returnType);
+         stack->pushRef(retNode);
+      }
+
       // Now just find all lambda methods in the class
-      // This is the SAFEST approach
       // J9ROMMethod *currentMethod = J9ROMCLASS_ROMMETHODS(romClass);
 
       // for (U_32 i = 0; i < romClass->romMethodCount; i++)
@@ -9465,32 +9479,72 @@ bool is_reference_type(const char *signature, int argumentIndex)
    return false;
 }
 
+// void updateMatchEdges(PointerAssignmentGraph *pag)
+// {
+//    for (PAGEdge *e1 : pag->getStoreEdges())
+//    {
+//       for (PAGEdge *e2 : pag->getLoadEdges())
+//       {
+//          if (e1->field == e2->field)
+//          {
+//             bool exists = false;
+//             for (PAGEdge *outEdge : e1->src->outgoing)
+//             {
+//                if (outEdge->dest == e2->dest && outEdge->type == MATCH)
+//                {
+//                   exists = true;
+//                   break;
+//                }
+//             }
+//             if (!exists)
+//             {
+//                pag->addEdge(e1->src, e2->dest, MATCH);
+//             }
+//          }
+//       }
+//    }
+// }
 void updateMatchEdges(PointerAssignmentGraph *pag)
 {
+   std::unordered_map<std::string, std::vector<PAGEdge *>> loadsByField;
+
+   for (PAGEdge *e2 : pag->getLoadEdges())
+   {
+      loadsByField[e2->field].push_back(e2);
+   }
+
    for (PAGEdge *e1 : pag->getStoreEdges())
    {
-      for (PAGEdge *e2 : pag->getLoadEdges())
+      auto it = loadsByField.find(e1->field);
+
+      if (it == loadsByField.end())
       {
-         if (e1->field == e2->field)
+         continue;
+      }
+
+      const std::vector<PAGEdge *> &matchingLoads = it->second;
+
+      // 2. INNER LOOP OPTIMIZATION
+      std::unordered_set<decltype(e1->dest)> existingMatchDests;
+
+      for (PAGEdge *outEdge : e1->src->outgoing)
+      {
+         if (outEdge->type == MATCH)
          {
-            bool exists = false;
-            for (PAGEdge *outEdge : e1->src->outgoing)
-            {
-               if (outEdge->dest == e2->dest && outEdge->type == MATCH)
-               {
-                  exists = true;
-                  break;
-               }
-            }
-            if (!exists)
-            {
-               pag->addEdge(e1->src, e2->dest, MATCH);
-            }
+            existingMatchDests.insert(outEdge->dest);
+         }
+      }
+
+      for (PAGEdge *e2 : matchingLoads)
+      {
+         if (existingMatchDests.find(e2->dest) == existingMatchDests.end())
+         {
+            pag->addEdge(e1->src, e2->dest, MATCH);
+            existingMatchDests.insert(e2->dest);
          }
       }
    }
 }
-
 void getall_loaded_classes(TR::Compilation *comp)
 {
    // std::cout << "All the loaded classes are: " << std::endl;
@@ -10770,26 +10824,6 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
    uintptr_t methodStart = TR::Compiler->mtd.bytecodeStart(method_block);
    TR_ResolvedMethod *resolvedMethod = getCachedResolvedMethodFromPtr(comp, method_block);
 
-   // Checks ALL fields: type, name, caller, bci, clazz_ptr, static_type, methodIndex
-   auto getOrCreateNode = [&](NodeType type, int name_id, TR_OpaqueMethodBlock *caller_ptr, int bci_loc, TR_OpaqueClassBlock *clazz_ptr, std::string label, int mIndex) -> PAGNode *
-   {
-      for (PAGNode *node : pag->methodIndex_to_allMethodNodes[methodIndex])
-      {
-
-         if (
-             (node->type != type) || (node->name != name_id) || (node->caller != caller_ptr) || (node->bci != bci_loc) || (node->clazz_ptr != clazz_ptr) || (node->static_type != label) || (node->methodIndex != mIndex))
-            continue;
-
-         return node;
-      }
-
-      PAGNode *newNode = new PAGNode(type, name_id, clazz_ptr, caller_ptr, bci_loc, mIndex, label);
-
-      pag->PAG_nodes.insert(newNode);
-      pag->methodIndex_to_allMethodNodes[methodIndex].push_back(newNode);
-      return newNode;
-   };
-
    std::map<int32_t, TR::Block *> blocks;
    TR::Block *entryBlock = nullptr;
 
@@ -10970,7 +11004,6 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
          // TR_OpaqueClassBlock *opaqueCurrentClass = resolvedMethod->classOfMethod();
          J9Class *currentClass = J9_CLASS_FROM_METHOD(method); // reinterpret_cast<J9Class *>(opaqueCurrentClass);
          executeBytecode(bytecode, pc, pag, stack, resolvedMethod, method, methodIndex, pcIndex, variableMap, hasReturnType, comp, currentClass, primitive_node, comp_type2_primitiveNode);
-
          pcIndex += instructionLength;
          globalIndex_++;
 
@@ -11003,6 +11036,7 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
          }
       }
    }
+   updateMatchEdges(pag);
 
    // std::string fully_qualified_name = className + "." + name + signature;
    // // if (changedMethodNames.find(fully_qualified_name) != changedMethodNames.end())
@@ -11049,15 +11083,27 @@ J9Class *findClassAcrossAllLoaders(TR::Compilation *comp, const std::string &cla
    if (resolvedMethod)
    {
       TR_OpaqueClassBlock *omb = fej9->getClassFromSignature(className.c_str(), className.length(), resolvedMethod, true);
+
       if (omb)
+      {
+         // std::cout << "[JIT-Search] Found class '" << className << "' using getClassFromSignature." << std::endl;
          return (J9Class *)omb;
+      }
    }
+
+   std::string targetName = className;
+   if (targetName.length() > 2 && targetName.front() == 'L' && targetName.back() == ';')
+   {
+      targetName = targetName.substr(1, targetName.length() - 2);
+   }
+   // std::cout << "[JIT-Search] Looking for exact internal name: " << targetName << std::endl;
+
    J9VMThread *vmThread = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
    J9JavaVM *javaVM = vmThread->javaVM;
 
-   // Use a GC-safe iterator to walk through all class loader blocks
    GC_PoolIterator classLoaderIterator(javaVM->classLoaderBlocks);
    J9ClassLoader *classLoader = nullptr;
+   J9Class *foundClass = nullptr;
 
    while (nullptr != (classLoader = (J9ClassLoader *)classLoaderIterator.nextSlot()))
    {
@@ -11069,21 +11115,25 @@ J9Class *findClassAcrossAllLoaders(TR::Compilation *comp, const std::string &cla
       {
          J9UTF8 *nameUTF8 = J9ROMCLASS_CLASSNAME(currentClass->romClass);
          std::string currentClassName((char *)J9UTF8_DATA(nameUTF8), J9UTF8_LENGTH(nameUTF8));
-
-         // Compare with the target class name
-         if (currentClassName == className)
+         if (currentClassName == targetName || currentClassName.find(targetName) != std::string::npos)
          {
-            // std::cout << "Found class '" << className << "' in class loader " << classLoader << std::endl;
-            return currentClass;
+            // std::cout << "[JIT-Search] FOUND class '" << targetName << "' in class loader " << classLoader << std::endl;
+            foundClass = currentClass;
+            break;
          }
 
-         // Move to the next class in the current loader's table
          currentClass = javaVM->internalVMFunctions->hashClassTableNextDo(&walkState);
+      }
+
+      if (foundClass)
+      {
+         break;
       }
    }
 
-   // std::cout << "Class '" << className << "' not found in any class loader." << std::endl;
-   return nullptr;
+   // std::cout << "[JIT-Search] Searched " << totalClassesSearched << " classes across " << loaderCount << " loaders." << std::endl;
+
+   return foundClass;
 }
 
 J9Class *findClassByName(TR::Compilation *comp, const std::string &className, TR_J9VMBase *fej9, TR_ResolvedMethod *resolvedMethod)

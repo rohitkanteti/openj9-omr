@@ -441,7 +441,7 @@ enum TR_CompilationOptions
    TR_PrintCFG                               = 0x10000000 + 11, // Added by Rohit
    TR_DisableNewInliningInfrastructure        = 0x20000000 + 11,
    TR_DumpPAG                               = 0x40000000 + 11,// Added by Rohit
-   // Available                               = 0x80000000 + 11,
+   TR_smartAOTLoad                            = 0x80000000 + 11,// Added by Rohit
 
    // Option word 12
    // Available                               = 0x00000020 + 12,
