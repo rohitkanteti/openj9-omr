@@ -6916,7 +6916,7 @@ TR_OpaqueClassBlock *getCachedClass(TR::Compilation *comp, const std::string &cl
 
 // refernce https://en.wikipedia.org/wiki/List_of_Java_bytecode_instructions , https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-6.html
 void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph *pag, operandStack *stack, TR_ResolvedMethod *resolvedMethod,
-                     J9Method *currentMethod, int methodIndex, int bci, std::unordered_map<int, PAGNode *> &variableMap, bool hasReturnType, TR::Compilation *comp, J9Class *J9currentClass, PAGNode *primitive_node, PAGNode *comp_type_2)
+                     J9Method *currentMethod, int methodIndex, int bci, std::unordered_map<int, PAGNode *> &variableMap, bool hasReturnType, TR::Compilation *comp, J9Class *J9currentClass, PAGNode *primitive_node, PAGNode *comp_type_2,std::string currentMethodFullName)
 {
    TR_OpaqueMethodBlock *method_block = reinterpret_cast<TR_OpaqueMethodBlock *>(currentMethod);
    uint16_t cpIndex = (pc[2] << 8) | pc[1];
@@ -7040,37 +7040,37 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    // ARRAY LOADS - POP INDEX AND ARRAY, PUSH RESULT
    case J9BCiaload: // load an int from an array
    {
-      stack->pop();
-      stack->popRef();
+      stack->pop(currentMethodFullName);
+      stack->popRef(currentMethodFullName);
       stack->pushRef(primitive_node);
       break;
    }
    case J9BClaload:
    {
-      stack->pop();
-      stack->popRef();
+      stack->pop(currentMethodFullName);
+      stack->popRef(currentMethodFullName);
       stack->pushRef(comp_type_2); // push result
       break;
    }
    case J9BCfaload:
    {
-      stack->pop();
-      stack->popRef();
+      stack->pop(currentMethodFullName);
+      stack->popRef(currentMethodFullName);
       stack->pushRef(primitive_node);
       break;
    }
    case J9BCdaload:
    {
-      stack->pop();
-      stack->popRef();
+      stack->pop(currentMethodFullName);
+      stack->popRef(currentMethodFullName);
       stack->pushRef(comp_type_2);
       break;
    }
 
    case J9BCaaload: // load a reference from an array
    {
-      stack->pop();                               // pop index
-      set<PAGNode *> stack_top = stack->popRef(); // pop array reference
+      stack->pop(currentMethodFullName);                               // pop index
+      set<PAGNode *> stack_top = stack->popRef(currentMethodFullName); // pop array reference
 
       PAGNode *temp_node_ptr = new PAGNode(VARIABLE, globalIndex_, nullptr, method_block, bci, methodIndex);
       pag->PAG_nodes.insert(temp_node_ptr);
@@ -7089,108 +7089,108 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    case J9BCcaload:
    case J9BCsaload:
    {
-      stack->pop();
-      stack->popRef();
+      stack->pop(currentMethodFullName);
+      stack->popRef(currentMethodFullName);
       stack->pushRef(primitive_node); // push result (byte/char/short promoted to int)
       break;
    }
 
    case J9BCistore0:
    {
-      stack->pop(); // pop int value
+      stack->pop(currentMethodFullName); // pop int value
       variableMap[0] = primitive_node;
       break;
    }
    case J9BCistore1:
    {
-      stack->pop(); // pop int value
+      stack->pop(currentMethodFullName); // pop int value
       variableMap[1] = primitive_node;
       break;
    }
    case J9BCistore2:
    {
-      stack->pop(); // pop int value
+      stack->pop(currentMethodFullName); // pop int value
       variableMap[2] = primitive_node;
       break;
    }
    case J9BCistore3:
    {
-      stack->pop(); // pop int value
+      stack->pop(currentMethodFullName); // pop int value
       variableMap[3] = primitive_node;
       break;
    }
 
    case J9BClstore0:
    {
-      stack->pop(); // pop long value
+      stack->pop(currentMethodFullName); // pop long value
       variableMap[0] = comp_type_2;
       break;
    }
    case J9BClstore1:
    {
-      stack->pop(); // pop long value
+      stack->pop(currentMethodFullName); // pop long value
       variableMap[1] = comp_type_2;
       break;
    }
    case J9BClstore2:
    {
-      stack->pop(); // pop long value
+      stack->pop(currentMethodFullName); // pop long value
       variableMap[2] = comp_type_2;
       break;
    }
    case J9BClstore3:
    {
-      stack->pop(); // pop long value
+      stack->pop(currentMethodFullName); // pop long value
       variableMap[3] = comp_type_2;
       break;
    }
 
    case J9BCfstore0:
    {
-      stack->pop(); // pop float value
+      stack->pop(currentMethodFullName); // pop float value
       variableMap[0] = primitive_node;
       break;
    }
    case J9BCfstore1:
    {
-      stack->pop(); // pop float value
+      stack->pop(currentMethodFullName); // pop float value
       variableMap[1] = primitive_node;
       break;
    }
    case J9BCfstore2:
    {
-      stack->pop(); // pop float value
+      stack->pop(currentMethodFullName); // pop float value
       variableMap[2] = primitive_node;
       break;
    }
    case J9BCfstore3:
    {
-      stack->pop(); // pop float value
+      stack->pop(currentMethodFullName); // pop float value
       variableMap[3] = primitive_node;
       break;
    }
 
    case J9BCdstore0:
    {
-      stack->pop();
+      stack->pop(currentMethodFullName);
       variableMap[0] = comp_type_2;
       break;
    }
    case J9BCdstore1:
    {
-      stack->pop();
+      stack->pop(currentMethodFullName);
       variableMap[1] = comp_type_2;
       break;
    }
    case J9BCdstore2:
    {
-      stack->pop();
+      stack->pop(currentMethodFullName);
       variableMap[2] = comp_type_2;
       break;
    }
    case J9BCdstore3:
    {
-      stack->pop();
+      stack->pop(currentMethodFullName);
       variableMap[3] = comp_type_2;
       break;
    }
@@ -7198,7 +7198,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    // REFERENCE STORES
    case J9BCastore0:
    {
-      set<PAGNode *> stack_top = stack->popRef();
+      set<PAGNode *> stack_top = stack->popRef(currentMethodFullName);
 
       if (!variableMap[0])
       {
@@ -7218,7 +7218,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    }
    case J9BCastore1:
    {
-      set<PAGNode *> stack_top = stack->popRef();
+      set<PAGNode *> stack_top = stack->popRef(currentMethodFullName);
       if (!variableMap[1])
       {
          variableMap[1] = new PAGNode(VARIABLE, globalIndex_, nullptr, method_block, bci, methodIndex);
@@ -7237,7 +7237,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    }
    case J9BCastore2:
    {
-      set<PAGNode *> stack_top = stack->popRef();
+      set<PAGNode *> stack_top = stack->popRef(currentMethodFullName);
       if (!variableMap[2])
       {
          variableMap[2] = new PAGNode(VARIABLE, globalIndex_, nullptr, method_block, bci, methodIndex);
@@ -7256,7 +7256,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    }
    case J9BCastore3:
    {
-      set<PAGNode *> stack_top = stack->popRef();
+      set<PAGNode *> stack_top = stack->popRef(currentMethodFullName);
       if (!variableMap[3])
       {
          variableMap[3] = new PAGNode(VARIABLE, globalIndex_, nullptr, method_block, bci, methodIndex);
@@ -7278,39 +7278,39 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    // PRIMITIVE ARRAY STORES - POP VALUE, INDEX, ARRAY
    case J9BCiastore:
    {
-      stack->pop();    // pop int value
-      stack->pop();    // pop index
-      stack->popRef(); // pop array reference
+      stack->pop(currentMethodFullName);    // pop int value
+      stack->pop(currentMethodFullName);    // pop index
+      stack->popRef(currentMethodFullName); // pop array reference
       break;
    }
    case J9BClastore:
    {
-      stack->pop();
-      stack->pop();
-      stack->popRef();
+      stack->pop(currentMethodFullName);
+      stack->pop(currentMethodFullName);
+      stack->popRef(currentMethodFullName);
       break;
    }
    case J9BCfastore:
    {
-      stack->pop();
-      stack->pop();
-      stack->popRef();
+      stack->pop(currentMethodFullName);
+      stack->pop(currentMethodFullName);
+      stack->popRef(currentMethodFullName);
       break;
    }
    case J9BCdastore:
    {
-      stack->pop();
-      stack->pop();
-      stack->popRef();
+      stack->pop(currentMethodFullName);
+      stack->pop(currentMethodFullName);
+      stack->popRef(currentMethodFullName);
       break;
    }
 
    // REFERENCE ARRAY STORE
    case J9BCaastore:
    {
-      set<PAGNode *> value_set = stack->popRef();
-      stack->pop();
-      set<PAGNode *> arrayRef_set = stack->popRef();
+      set<PAGNode *> value_set = stack->popRef(currentMethodFullName);
+      stack->pop(currentMethodFullName);
+      set<PAGNode *> arrayRef_set = stack->popRef(currentMethodFullName);
 
       for (PAGNode *value : value_set)
       {
@@ -7327,21 +7327,21 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    case J9BCcastore:
    case J9BCsastore:
    {
-      stack->pop();
-      stack->pop();
-      stack->popRef();
+      stack->pop(currentMethodFullName);
+      stack->pop(currentMethodFullName);
+      stack->popRef(currentMethodFullName);
       break;
    }
 
    // STACK MANIPULATION
    case J9BCpop:
    {
-      stack->pop();
+      stack->pop(currentMethodFullName);
       break;
    }
    case J9BCpop2:
    {
-      std::set<StackFrame> top = stack->pop();
+      std::set<StackFrame> top = stack->pop(currentMethodFullName);
 
       bool isCategory2 = false;
       for (auto frame : top)
@@ -7354,14 +7354,14 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       }
       if (!isCategory2)
       {
-         stack->pop();
+         stack->pop(currentMethodFullName);
       }
       break;
    }
 
    case J9BCdup:
    {
-      set<StackFrame> s = stack->pop();
+      set<StackFrame> s = stack->pop(currentMethodFullName);
       set<StackFrame> s2 = s;
 
       stack->push(s);
@@ -7370,8 +7370,8 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    }
    case J9BCdupx1:
    {
-      set<StackFrame> value1 = stack->pop();
-      set<StackFrame> value2 = stack->pop();
+      set<StackFrame> value1 = stack->pop(currentMethodFullName);
+      set<StackFrame> value2 = stack->pop(currentMethodFullName);
 
       stack->push(value1);
       stack->push(value2);
@@ -7381,8 +7381,8 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
 
    case J9BCdupx2:
    {
-      set<StackFrame> value1 = stack->pop();
-      set<StackFrame> value2 = stack->pop();
+      set<StackFrame> value1 = stack->pop(currentMethodFullName);
+      set<StackFrame> value2 = stack->pop(currentMethodFullName);
 
       // Check if value2 is category 2
       bool value2IsCategory2 = false;
@@ -7407,7 +7407,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       {
          // Form 1: ..., value3, value2, value1 -> ..., value1, value3, value2, value1
          // where all values are category 1
-         set<StackFrame> value3 = stack->pop();
+         set<StackFrame> value3 = stack->pop(currentMethodFullName);
          stack->push(value1);
          stack->push(value3);
          stack->push(value2);
@@ -7418,7 +7418,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
 
    case J9BCdup2:
    {
-      set<StackFrame> value1 = stack->pop();
+      set<StackFrame> value1 = stack->pop(currentMethodFullName);
 
       // Check if value1 is category 2
       bool value1IsCategory2 = false;
@@ -7442,7 +7442,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       {
          // Form 1: ..., value2, value1 -> ..., value2, value1, value2, value1
          // where both values are category 1
-         set<StackFrame> value2 = stack->pop();
+         set<StackFrame> value2 = stack->pop(currentMethodFullName);
          stack->push(value2);
          stack->push(value1);
          stack->push(value2);
@@ -7453,7 +7453,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
 
    case J9BCdup2x1:
    {
-      set<StackFrame> value1 = stack->pop();
+      set<StackFrame> value1 = stack->pop(currentMethodFullName);
 
       // Check if value1 is category 2
       bool value1IsCategory2 = false;
@@ -7470,7 +7470,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       {
          // Form 2: ..., value2, value1 -> ..., value1, value2, value1
          // where value1 is category 2 and value2 is category 1
-         set<StackFrame> value2 = stack->pop();
+         set<StackFrame> value2 = stack->pop(currentMethodFullName);
          stack->push(value1);
          stack->push(value2);
          stack->push(value1);
@@ -7479,8 +7479,8 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       {
          // Form 1: ..., value3, value2, value1 -> ..., value2, value1, value3, value2, value1
          // where all values are category 1
-         set<StackFrame> value2 = stack->pop();
-         set<StackFrame> value3 = stack->pop();
+         set<StackFrame> value2 = stack->pop(currentMethodFullName);
+         set<StackFrame> value3 = stack->pop(currentMethodFullName);
          stack->push(value2);
          stack->push(value1);
          stack->push(value3);
@@ -7492,7 +7492,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
 
    case J9BCdup2x2:
    {
-      set<StackFrame> value1 = stack->pop();
+      set<StackFrame> value1 = stack->pop(currentMethodFullName);
 
       // Check if value1 is category 2
       bool value1IsCategory2 = false;
@@ -7508,7 +7508,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       if (value1IsCategory2)
       {
          // Forms 2 or 4: value1 is category 2
-         set<StackFrame> value2 = stack->pop();
+         set<StackFrame> value2 = stack->pop(currentMethodFullName);
 
          // Check if value2 is category 2
          bool value2IsCategory2 = false;
@@ -7533,7 +7533,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
          {
             // Form 2: ..., value3, value2, value1 -> ..., value1, value3, value2, value1
             // where value1 is category 2 and value2, value3 are category 1
-            set<StackFrame> value3 = stack->pop();
+            set<StackFrame> value3 = stack->pop(currentMethodFullName);
             stack->push(value1);
             stack->push(value3);
             stack->push(value2);
@@ -7543,8 +7543,8 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       else
       {
          // Forms 1 or 3: value1 is category 1
-         set<StackFrame> value2 = stack->pop();
-         set<StackFrame> value3 = stack->pop();
+         set<StackFrame> value2 = stack->pop(currentMethodFullName);
+         set<StackFrame> value3 = stack->pop(currentMethodFullName);
 
          // Check if value3 is category 2
          bool value3IsCategory2 = false;
@@ -7571,7 +7571,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
          {
             // Form 1: ..., value4, value3, value2, value1 -> ..., value2, value1, value4, value3, value2, value1
             // where all values are category 1
-            set<StackFrame> value4 = stack->pop();
+            set<StackFrame> value4 = stack->pop(currentMethodFullName);
             stack->push(value2);
             stack->push(value1);
             stack->push(value4);
@@ -7585,8 +7585,8 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
 
    case J9BCswap:
    {
-      set<StackFrame> s = stack->pop();
-      set<StackFrame> s2 = stack->pop();
+      set<StackFrame> s = stack->pop(currentMethodFullName);
+      set<StackFrame> s2 = stack->pop(currentMethodFullName);
 
       stack->push(s);
       stack->push(s2);
@@ -7606,8 +7606,8 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    case J9BCishr:
    case J9BCiushr:
    {
-      stack->pop();
-      stack->pop();
+      stack->pop(currentMethodFullName);
+      stack->pop(currentMethodFullName);
       stack->pushRef(primitive_node); // push result
       break;
    }
@@ -7621,8 +7621,8 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    case J9BClor:
    case J9BClxor:
    {
-      stack->pop();                // pop operand 2 (long)
-      stack->pop();                // pop operand 1 (long)
+      stack->pop(currentMethodFullName);                // pop operand 2 (long)
+      stack->pop(currentMethodFullName);                // pop operand 1 (long)
       stack->pushRef(comp_type_2); // push result
       break;
    }
@@ -7631,8 +7631,8 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    case J9BClshr:
    case J9BClushr:
    {
-      stack->pop();                // pop shift amount (int)
-      stack->pop();                // pop value (long)
+      stack->pop(currentMethodFullName);                // pop shift amount (int)
+      stack->pop(currentMethodFullName);                // pop value (long)
       stack->pushRef(comp_type_2); // push result
       break;
    }
@@ -7643,8 +7643,8 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    case J9BCfdiv:
    case J9BCfrem:
    {
-      stack->pop();                   // pop operand 2
-      stack->pop();                   // pop operand 1
+      stack->pop(currentMethodFullName);                   // pop operand 2
+      stack->pop(currentMethodFullName);                   // pop operand 1
       stack->pushRef(primitive_node); // push result
       break;
    }
@@ -7655,8 +7655,8 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    case J9BCddiv:
    case J9BCdrem:
    {
-      stack->pop();                // pop operand 2
-      stack->pop();                // pop operand 1
+      stack->pop(currentMethodFullName);                // pop operand 2
+      stack->pop(currentMethodFullName);                // pop operand 1
       stack->pushRef(comp_type_2); // push result
       break;
    }
@@ -7664,25 +7664,25 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    // NEGATION OPERATIONS
    case J9BCineg:
    {
-      stack->pop();                   // pop int
+      stack->pop(currentMethodFullName);                   // pop int
       stack->pushRef(primitive_node); // push result
       break;
    }
    case J9BClneg:
    {
-      stack->pop();                // pop long
+      stack->pop(currentMethodFullName);                // pop long
       stack->pushRef(comp_type_2); // push result
       break;
    }
    case J9BCfneg:
    {
-      stack->pop();                   // pop float
+      stack->pop(currentMethodFullName);                   // pop float
       stack->pushRef(primitive_node); // push result
       break;
    }
    case J9BCdneg:
    {
-      stack->pop();                // pop double
+      stack->pop(currentMethodFullName);                // pop double
       stack->pushRef(comp_type_2); // push result
       break;
    }
@@ -7690,73 +7690,73 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    // TYPE CONVERSIONS
    case J9BCi2l:
    {
-      stack->pop();                // pop int
+      stack->pop(currentMethodFullName);                // pop int
       stack->pushRef(comp_type_2); // push long
       break;
    }
    case J9BCi2f:
    {
-      stack->pop();                   // pop int
+      stack->pop(currentMethodFullName);                   // pop int
       stack->pushRef(primitive_node); // push float
       break;
    }
    case J9BCi2d:
    {
-      stack->pop();                // pop int
+      stack->pop(currentMethodFullName);                // pop int
       stack->pushRef(comp_type_2); // push double
       break;
    }
    case J9BCl2i:
    {
-      stack->pop();                   // pop long
+      stack->pop(currentMethodFullName);                   // pop long
       stack->pushRef(primitive_node); // push int
       break;
    }
    case J9BCl2f:
    {
-      stack->pop();                   // pop long
+      stack->pop(currentMethodFullName);                   // pop long
       stack->pushRef(primitive_node); // push float
       break;
    }
    case J9BCl2d:
    {
-      stack->pop();                // pop long
+      stack->pop(currentMethodFullName);                // pop long
       stack->pushRef(comp_type_2); // push double
       break;
    }
    case J9BCf2i:
    {
-      stack->pop();                   // pop float
+      stack->pop(currentMethodFullName);                   // pop float
       stack->pushRef(primitive_node); // push int
       break;
    }
    case J9BCf2l:
    {
-      stack->pop();                // pop float
+      stack->pop(currentMethodFullName);                // pop float
       stack->pushRef(comp_type_2); // push long
       break;
    }
    case J9BCf2d:
    {
-      stack->pop();                // pop float
+      stack->pop(currentMethodFullName);                // pop float
       stack->pushRef(comp_type_2); // push double
       break;
    }
    case J9BCd2i:
    {
-      stack->pop();                   // pop double
+      stack->pop(currentMethodFullName);                   // pop double
       stack->pushRef(primitive_node); // push int
       break;
    }
    case J9BCd2l:
    {
-      stack->pop();                // pop double
+      stack->pop(currentMethodFullName);                // pop double
       stack->pushRef(comp_type_2); // push long
       break;
    }
    case J9BCd2f:
    {
-      stack->pop();                   // pop double
+      stack->pop(currentMethodFullName);                   // pop double
       stack->pushRef(primitive_node); // push float
       break;
    }
@@ -7764,7 +7764,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    case J9BCi2c:
    case J9BCi2s:
    {
-      stack->pop();                   // pop int
+      stack->pop(currentMethodFullName);                   // pop int
       stack->pushRef(primitive_node); // push int (truncated)
       break;
    }
@@ -7772,24 +7772,24 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    // COMPARISON OPERATIONS
    case J9BClcmp:
    {
-      stack->pop();                   // pop long operand 2
-      stack->pop();                   // pop long operand 1
+      stack->pop(currentMethodFullName);                   // pop long operand 2
+      stack->pop(currentMethodFullName);                   // pop long operand 1
       stack->pushRef(primitive_node); // push int result
       break;
    }
    case J9BCfcmpl:
    case J9BCfcmpg:
    {
-      stack->pop();                   // pop float operand 2
-      stack->pop();                   // pop float operand 1
+      stack->pop(currentMethodFullName);                   // pop float operand 2
+      stack->pop(currentMethodFullName);                   // pop float operand 1
       stack->pushRef(primitive_node); // push int result
       break;
    }
    case J9BCdcmpl:
    case J9BCdcmpg:
    {
-      stack->pop();                   // pop double operand 2
-      stack->pop();                   // pop double operand 1
+      stack->pop(currentMethodFullName);                   // pop double operand 2
+      stack->pop(currentMethodFullName);                   // pop double operand 1
       stack->pushRef(primitive_node); // push int result
       break;
    }
@@ -7798,7 +7798,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    {
       if (hasReturnType)
       {
-         set<PAGNode *> stack_top = stack->popRef();
+         set<PAGNode *> stack_top = stack->popRef(currentMethodFullName);
 
          for (PAGNode *obj_ref : stack_top)
          {
@@ -7814,21 +7814,21 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
 
    case J9BCarraylength:
    {
-      stack->popRef();                // pop array reference
+      stack->popRef(currentMethodFullName);                // pop array reference
       stack->pushRef(primitive_node); // push array length (int)
       break;
    }
 
    case J9BCathrow:
    {
-      stack->popRef(); // pop exception object
+      stack->popRef(currentMethodFullName); // pop exception object
       break;
    }
 
    case J9BCmonitorenter:
    case J9BCmonitorexit:
    {
-      stack->popRef(); // pop object reference
+      stack->popRef(currentMethodFullName); // pop object reference
       break;
    }
 
@@ -7836,7 +7836,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    case J9BCReturnS:
    case J9BCReturnB:
    case J9BCReturnZ:
-      stack->pop();
+      stack->pop(currentMethodFullName);
       break;
    case J9BCasyncCheck:
    case J9BCbreakpoint:
@@ -7872,7 +7872,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    case J9BCfstorew: // NEWLY ADDED
    {
       uint16_t index = (pc[1] << 8) | pc[2];
-      stack->pop();
+      stack->pop(currentMethodFullName);
       variableMap[index] = primitive_node;
       break;
    }
@@ -7880,14 +7880,14 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    case J9BCdstorew: // NEWLY ADDED
    {
       uint16_t index = (pc[1] << 8) | pc[2];
-      stack->pop();
+      stack->pop(currentMethodFullName);
       variableMap[index] = comp_type_2;
       break;
    }
 
    case J9BCastorew: // NEWLY ADDED
    {
-      set<PAGNode *> stack_top = stack->popRef();
+      set<PAGNode *> stack_top = stack->popRef(currentMethodFullName);
       uint16_t index = (pc[1] << 8) | pc[2];
 
       if (!variableMap[index])
@@ -7933,7 +7933,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    case J9BCfstore:
    {
       int index = pc[1];
-      set<PAGNode *> stack_top = stack->popRef(); // pop from operand stack
+      set<PAGNode *> stack_top = stack->popRef(currentMethodFullName); // pop from operand stack
       for (PAGNode *obj_ref : stack_top)
       {
          if (!variableMap[index])
@@ -7955,7 +7955,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    case J9BCdstore:
    {
       int index = pc[1];
-      set<PAGNode *> stack_top = stack->popRef(); // pop from operand stack
+      set<PAGNode *> stack_top = stack->popRef(currentMethodFullName); // pop from operand stack
       for (PAGNode *obj_ref : stack_top)
       {
          if (!variableMap[index])
@@ -7975,7 +7975,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
 
    case J9BCastore:
    {
-      set<PAGNode *> stack_top = stack->popRef();
+      set<PAGNode *> stack_top = stack->popRef(currentMethodFullName);
       int index = pc[1];
       // std::cout << " storing to variable " << index << std::endl;
 
@@ -8082,7 +8082,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    case J9BCifgt:
    case J9BCifle:
    {
-      stack->pop();
+      stack->pop(currentMethodFullName);
       break;
    }
 
@@ -8093,23 +8093,23 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    case J9BCificmpgt:
    case J9BCificmple:
    {
-      stack->pop();
-      stack->pop();
+      stack->pop(currentMethodFullName);
+      stack->pop(currentMethodFullName);
       break;
    }
 
    case J9BCifacmpeq:
    case J9BCifacmpne:
    {
-      stack->popRef();
-      stack->popRef();
+      stack->popRef(currentMethodFullName);
+      stack->popRef(currentMethodFullName);
       break;
    }
 
    case J9BCifnull:
    case J9BCifnonnull:
    {
-      stack->popRef();
+      stack->popRef(currentMethodFullName);
       break;
    }
 
@@ -8159,7 +8159,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       }
       else
       {
-         set<PAGNode *> stack_top = stack->popRef();
+         set<PAGNode *> stack_top = stack->popRef(currentMethodFullName);
 
          for (PAGNode *obj_ref : stack_top)
             pag->addEdge(obj_ref, temp_node_ptr, GETFIELD, fieldName);
@@ -8202,11 +8202,11 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       // std::cout << "  ->className in putfield " << className << std::endl;
       // std::cout << "  -> fieldName= " << fieldName << std::endl;
       std::string fullName = className + "." + fieldName;
-      set<PAGNode *> value_set = stack->popRef();
+      set<PAGNode *> value_set = stack->popRef(currentMethodFullName);
       set<PAGNode *> objs_set;
       if (bytecode != J9BCputstatic)
       {
-         objs_set = stack->popRef();
+         objs_set = stack->popRef(currentMethodFullName);
       }
       for (PAGNode *value : value_set)
       {
@@ -8284,7 +8284,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       int parameter_count = count_parameters(sigChars);
       for (int i = parameter_count - 1; i >= 0; i--)
       {
-         stack->popRef();
+         stack->popRef(currentMethodFullName);
       }
 
       // 2. Only create and PUSH a return node if it actually returns something (not 'V' for void)
@@ -8405,7 +8405,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    //    {
    //       // if (is_reference_type(sigChars, i))
    //       // {
-   //       set<PAGNode *> param = stack->popRef();
+   //       set<PAGNode *> param = stack->popRef(currentMethodFullName);
    //       actual_params.push_back(param);
    //       for (auto *p : param)
    //          callsiteBCI_to_actual_params[bci].insert(p);
@@ -8447,7 +8447,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    //    }
    //    else
    //    {
-   //       set<PAGNode *> receiver_obj_ptr_set = stack->popRef();
+   //       set<PAGNode *> receiver_obj_ptr_set = stack->popRef(currentMethodFullName);
    //       PAGNode *rNode = new PAGNode(VARIABLE, 0, nullptr, method_block, -1, methodIndex);
    //       if (rst == "J" || rst == "D")
    //       {
@@ -8711,7 +8711,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       {
          // if (is_reference_type(sigChars, i))
          // {
-         set<PAGNode *> param = stack->popRef();
+         set<PAGNode *> param = stack->popRef(currentMethodFullName);
          actual_params.push_back(param);
          for (auto *p : param)
             callsiteBCI_to_actual_params[bci].insert(p);
@@ -8771,7 +8771,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       }
       else
       {
-         set<PAGNode *> receiver_obj_ptr_set = stack->popRef();
+         set<PAGNode *> receiver_obj_ptr_set = stack->popRef(currentMethodFullName);
          PAGNode *rNode = new PAGNode(VARIABLE, 0, nullptr, method_block, -1, methodIndex);
          if (rst == "J" || rst == "D")
          {
@@ -8957,7 +8957,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    // OBJECT CREATION
    case J9BCnewarray:
    {
-      stack->pop(); // pop array size (int)
+      stack->pop(currentMethodFullName); // pop array size (int)
 
       PAGNode *obj_ptr = new PAGNode(OBJECT, -1, nullptr, method_block, bci, methodIndex);
       pag->PAG_nodes.insert(obj_ptr);
@@ -8971,7 +8971,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    {
       if (bytecode == J9BCanewarray)
       {
-         stack->pop(); // pop array size (int) for anewarray
+         stack->pop(currentMethodFullName); // pop array size (int) for anewarray
       }
 
       uint32_t classNamelength = 0;
@@ -8996,7 +8996,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       std::string castClassName(classNameChars, cnlen);
       // std::cout << " --> cast to class " << castClassName << std::endl;
 
-      set<PAGNode *> stack_top = stack->popRef();
+      set<PAGNode *> stack_top = stack->popRef(currentMethodFullName);
       for (PAGNode *obj_ref : stack_top)
       {
          obj_ref->pointee_class_names.insert(castClassName);
@@ -9008,7 +9008,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
 
    case J9BCinstanceof:
    {
-      stack->popRef();                // pop reference to test
+      stack->popRef(currentMethodFullName);                // pop reference to test
       stack->pushRef(primitive_node); // push boolean result (as int)
       break;
    }
@@ -9039,7 +9039,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       uint8_t dimensions = pc[3];
       for (int i = 0; i < dimensions; i++)
       {
-         stack->pop(); // pop each dimension size
+         stack->pop(currentMethodFullName); // pop each dimension size
       }
 
       PAGNode *obj_ptr = new PAGNode(OBJECT, -1, nullptr, method_block, bci, methodIndex);
@@ -9055,7 +9055,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    case J9BClookupswitch:
    case J9BCtableswitch:
    {
-      stack->pop(); // pop int index
+      stack->pop(currentMethodFullName); // pop int index
       break;
    }
 
@@ -9080,7 +9080,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
 
       case J9BCastore:
       {
-         set<PAGNode *> stack_top = stack->popRef();
+         set<PAGNode *> stack_top = stack->popRef(currentMethodFullName);
          if (!variableMap[wideIndex])
          {
             variableMap[wideIndex] = new PAGNode(VARIABLE, globalIndex_++, nullptr, method_block, bci, methodIndex);
@@ -9109,13 +9109,13 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
 
       case J9BCistore:
       case J9BCfstore:
-         stack->pop(); // pop value
+         stack->pop(currentMethodFullName); // pop value
          variableMap[wideIndex] = primitive_node;
          break;
 
       case J9BClstore:
       case J9BCdstore:
-         stack->pop(); // pop value
+         stack->pop(currentMethodFullName); // pop value
          variableMap[wideIndex] = comp_type_2;
          break;
 
@@ -10830,6 +10830,7 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
    // std::cout << "Resolved method ptr: = " << resolvedMethod << std::endl;
 
    J9ROMMethod *romMethod = J9_ROM_METHOD_FROM_RAM_METHOD(method);
+   
    J9Class *clazz = J9_CLASS_FROM_CP(J9_CP_FROM_METHOD(method));
    J9ROMClass *romClass = clazz->romClass;
 
@@ -10851,6 +10852,14 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
    std::string returnStaticType;
    bool hasReturnType = returnsObject(methodSignature, returnStaticType);
    _methodsNamesBeingAnalyzed.insert(className + "." + name + signature);
+   std::string fullNAME = className + "." + name + signature;
+
+   if ((romMethod->modifiers & (J9AccAbstract | J9AccNative)) != 0)
+   {
+       _methodsNamesBeingAnalyzed.erase(className + "." + name + signature);
+       analysedMethodNames.insert(fullNAME);
+       return; // Safely exit before trying to read bytecodes or build a CFG
+   }
    // if (isLibraryMethod((className + "." + name + signature)))
    // {
    //    std::cout << "############## SKIPPED Traversing the Bytecode of the method " << className << "." << name << signature << "##############" << std::endl;
@@ -10880,7 +10889,7 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
       }
    }
 
-   std::string fullNAME = className + "." + name + signature;
+   // std::cout << "Method: " << fullNAME << " has " << num_params << " parameters, out of which " << reference_params << " are reference types." << std::endl;
 
    // Create entries in the varaible Map for each of the parameters and a PAGNode for return node ;
    if (analysedMethodNames.find(fullNAME) == analysedMethodNames.end() && alreadyAnalyzedMethods.find(fullNAME) == alreadyAnalyzedMethods.end()) // This means that this method 'my' was not analyzed before or called before.
@@ -11003,7 +11012,7 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
          // J9VMThread *vm = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
          // TR_OpaqueClassBlock *opaqueCurrentClass = resolvedMethod->classOfMethod();
          J9Class *currentClass = J9_CLASS_FROM_METHOD(method); // reinterpret_cast<J9Class *>(opaqueCurrentClass);
-         executeBytecode(bytecode, pc, pag, stack, resolvedMethod, method, methodIndex, pcIndex, variableMap, hasReturnType, comp, currentClass, primitive_node, comp_type2_primitiveNode);
+         executeBytecode(bytecode, pc, pag, stack, resolvedMethod, method, methodIndex, pcIndex, variableMap, hasReturnType, comp, currentClass, primitive_node, comp_type2_primitiveNode,fullNAME);
          pcIndex += instructionLength;
          globalIndex_++;
 
@@ -11027,7 +11036,7 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
             operandStack *succStack = inStacks[succ];
             // std::cout << "Succ BCI = " << succBci << std::endl;
 
-            if (succStack->merge(*stack) && worklist_bb_bci.find(succBci) == worklist_bb_bci.end()) // if successor is already in the worklist then don't add it again.
+            if (succStack->merge(*stack,fullNAME,bb->getEntry()->getNode()->getByteCodeIndex()) && worklist_bb_bci.find(succBci) == worklist_bb_bci.end()) // if successor is already in the worklist then don't add it again.
             {
                worklist_bb_bci.insert(succBci);
                // std::cout << "Reanalysing " << succBci << std::endl;
@@ -11077,7 +11086,7 @@ std::unordered_set<std::string> getAllPossibleCHA_TargetNames(const std::string 
 
    return result;
 }
-
+bool printed = false;
 J9Class *findClassAcrossAllLoaders(TR::Compilation *comp, const std::string &className, TR_J9VMBase *fej9, TR_ResolvedMethod *resolvedMethod)
 {
    if (resolvedMethod)
@@ -11096,8 +11105,10 @@ J9Class *findClassAcrossAllLoaders(TR::Compilation *comp, const std::string &cla
    {
       targetName = targetName.substr(1, targetName.length() - 2);
    }
+   
    // std::cout << "[JIT-Search] Looking for exact internal name: " << targetName << std::endl;
-
+   
+   TR::VMAccessCriticalSection vmAccess(comp);
    J9VMThread *vmThread = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
    J9JavaVM *javaVM = vmThread->javaVM;
 
@@ -11107,6 +11118,8 @@ J9Class *findClassAcrossAllLoaders(TR::Compilation *comp, const std::string &cla
 
    while (nullptr != (classLoader = (J9ClassLoader *)classLoaderIterator.nextSlot()))
    {
+      // --- PRINT THE CLASS LOADER ---
+      // std::cout << "[JIT-Search] Inspecting ClassLoader at address: " << classLoader << std::endl;
 
       J9HashTableState walkState;
       J9Class *currentClass = javaVM->internalVMFunctions->hashClassTableStartDo(classLoader, &walkState, 0);
@@ -11114,12 +11127,18 @@ J9Class *findClassAcrossAllLoaders(TR::Compilation *comp, const std::string &cla
       while (currentClass)
       {
          J9UTF8 *nameUTF8 = J9ROMCLASS_CLASSNAME(currentClass->romClass);
+         
+         // --- PRINT THE LOADED CLASS ---
+         // Reconstructing the string is required here for safe printing because J9UTF8 data is not null-terminated
          std::string currentClassName((char *)J9UTF8_DATA(nameUTF8), J9UTF8_LENGTH(nameUTF8));
-         if (currentClassName == targetName || currentClassName.find(targetName) != std::string::npos)
+         // std::cout << "    |-- Class: " << currentClassName << std::endl;
+
+         // Zero-allocation strict equality check for the actual search target
+         if (J9UTF8_LENGTH(nameUTF8) == targetName.length() && strncmp((char *)J9UTF8_DATA(nameUTF8), targetName.c_str(), targetName.length()) == 0)
          {
-            // std::cout << "[JIT-Search] FOUND class '" << targetName << "' in class loader " << classLoader << std::endl;
+            // std::cout << "    *** MATCH FOUND! ***" << std::endl;
             foundClass = currentClass;
-            break;
+            break; // Stops searching (and printing) inside this loader
          }
 
          currentClass = javaVM->internalVMFunctions->hashClassTableNextDo(&walkState);
@@ -11127,15 +11146,12 @@ J9Class *findClassAcrossAllLoaders(TR::Compilation *comp, const std::string &cla
 
       if (foundClass)
       {
-         break;
+         break; // Stops searching (and printing) subsequent loaders
       }
    }
 
-   // std::cout << "[JIT-Search] Searched " << totalClassesSearched << " classes across " << loaderCount << " loaders." << std::endl;
-
    return foundClass;
 }
-
 J9Class *findClassByName(TR::Compilation *comp, const std::string &className, TR_J9VMBase *fej9, TR_ResolvedMethod *resolvedMethod)
 {
 
