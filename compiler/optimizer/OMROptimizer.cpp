@@ -280,7 +280,7 @@ static int getClassIndex(const std::string &className)
       std::ofstream outFile("ci.txt", std::ios::out | std::ios::app);
       if (outFile.is_open())
       {
-         outFile << className;
+         outFile << className << "\n";
          outFile.close();
       }
    }
