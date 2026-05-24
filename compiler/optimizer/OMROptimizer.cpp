@@ -20,7 +20,8 @@
  *******************************************************************************/
 
 #include "optimizer/Optimizer.hpp"
-
+#include <jni.h>
+#include <string>
 #include "optimizer/Optimizer_inlines.hpp"
 
 #include <bits/stdc++.h>
@@ -3626,7 +3627,7 @@ void processClinits(TR::Compilation *comp)
       int len = class_name.length();
 
       //   TR_OpaqueClassBlock *type = getCachedClass(comp, class_name.c_str(), len);
-      J9Class *j9Class = findClassAcrossAllLoaders(comp, class_name, ((TR_J9VMBase *)comp->fe()), nullptr);
+      J9Class *j9Class = findClassAcrossAllLoaders(comp, class_name, ((TR_J9VMBase *)comp->fe()), comp->getCurrentMethod());
       TR_OpaqueClassBlock *type = reinterpret_cast<TR_OpaqueClassBlock *>(j9Class);
 
       if (type != nullptr)
@@ -10827,8 +10828,6 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
    std::map<int32_t, TR::Block *> blocks;
    TR::Block *entryBlock = nullptr;
 
-   // std::cout << "Resolved method ptr: = " << resolvedMethod << std::endl;
-
    J9ROMMethod *romMethod = J9_ROM_METHOD_FROM_RAM_METHOD(method);
    
    J9Class *clazz = J9_CLASS_FROM_CP(J9_CP_FROM_METHOD(method));
@@ -10851,28 +10850,18 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
    std::string signature(methodSignature, methodSignatureLength);
    std::string returnStaticType;
    bool hasReturnType = returnsObject(methodSignature, returnStaticType);
-   _methodsNamesBeingAnalyzed.insert(className + "." + name + signature);
+   
    std::string fullNAME = className + "." + name + signature;
+   _methodsNamesBeingAnalyzed.insert(fullNAME);
 
    if ((romMethod->modifiers & (J9AccAbstract | J9AccNative)) != 0)
    {
-       _methodsNamesBeingAnalyzed.erase(className + "." + name + signature);
+       _methodsNamesBeingAnalyzed.erase(fullNAME);
        analysedMethodNames.insert(fullNAME);
-       return; // Safely exit before trying to read bytecodes or build a CFG
+       return; 
    }
-   // if (isLibraryMethod((className + "." + name + signature)))
-   // {
-   //    std::cout << "############## SKIPPED Traversing the Bytecode of the method " << className << "." << name << signature << "##############" << std::endl;
 
-   //    return;
-   // }
-
-   // std::cout << "############## Traversing the Bytecode of the method " << className << "." << name << signature << "##############" << std::endl;
-   int num_params = count_parameters(methodSignature); // resolvedMethod->numberOfParameterSlots(); double or long takes 2 slots
-   // if(name.rfind("outputIntervalHistogram")==0)
-   // {
-   //    std::cout << "Got :" << name << std::endl;
-   // }
+   int num_params = count_parameters(methodSignature); 
    std::unordered_map<int, PAGNode *> variableMap;
    int reference_params = 0;
 
@@ -10884,46 +10873,39 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
    for (int i = 0; i < num_params; i++)
    {
       if (is_reference_type(methodSignature, i))
-      {
          reference_params++;
-      }
    }
 
-   // std::cout << "Method: " << fullNAME << " has " << num_params << " parameters, out of which " << reference_params << " are reference types." << std::endl;
-
-   // Create entries in the varaible Map for each of the parameters and a PAGNode for return node ;
-   if (analysedMethodNames.find(fullNAME) == analysedMethodNames.end() && alreadyAnalyzedMethods.find(fullNAME) == alreadyAnalyzedMethods.end()) // This means that this method 'my' was not analyzed before or called before.
+   // FIX 1 & 2: Base the node creation decision entirely on whether the graph 
+   // has already tracked formal nodes for this specific context index.
+   // Also prevents duplicate additions in recursive scenarios.
+   if (pag->methodIndex_to_formalNodes.find(methodIndex) == pag->methodIndex_to_formalNodes.end())
    {
-      bool static_node_created_here = false;
+      // Create the implicit 'this' reference node for non-static methods
       if ((romMethod->modifiers & J9AccStatic) == 0)
       {
          PAGNode *param_node_ptr = new PAGNode(VARIABLE, 0, nullptr, method_block, -1, methodIndex, className);
-         // std::cout << "FOR recvr Method index = " << methodIndex << std::endl;
-         static_node_created_here = true;
          pag->methodIndex_to_allMethodNodes[methodIndex].push_back(param_node_ptr);
          pag->PAG_nodes.insert(param_node_ptr);
          pag->methodIndex_to_formalNodes[methodIndex].push_back(param_node_ptr);
       }
 
-      if (static_node_created_here || pag->methodIndex_to_formalNodes.find(methodIndex) == pag->methodIndex_to_formalNodes.end())
+      // Loop through parameters and construct nodes for reference types
+      for (int i = 0; i < num_params; i++)
       {
-         for (int i = 0; i < num_params; i++)
+         if (is_reference_type(methodSignature, i))
          {
+            int slot_num = getSlotForArgument(methodSignature, i);
+            std::string static_type = getParameterReferenceType(methodSignature, i);
 
-            if (is_reference_type(methodSignature, i))
-            {
-               int slot_num = getSlotForArgument(methodSignature, i);
-
-               std::string static_type = getParameterReferenceType(methodSignature, i);
-
-               PAGNode *param_node_ptr = new PAGNode(VARIABLE, slot_num, nullptr, method_block, -1, methodIndex, static_type);
-               // std::cout << i << " for is_reference_type Method index = " << methodIndex << " " << num_params << " " << reference_params << std::endl;
-               pag->methodIndex_to_allMethodNodes[methodIndex].push_back(param_node_ptr);
-               pag->PAG_nodes.insert(param_node_ptr);
-               pag->methodIndex_to_formalNodes[methodIndex].push_back(param_node_ptr);
-            }
+            PAGNode *param_node_ptr = new PAGNode(VARIABLE, slot_num, nullptr, method_block, -1, methodIndex, static_type);
+            pag->methodIndex_to_allMethodNodes[methodIndex].push_back(param_node_ptr);
+            pag->PAG_nodes.insert(param_node_ptr);
+            pag->methodIndex_to_formalNodes[methodIndex].push_back(param_node_ptr);
          }
       }
+      
+      // Handle the return node mapping
       if (hasReturnType)
       {
          pag->methodIndex_to_returnNode[methodIndex] = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, method_block, -1, methodIndex);
@@ -10931,11 +10913,9 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
          pag->PAG_nodes.insert(pag->methodIndex_to_returnNode[methodIndex]);
          pag->methodIndex_to_allMethodNodes[methodIndex].push_back(pag->methodIndex_to_returnNode[methodIndex]);
       }
-      // if (returnStaticType == "J" || returnStaticType == "D")
-      // {
-      //    pag->methodIndex_to_returnNode[methodIndex]->comp_type = "COMP_TYPE_2";
-      // }
    }
+
+   // Fetch nodes reliably from the map
    vector<PAGNode *> formal_param_nodes = pag->methodIndex_to_formalNodes[methodIndex];
    PAGNode *returnNode = nullptr;
    auto it = pag->methodIndex_to_returnNode.find(methodIndex);
@@ -10944,11 +10924,10 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
       returnNode = it->second;
    }
 
-   // std::cout << "Formal params size = " << formal_param_nodes.size() << std::endl;
-   if (reference_params != formal_param_nodes.size()) // || ((hasReturnType && !returnNode) || (!hasReturnType && returnNode)))
+   if (reference_params != formal_param_nodes.size()) 
    {
-      std::cout << "Formal params size = " << formal_param_nodes.size() << std::endl;
-      TR_ASSERT_FATAL(0, "There is a mismatch in the size of paramters maybe the method signature changed.");
+      std::cout << "Formal params size = " << formal_param_nodes.size() << " (Expected " << reference_params << ")\n";
+      TR_ASSERT_FATAL(0, "There is a mismatch in the size of parameters.");
    }
 
    for (int i = 0; i < reference_params; i++)
@@ -11087,70 +11066,219 @@ std::unordered_set<std::string> getAllPossibleCHA_TargetNames(const std::string 
    return result;
 }
 bool printed = false;
-J9Class *findClassAcrossAllLoaders(TR::Compilation *comp, const std::string &className, TR_J9VMBase *fej9, TR_ResolvedMethod *resolvedMethod)
-{
-   if (resolvedMethod)
-   {
-      TR_OpaqueClassBlock *omb = fej9->getClassFromSignature(className.c_str(), className.length(), resolvedMethod, true);
+// J9Class *findClassAcrossAllLoaders(TR::Compilation *comp, const std::string &className, TR_J9VMBase *fej9, TR_ResolvedMethod *resolvedMethod)
+// {
+//    if (resolvedMethod)
+//    {
+//       TR_OpaqueClassBlock *omb = fej9->getClassFromSignature(className.c_str(), className.length(), resolvedMethod, true);
 
-      if (omb)
-      {
-         // std::cout << "[JIT-Search] Found class '" << className << "' using getClassFromSignature." << std::endl;
-         return (J9Class *)omb;
-      }
-   }
+//       if (omb)
+//       {
+//          // std::cout << "[JIT-Search] Found class '" << className << "' using getClassFromSignature." << std::endl;
+//          return (J9Class *)omb;
+//       }
+//    }
 
-   std::string targetName = className;
-   if (targetName.length() > 2 && targetName.front() == 'L' && targetName.back() == ';')
-   {
-      targetName = targetName.substr(1, targetName.length() - 2);
-   }
+//    std::string targetName = className;
+//    if (targetName.length() > 2 && targetName.front() == 'L' && targetName.back() == ';')
+//    {
+//       targetName = targetName.substr(1, targetName.length() - 2);
+//    }
    
-   // std::cout << "[JIT-Search] Looking for exact internal name: " << targetName << std::endl;
+//    // std::cout << "[JIT-Search] Looking for exact internal name: " << targetName << std::endl;
    
-   TR::VMAccessCriticalSection vmAccess(comp);
-   J9VMThread *vmThread = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
-   J9JavaVM *javaVM = vmThread->javaVM;
+//    TR::VMAccessCriticalSection vmAccess(comp);
+//    J9VMThread *vmThread = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
+//    J9JavaVM *javaVM = vmThread->javaVM;
 
-   GC_PoolIterator classLoaderIterator(javaVM->classLoaderBlocks);
-   J9ClassLoader *classLoader = nullptr;
-   J9Class *foundClass = nullptr;
+//    GC_PoolIterator classLoaderIterator(javaVM->classLoaderBlocks);
+//    J9ClassLoader *classLoader = nullptr;
+//    J9Class *foundClass = nullptr;
 
-   while (nullptr != (classLoader = (J9ClassLoader *)classLoaderIterator.nextSlot()))
-   {
-      // --- PRINT THE CLASS LOADER ---
-      // std::cout << "[JIT-Search] Inspecting ClassLoader at address: " << classLoader << std::endl;
+//    while (nullptr != (classLoader = (J9ClassLoader *)classLoaderIterator.nextSlot()))
+//    {
+//       // --- PRINT THE CLASS LOADER ---
+//       // std::cout << "[JIT-Search] Inspecting ClassLoader at address: " << classLoader << std::endl;
 
-      J9HashTableState walkState;
-      J9Class *currentClass = javaVM->internalVMFunctions->hashClassTableStartDo(classLoader, &walkState, 0);
+//       J9HashTableState walkState;
+//       J9Class *currentClass = javaVM->internalVMFunctions->hashClassTableStartDo(classLoader, &walkState, 0);
 
-      while (currentClass)
-      {
-         J9UTF8 *nameUTF8 = J9ROMCLASS_CLASSNAME(currentClass->romClass);
+//       while (currentClass)
+//       {
+//          J9UTF8 *nameUTF8 = J9ROMCLASS_CLASSNAME(currentClass->romClass);
          
-         // --- PRINT THE LOADED CLASS ---
-         // Reconstructing the string is required here for safe printing because J9UTF8 data is not null-terminated
-         std::string currentClassName((char *)J9UTF8_DATA(nameUTF8), J9UTF8_LENGTH(nameUTF8));
-         // std::cout << "    |-- Class: " << currentClassName << std::endl;
+//          // --- PRINT THE LOADED CLASS ---
+//          // Reconstructing the string is required here for safe printing because J9UTF8 data is not null-terminated
+//          std::string currentClassName((char *)J9UTF8_DATA(nameUTF8), J9UTF8_LENGTH(nameUTF8));
+//          // std::cout << "    |-- Class: " << currentClassName << std::endl;
 
-         // Zero-allocation strict equality check for the actual search target
-         if (J9UTF8_LENGTH(nameUTF8) == targetName.length() && strncmp((char *)J9UTF8_DATA(nameUTF8), targetName.c_str(), targetName.length()) == 0)
-         {
-            // std::cout << "    *** MATCH FOUND! ***" << std::endl;
-            foundClass = currentClass;
-            break; // Stops searching (and printing) inside this loader
-         }
+//          // Zero-allocation strict equality check for the actual search target
+//          if (J9UTF8_LENGTH(nameUTF8) == targetName.length() && strncmp((char *)J9UTF8_DATA(nameUTF8), targetName.c_str(), targetName.length()) == 0)
+//          {
+//             // std::cout << "    *** MATCH FOUND! ***" << std::endl;
+//             foundClass = currentClass;
+//             break; // Stops searching (and printing) inside this loader
+//          }
 
-         currentClass = javaVM->internalVMFunctions->hashClassTableNextDo(&walkState);
-      }
+//          currentClass = javaVM->internalVMFunctions->hashClassTableNextDo(&walkState);
+//       }
 
-      if (foundClass)
+//       if (foundClass)
+//       {
+//          break; // Stops searching (and printing) subsequent loaders
+//       }
+//    }
+
+//    return foundClass;
+// }
+
+// ---------------------------------------------------------------------------
+// Registry lookup helper
+//
+// Calls HotRunLoadingAgent.getV2Class(internalName) via JNI and returns the
+// J9Class* from the resulting jclass.  Returns nullptr if the registry is
+// empty, the class is not found, or the agent has not initialised yet.
+//
+// This is the ONLY reliable path during early relocation validation because:
+//   - classLoaderBlocks only contains loaders whose native peer has been
+//     allocated by the GC, which may not include the sandbox loader yet
+//     if the GC safepoint hasn't fired since Class.forName() returned
+//   - getClassFromSignature resolves relative to a resolvedMethod's loader
+//     which at relocation time has not yet seen these classes
+// ---------------------------------------------------------------------------
+static J9Class *lookupInAgentRegistry(J9VMThread *vmThread, const std::string &internalName)
+{
+   J9JavaVM *javaVM = vmThread->javaVM;
+   JNIEnv *env = (JNIEnv *)vmThread;
+   jclass liveV2ClassObj = nullptr;
+   J9Class *result = nullptr;
+
+   // 1. Capture the exact entry state of the calling thread context
+   bool wasInNative = (vmThread->inNative != 0);
+
+   // 2. Ensure we are in Native State (inNative == 1) to make public JNI calls safely
+   if (!wasInNative)
+   {
+      javaVM->internalVMFunctions->internalExitVMToJNI(vmThread);
+   }
+
+   jclass agentClass = env->FindClass("HotRunLoadingAgent");
+   if (agentClass && !env->ExceptionCheck())
+   {
+      jmethodID getV2ClassMID = env->GetStaticMethodID(
+          agentClass, "getV2Class", "(Ljava/lang/String;)Ljava/lang/Class;");
+      
+      if (getV2ClassMID && !env->ExceptionCheck())
       {
-         break; // Stops searching (and printing) subsequent loaders
+         jstring jname = env->NewStringUTF(internalName.c_str());
+         if (jname && !env->ExceptionCheck())
+         {
+            jobject rawObj = env->CallStaticObjectMethod(agentClass, getV2ClassMID, jname);
+            if (rawObj && !env->ExceptionCheck())
+            {
+               liveV2ClassObj = (jclass)rawObj;
+            }
+            env->DeleteLocalRef(jname);
+         }
+      }
+      env->DeleteLocalRef(agentClass);
+   }
+
+   if (env->ExceptionCheck())
+   {
+      env->ExceptionClear();
+   }
+
+   // 3. Resolve the object structure handles
+   if (liveV2ClassObj != nullptr)
+   {
+      // We MUST hold VM Access (Java State, inNative == 0) to parse raw heap objects safely
+      javaVM->internalVMFunctions->internalEnterVMFromJNI(vmThread);
+
+      result = J9VM_J9CLASS_FROM_JCLASS(vmThread, liveV2ClassObj);
+      
+      // Return momentarily to Native State to safely drop the JNI local handle
+      javaVM->internalVMFunctions->internalExitVMToJNI(vmThread);
+      env->DeleteLocalRef(liveV2ClassObj);
+   }
+
+   // ------------------------------------------------------------------
+   // CRITICAL RESTORATION INVARIANT
+   // Restore the thread to the EXACT state it was in before we hijacked it.
+   // If the caller expects Java State, return in Java State. 
+   // If the caller expects Native State, return in Native State.
+   // ------------------------------------------------------------------
+   if (!wasInNative)
+   {
+      javaVM->internalVMFunctions->internalEnterVMFromJNI(vmThread);
+   }
+   else
+   {
+      // If the caller was native, ensure we are native on exit
+      if (vmThread->inNative == 0)
+      {
+         javaVM->internalVMFunctions->internalExitVMToJNI(vmThread);
       }
    }
 
-   return foundClass;
+   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Your existing function, with the registry lookup inserted at the top
+// ---------------------------------------------------------------------------
+J9Class *findClassAcrossAllLoaders(TR::Compilation *comp,
+                                   const std::string &className,
+                                   TR_J9VMBase *fej9,
+                                   TR_ResolvedMethod *resolvedMethod)
+{
+    TR::VMAccessCriticalSection vmAccess(comp);
+    J9VMThread *vmThread = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
+    J9JavaVM *javaVM = vmThread->javaVM;
+
+    std::string internalName = className;
+    // Strip L...;  descriptor wrapper if present
+    if (internalName.length() > 2 &&
+        internalName.front() == 'L' &&
+        internalName.back() == ';')
+    {
+        internalName = internalName.substr(1, internalName.length() - 2);
+    }
+
+    if (resolvedMethod)
+    {
+        TR_OpaqueClassBlock *omb = fej9->getClassFromSignature(
+            className.c_str(), className.length(), resolvedMethod, true);
+        if (omb)
+            return (J9Class *)omb;
+    }
+
+    GC_PoolIterator classLoaderIterator(javaVM->classLoaderBlocks);
+    J9ClassLoader *classLoader = nullptr;
+    J9Class *foundClass = nullptr;
+
+    while (nullptr != (classLoader = (J9ClassLoader *)classLoaderIterator.nextSlot()))
+    {
+        J9HashTableState walkState;
+        J9Class *currentClass = javaVM->internalVMFunctions->hashClassTableStartDo(
+            classLoader, &walkState, 0);
+        while (currentClass)
+        {
+            J9UTF8 *nameUTF8 = J9ROMCLASS_CLASSNAME(currentClass->romClass);
+            if (J9UTF8_LENGTH(nameUTF8) == internalName.length() &&
+                strncmp((char *)J9UTF8_DATA(nameUTF8),
+                        internalName.c_str(),
+                        internalName.length()) == 0)
+            {
+                foundClass = currentClass;
+                break;
+            }
+            currentClass = javaVM->internalVMFunctions->hashClassTableNextDo(&walkState);
+        }
+        if (foundClass) break;
+    }
+
+    return foundClass;
 }
 J9Class *findClassByName(TR::Compilation *comp, const std::string &className, TR_J9VMBase *fej9, TR_ResolvedMethod *resolvedMethod)
 {
