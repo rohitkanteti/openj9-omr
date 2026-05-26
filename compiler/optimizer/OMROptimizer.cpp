@@ -22,6 +22,7 @@
 #include "optimizer/Optimizer.hpp"
 #include <jni.h>
 #include <string>
+#include <mutex>
 #include "optimizer/Optimizer_inlines.hpp"
 
 #include <bits/stdc++.h>
@@ -445,6 +446,7 @@ static std::unordered_map<TR_OpaqueMethodBlock *, std::set<int>> refineReanalyze
 // (class, set(child Class))
 static std::unordered_map<std::string, std::unordered_set<std::string>> CHA_names;
 static std::unordered_map<TR_OpaqueClassBlock *, std::unordered_set<TR_OpaqueClassBlock *>> CHA;
+static std::mutex cha_mutex;
 
 // stmt number to stmt(node)
 static std::unordered_map<TR_OpaqueMethodBlock *, std::unordered_map<int, TR::Node *>> stmtNumber;
@@ -3663,6 +3665,8 @@ void processClinits(TR::Compilation *comp)
 
 void benchmarkBuildIndependentSet(TR::Compilation *comp)
 {
+   static std::recursive_mutex analysis_mutex;
+   std::lock_guard<std::recursive_mutex> lock(analysis_mutex);
 
    // std::cout<<"**************************************************************"<<std::endl;
    // printSet();
@@ -3673,11 +3677,15 @@ void benchmarkBuildIndependentSet(TR::Compilation *comp)
 
    if (CHA.size() == 0)
    {
-      constructCHA(comp);
-      getAlreadyAnalyzedMethodNames();
-      getResolvedReflectiveCalls();
-      getall_loaded_classes(comp);
-      processClinits(comp);
+      std::lock_guard<std::mutex> lock(cha_mutex);
+      if (CHA.size() == 0)
+      {
+         constructCHA(comp);
+         getAlreadyAnalyzedMethodNames();
+         getResolvedReflectiveCalls();
+         getall_loaded_classes(comp);
+         processClinits(comp);
+      }
       // printf("=== Class Hierarchy Analysis (CHA) ===\n");
       // printf("Total parent classes: %zu\n", CHA.size());
 
