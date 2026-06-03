@@ -67,6 +67,8 @@
 #include "infra/Cfg.hpp"
 #include "infra/List.hpp"
 #include "infra/SimpleRegex.hpp"
+#include "infra/CriticalSection.hpp"
+#include "infra/Monitor.hpp"
 #include "infra/CfgNode.hpp"
 #include "infra/Timer.hpp"
 #include "optimizer/LoadExtensions.hpp"
@@ -3665,8 +3667,16 @@ void processClinits(TR::Compilation *comp)
 
 void benchmarkBuildIndependentSet(TR::Compilation *comp)
 {
-   static std::recursive_mutex analysis_mutex;
-   std::lock_guard<std::recursive_mutex> lock(analysis_mutex);
+   static TR::Monitor *analysis_monitor = nullptr;
+   static TR::Monitor *cha_monitor = nullptr;
+   static std::once_flag init_monitors_flag;
+
+   std::call_once(init_monitors_flag, [](){
+      analysis_monitor = TR::Monitor::create("OMROptimizer_analysis_monitor");
+      cha_monitor = TR::Monitor::create("OMROptimizer_cha_monitor");
+   });
+
+   OMR::CriticalSection lock(analysis_monitor);
 
    // std::cout<<"**************************************************************"<<std::endl;
    // printSet();
@@ -3677,7 +3687,7 @@ void benchmarkBuildIndependentSet(TR::Compilation *comp)
 
    if (CHA.size() == 0)
    {
-      std::lock_guard<std::mutex> lock(cha_mutex);
+      OMR::CriticalSection cha_lock(cha_monitor);
       if (CHA.size() == 0)
       {
          constructCHA(comp);
@@ -7023,24 +7033,44 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
 
    case J9BCaload0:
    {
+      if (!variableMap[0]) {
+         variableMap[0] = new PAGNode(VARIABLE, globalIndex_, nullptr, method_block, bci, methodIndex);
+         pag->PAG_nodes.insert(variableMap[0]);
+         pag->methodIndex_to_allMethodNodes[methodIndex].push_back(variableMap[0]);
+      }
       PAGNode *ref = variableMap[0];
       stack->pushRef(ref);
       break;
    }
    case J9BCaload1:
    {
+      if (!variableMap[1]) {
+         variableMap[1] = new PAGNode(VARIABLE, globalIndex_, nullptr, method_block, bci, methodIndex);
+         pag->PAG_nodes.insert(variableMap[1]);
+         pag->methodIndex_to_allMethodNodes[methodIndex].push_back(variableMap[1]);
+      }
       PAGNode *ref = variableMap[1];
       stack->pushRef(ref);
       break;
    }
    case J9BCaload2:
    {
+      if (!variableMap[2]) {
+         variableMap[2] = new PAGNode(VARIABLE, globalIndex_, nullptr, method_block, bci, methodIndex);
+         pag->PAG_nodes.insert(variableMap[2]);
+         pag->methodIndex_to_allMethodNodes[methodIndex].push_back(variableMap[2]);
+      }
       PAGNode *ref = variableMap[2];
       stack->pushRef(ref);
       break;
    }
    case J9BCaload3:
    {
+      if (!variableMap[3]) {
+         variableMap[3] = new PAGNode(VARIABLE, globalIndex_, nullptr, method_block, bci, methodIndex);
+         pag->PAG_nodes.insert(variableMap[3]);
+         pag->methodIndex_to_allMethodNodes[methodIndex].push_back(variableMap[3]);
+      }
       PAGNode *ref = variableMap[3];
       stack->pushRef(ref);
       break;
@@ -7874,6 +7904,11 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    {
       // Wide index is 16-bit (pc[1] and pc[2])
       uint16_t index = (pc[1] << 8) | pc[2];
+      if (!variableMap[index]) {
+         variableMap[index] = new PAGNode(VARIABLE, globalIndex_, nullptr, method_block, bci, methodIndex);
+         pag->PAG_nodes.insert(variableMap[index]);
+         pag->methodIndex_to_allMethodNodes[methodIndex].push_back(variableMap[index]);
+      }
       stack->pushRef(variableMap[index]);
       break;
    }
@@ -7933,6 +7968,11 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    case J9BCaload:
    {
       int index = pc[1];
+      if (!variableMap[index]) {
+         variableMap[index] = new PAGNode(VARIABLE, globalIndex_, nullptr, method_block, bci, methodIndex);
+         pag->PAG_nodes.insert(variableMap[index]);
+         pag->methodIndex_to_allMethodNodes[methodIndex].push_back(variableMap[index]);
+      }
       PAGNode *ref = variableMap[index];
       stack->pushRef(ref);
       break;
