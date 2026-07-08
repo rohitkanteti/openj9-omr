@@ -26,7 +26,7 @@ std::unordered_set<PAGNode*> Regular_PointsTo::regularPT(PAGNode* src)
             {
                 pointsTo.insert(edge->src);
             }
-            else if(edge->type == EdgeType::ASSIGN || edge->type == EdgeType::MATCH)
+            else if(edge->type == EdgeType::ASSIGN || edge->type == EdgeType::MATCH || edge->type == EdgeType::PUTFIELD)
             {
                 propagate(edge->src,marked,workList);
             }

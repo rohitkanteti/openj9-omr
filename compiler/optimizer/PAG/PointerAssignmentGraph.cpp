@@ -356,6 +356,14 @@ void PointerAssignmentGraph::addEdge(PAGNode *src, PAGNode *dest, EdgeType type,
     src->outgoing.insert(edge);
     dest->incoming.insert(edge);
 
+    if (type == EdgeType::PUTFIELD)
+    {
+        if (staticFields.find(field) != staticFields.end() || threadAccessibleFields.find(field) != threadAccessibleFields.end())
+        {
+            LeakyNodes.insert(dest);
+        }
+    }
+
     EdgeType reverseType = static_cast<EdgeType>(type + 5);
     auto edge_bar = new PAGEdge(dest, src, reverseType, field, callsiteBCI);
     dest->outgoing.insert(edge_bar);

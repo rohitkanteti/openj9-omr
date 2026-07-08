@@ -9211,7 +9211,8 @@ bool searchForOveridingMethodsInClass(std::string className, std::string method_
    std::string returnStaticType;
    bool calleeReturnsReference = returnsObject(method_signature, returnStaticType);
    bool calleeReturnsPrimitive = returnsPrimitive(method_signature);
-   if (loaded_classes.find(className) == loaded_classes.end())
+   std::string full_method_name_check = className + "." + method_name + method_signature;
+   if (isLibraryMethod(full_method_name_check) || loaded_classes.find(className) == loaded_classes.end())
    {
       if (calleeReturnsReference)
       {
@@ -11052,9 +11053,21 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
       {
          TR::Block *succ = (*succIter)->getTo()->asBlock();
          int succBci = succ->getEntry()->getNode()->getByteCodeIndex();
+
+         operandStack *stackToPropagate = stack;
+         operandStack *catchStack = nullptr;
+
+         if (succ->isCatchBlock())
+         {
+             catchStack = new operandStack();
+             PAGNode *exceptionNode = new PAGNode(VARIABLE, -1, nullptr, method_block, -1, methodIndex, "java/lang/Throwable");
+             catchStack->pushRef(exceptionNode);
+             stackToPropagate = catchStack;
+         }
+
          if (inStacks.find(succ) == inStacks.end())
          {
-            inStacks[succ] = new operandStack(*stack); // copy outstack of the predecessor
+            inStacks[succ] = new operandStack(*stackToPropagate); // copy outstack of the predecessor
             worklist.push(succ);
             worklist_bb_bci.insert(succBci);
          }
@@ -11063,12 +11076,16 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
             operandStack *succStack = inStacks[succ];
             // std::cout << "Succ BCI = " << succBci << std::endl;
 
-            if (succStack->merge(*stack,fullNAME,bb->getEntry()->getNode()->getByteCodeIndex()) && worklist_bb_bci.find(succBci) == worklist_bb_bci.end()) // if successor is already in the worklist then don't add it again.
+            if (succStack->merge(*stackToPropagate,fullNAME,bb->getEntry()->getNode()->getByteCodeIndex()) && worklist_bb_bci.find(succBci) == worklist_bb_bci.end()) // if successor is already in the worklist then don't add it again.
             {
                worklist_bb_bci.insert(succBci);
                // std::cout << "Reanalysing " << succBci << std::endl;
                worklist.push(succ);
             }
+         }
+         
+         if (catchStack) {
+            delete catchStack;
          }
       }
    }

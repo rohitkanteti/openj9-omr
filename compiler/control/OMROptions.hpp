@@ -441,11 +441,11 @@ enum TR_CompilationOptions
    TR_PrintCFG                               = 0x10000000 + 11, // Added by Rohit
    TR_DisableNewInliningInfrastructure        = 0x20000000 + 11,
    TR_DumpPAG                               = 0x40000000 + 11,// Added by Rohit
-   TR_smartAOTLoad                            = 0x80000000 + 11,// Added by Rohit
+   // Removed TR_smartAOTLoad from word 11 because 0x80000000 might overflow/break options parsing
 
    // Option word 12
    // Available                               = 0x00000020 + 12,
-   // Available                               = 0x00000040 + 12,
+   TR_smartAOTLoad                            = 0x00000040 + 12, // Moved to word 12 to prevent overflow
    TR_DisablePartialInlining                  = 0x00000080 + 12,
    TR_AssumeStartupPhaseUntilToldNotTo        = 0x00000100 + 12,
    // Available                               = 0x00000200 + 12,
