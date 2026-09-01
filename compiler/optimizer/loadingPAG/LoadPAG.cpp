@@ -80,6 +80,8 @@ PointerAssignmentGraph *LoadPAG::getPAG()
         loadMethodNodeMappings(methodNodeMappingFile);
         // addMatchEdges();
         loadCG(callgraphfile);
+        loadSyncSites("syncSites.txt.gz");
+        loadInlinedMethods("inlinedMethods.txt.gz");
         getImportantFieldNames(threadfieldFile, 0);
         getImportantFieldNames(staticfieldFile, 1);
         loaded = true;
@@ -343,6 +345,31 @@ void LoadPAG::loadCG(const std::string &filename)
     }
     gzclose(file);
 }
+void LoadPAG::loadSyncSites(const std::string &filename)
+{
+    gzFile file = gzopen(filename.c_str(), "r");
+    if (!file) return;
+
+    std::string line;
+    while (gzGetLine(file, line))
+    {
+        if (line.empty()) continue;
+        
+        std::stringstream ss(line);
+        std::string syncSiteKey;
+        int nodeIndex;
+
+        if (ss >> syncSiteKey >> nodeIndex)
+        {
+            auto nodeIt = pag->nodeIndexToNode.find(nodeIndex);
+            if (nodeIt != pag->nodeIndexToNode.end()) {
+                pag->CG.syncSites[syncSiteKey].push_back(nodeIt->second);
+            }
+        }
+    }
+    gzclose(file);
+}
+
 void LoadPAG::getImportantFieldNames(const std::string &threadfieldFile, int static_or_thread)
 {
    
@@ -375,4 +402,32 @@ void LoadPAG::getImportantFieldNames(const std::string &threadfieldFile, int sta
     }
 
     file.close();
+}
+void LoadPAG::loadInlinedMethods(const std::string &filename)
+{
+    gzFile file = gzopen(filename.c_str(), "r");
+    if (!file)
+    {
+        std::cerr << "Cannot open " << filename << std::endl;
+        return;
+    }
+    char buffer[1024];
+    while (gzgets(file, buffer, sizeof(buffer)) != NULL)
+    {
+        std::istringstream iss(buffer);
+        int callerIndex;
+        size_t count;
+        if (iss >> callerIndex >> count)
+        {
+            for (size_t i = 0; i < count; ++i)
+            {
+                int calleeIndex;
+                if (iss >> calleeIndex)
+                {
+                    pag->CG.inlinedMethods[callerIndex].insert(calleeIndex);
+                }
+            }
+        }
+    }
+    gzclose(file);
 }

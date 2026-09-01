@@ -98,6 +98,8 @@
 #include "optimizer/LoopReducer.hpp"
 #include "optimizer/LoopReplicator.hpp"
 #include "optimizer/LoopVersioner.hpp"
+
+
 #include "optimizer/OrderBlocks.hpp"
 #include "optimizer/RedundantAsyncCheckRemoval.hpp"
 #include "optimizer/Simplifier.hpp"
@@ -212,6 +214,10 @@ TR_OpaqueClassBlock *getCachedClass(TR::Compilation *comp, const std::string &cl
 TR::ResolvedMethodSymbol *getCachedResolvedMethodSymbol(TR::Compilation *comp, TR_OpaqueMethodBlock *method_block);
 bool exhaustive = false;
 static std::unordered_map<TR_OpaqueClassBlock *, int> classPtrToIndex;
+std::unordered_map<int, std::unordered_set<int>> mx_to_inlined_methods;
+std::unordered_map<std::string, std::unordered_set<std::string>> mx_to_inlined_methods_str;
+
+
 
 void printMatch();
 void calculateMatch();
@@ -1807,6 +1813,37 @@ void writeNodesToFile(TR::Compilation *comp, PointerAssignmentGraph *pag)
          gzprintf(callgraphfile, "\n");
       }
       gzclose(callgraphfile);
+   }
+
+   gzFile syncSitesFile = gzopen("syncSites.txt.gz", "w");
+   if (syncSitesFile)
+   {
+      for (const auto &entry : pag->CG.syncSites)
+      {
+         std::string syncSiteKey = entry.first; // methodIndex_bci
+         for (PAGNode* lockedVar : entry.second)
+         {
+            gzprintf(syncSitesFile, "%s %d\n", syncSiteKey.c_str(), getNodeID(lockedVar));
+         }
+      }
+      gzclose(syncSitesFile);
+   }
+
+   gzFile inlinedFile = gzopen("inlinedMethods.txt.gz", "w");
+   if (inlinedFile)
+   {
+      for (const auto &entry : mx_to_inlined_methods_str)
+      {
+         int callerIndex = getOrInsertMethodIndexByName(entry.first, pag);
+         gzprintf(inlinedFile, "%d %zu", callerIndex, entry.second.size());
+         for (const std::string& calleeStr : entry.second)
+         {
+            int calleeIndex = getOrInsertMethodIndexByName(calleeStr, pag);
+            gzprintf(inlinedFile, " %d", calleeIndex);
+         }
+         gzprintf(inlinedFile, "\n");
+      }
+      gzclose(inlinedFile);
    }
 
    gzFile tf = gzopen("threadAccesible.txt.gz", "w");
@@ -7865,6 +7902,17 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
    }
 
    case J9BCmonitorenter:
+   {
+      std::set<PAGNode*> lockedVars = stack->popRef(currentMethodFullName); // pop object reference
+      
+      // Record this monitorenter instruction as a SyncSite in the CallGraph.
+      // This is used for SmartAOT escape analysis to check if the locked object escapes.
+      std::string syncSiteKey = std::to_string(methodIndex) + "_" + std::to_string(bci);
+      for (PAGNode* lockedVar : lockedVars) {
+         pag->CG.syncSites[syncSiteKey].push_back(lockedVar);
+      }
+      break;
+   }
    case J9BCmonitorexit:
    {
       stack->popRef(currentMethodFullName); // pop object reference

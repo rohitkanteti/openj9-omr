@@ -16,6 +16,12 @@ public:
 
     // Maps (caller, callee, bci) to actual parameters
     std::unordered_map<std::string, std::vector<PAGNode*>> callsiteParams;
+    
+    // Maps "methodIndex_bci" to locked PAGNodes for synchronization sites (SyncSites)
+    std::unordered_map<std::string, std::vector<PAGNode*>> syncSites;
+
+    // Maps a caller method index to the set of method indices that were inlined into it
+    std::unordered_map<int, std::unordered_set<int>> inlinedMethods;
 
     std::unordered_set<int> getCallers(int calleeMethodIndex) ;
 
