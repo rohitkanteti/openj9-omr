@@ -80,8 +80,6 @@ PointerAssignmentGraph *LoadPAG::getPAG()
         loadMethodNodeMappings(methodNodeMappingFile);
         // addMatchEdges();
         loadCG(callgraphfile);
-        loadSyncSites("syncSites.txt.gz");
-        loadInlinedMethods("inlinedMethods.txt.gz");
         getImportantFieldNames(threadfieldFile, 0);
         getImportantFieldNames(staticfieldFile, 1);
         loaded = true;
@@ -204,8 +202,9 @@ void LoadPAG::loadEdges(const std::string &filename)
         int srcIndex;
         if (!(ss >> srcIndex)) continue;
 
-        PAGNode *src = pag->nodeIndexToNode[srcIndex];
-        if (!src) continue;
+        auto srcIt = pag->nodeIndexToNode.find(srcIndex);
+        if (srcIt == pag->nodeIndexToNode.end() || !srcIt->second) continue;
+        PAGNode *src = srcIt->second;
 
         int destIndex, edgeTypeInt, callsiteBCI;
         std::string fieldName;
@@ -215,8 +214,9 @@ void LoadPAG::loadEdges(const std::string &filename)
         {
             if (fieldName == "") fieldName = "";
 
-            PAGNode *dest = pag->nodeIndexToNode[destIndex];
-            if (!dest) continue;
+            auto destIt = pag->nodeIndexToNode.find(destIndex);
+            if (destIt == pag->nodeIndexToNode.end() || !destIt->second) continue;
+            PAGNode *dest = destIt->second;
 
             EdgeType eType = parseEdgeType(edgeTypeInt);
             pag->addEdge(src, dest, eType, fieldName, callsiteBCI);
@@ -245,8 +245,9 @@ void LoadPAG::loadMethodNodeMappings(const std::string &filename)
         // Extract chunks of 2 variables at a time
         while (ss >> nodeIndex >> isParam)
         {
-            PAGNode *node = pag->nodeIndexToNode[nodeIndex];
-            if (!node) continue;
+            auto nodeIt = pag->nodeIndexToNode.find(nodeIndex);
+            if (nodeIt == pag->nodeIndexToNode.end() || !nodeIt->second) continue;
+            PAGNode *node = nodeIt->second;
 
             pag->methodIndex_to_allMethodNodes[methodIndex].push_back(node);
 
@@ -345,31 +346,6 @@ void LoadPAG::loadCG(const std::string &filename)
     }
     gzclose(file);
 }
-void LoadPAG::loadSyncSites(const std::string &filename)
-{
-    gzFile file = gzopen(filename.c_str(), "r");
-    if (!file) return;
-
-    std::string line;
-    while (gzGetLine(file, line))
-    {
-        if (line.empty()) continue;
-        
-        std::stringstream ss(line);
-        std::string syncSiteKey;
-        int nodeIndex;
-
-        if (ss >> syncSiteKey >> nodeIndex)
-        {
-            auto nodeIt = pag->nodeIndexToNode.find(nodeIndex);
-            if (nodeIt != pag->nodeIndexToNode.end()) {
-                pag->CG.syncSites[syncSiteKey].push_back(nodeIt->second);
-            }
-        }
-    }
-    gzclose(file);
-}
-
 void LoadPAG::getImportantFieldNames(const std::string &threadfieldFile, int static_or_thread)
 {
    
@@ -402,32 +378,4 @@ void LoadPAG::getImportantFieldNames(const std::string &threadfieldFile, int sta
     }
 
     file.close();
-}
-void LoadPAG::loadInlinedMethods(const std::string &filename)
-{
-    gzFile file = gzopen(filename.c_str(), "r");
-    if (!file)
-    {
-        std::cerr << "Cannot open " << filename << std::endl;
-        return;
-    }
-    char buffer[1024];
-    while (gzgets(file, buffer, sizeof(buffer)) != NULL)
-    {
-        std::istringstream iss(buffer);
-        int callerIndex;
-        size_t count;
-        if (iss >> callerIndex >> count)
-        {
-            for (size_t i = 0; i < count; ++i)
-            {
-                int calleeIndex;
-                if (iss >> calleeIndex)
-                {
-                    pag->CG.inlinedMethods[callerIndex].insert(calleeIndex);
-                }
-            }
-        }
-    }
-    gzclose(file);
 }
