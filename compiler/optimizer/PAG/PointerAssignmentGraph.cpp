@@ -196,8 +196,13 @@ void PointerAssignmentGraph::removeEdges(int method)
         // std::cout << "The method with method_index=" << method << "was not found in " << std::endl;
          return;
     }
+    // Static-field nodes are shared by every method that reads/writes the static; they are kept (with the
+    // edges of other methods) and only lose the edges the removed method contributed via its own nodes.
+    std::unordered_set<PAGNode*> leakyCandidates;
     for (auto node : methodIndex_to_allMethodNodes[method])
     {   
+        if (node->type == STATIC)
+            continue;
         std::unordered_set<PAGEdge*> delete_these;
         for (auto edge : node->outgoing)
         {
@@ -220,7 +225,7 @@ void PointerAssignmentGraph::removeEdges(int method)
                 {
                     if (staticFields.find(edge->field) != staticFields.end() || threadAccessibleFields.find(edge->field) != threadAccessibleFields.end())
                     {
-                        LeakyNodes.erase(edge->dest);
+                        leakyCandidates.insert(edge->dest);
                     }
                 }
 
@@ -234,6 +239,26 @@ void PointerAssignmentGraph::removeEdges(int method)
         {
             removeEdge(to_del);
         }
+    }
+
+    // A node stays leaky while any remaining (other method's) store into it targets a static or thread-accessible
+    // field. Static-field nodes are always leaky.
+    for (PAGNode *dest : leakyCandidates)
+    {
+        if (dest->type == STATIC)
+            continue;
+        bool stillLeaky = false;
+        for (PAGEdge *in : dest->incoming)
+        {
+            if (in->type == EdgeType::PUTFIELD &&
+                (staticFields.find(in->field) != staticFields.end() || threadAccessibleFields.find(in->field) != threadAccessibleFields.end()))
+            {
+                stillLeaky = true;
+                break;
+            }
+        }
+        if (!stillLeaky)
+            LeakyNodes.erase(dest);
     }
 }
 void PointerAssignmentGraph::removeNodes(int method)
@@ -253,7 +278,9 @@ void PointerAssignmentGraph::removeNodes(int method)
     int index = 0;
     for (auto *node : nodes)
     {
-       
+        if (node->type == STATIC) // shared static-field node: keep it and the other methods' edges
+            continue;
+
         if (node->type != RETURN)
             removeAllEdgesFrom(node);
 

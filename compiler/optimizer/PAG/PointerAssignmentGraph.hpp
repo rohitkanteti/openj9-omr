@@ -28,6 +28,8 @@ public:
     std::unordered_map<int, PAGNode*> nodeIndexToNode;
     std::unordered_map<std::string, int> _methodIndices;
 
+    std::unordered_map<std::string, PAGNode*> staticTypeToNode; // static-field node per field type (key of class_to_staticPAGNode)
+
     std::unordered_set<std::string> staticFields; // class_name.field_name
     std::unordered_set<std::string> threadAccessibleFields;// class_name.field_name
 

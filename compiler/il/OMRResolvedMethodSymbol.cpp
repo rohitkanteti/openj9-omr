@@ -1148,6 +1148,10 @@ OMR::ResolvedMethodSymbol::genOSRHelperCall(int32_t currentInlinedSiteIndex, TR:
    }
 
 
+// SmartAOT dependency recorder (defined in optimizer/OMROptimizer.cpp)
+extern void smartAOTRecordDependency(const void *compilation, const char *caller, const char *callee, char kind);
+extern bool smartAOTDependencyRecordingEnabled(TR::Compilation *comp);
+
 bool
 OMR::ResolvedMethodSymbol::genIL(TR_FrontEnd * fe, TR::Compilation * comp, TR::SymbolReferenceTable * symRefTab, TR::IlGenRequest & customRequest)
    {
@@ -1156,6 +1160,12 @@ OMR::ResolvedMethodSymbol::genIL(TR_FrontEnd * fe, TR::Compilation * comp, TR::S
    bool traceIt = false;
    if (comp->ilGenTrace() || comp->isPeekingMethod())
       traceIt = true;
+
+   if (comp->isPeekingMethod() && smartAOTDependencyRecordingEnabled(comp))
+      {
+      // SmartAOT: record the peeked method as a dependency of the method being AOT compiled
+      smartAOTRecordDependency(comp, comp->signature(), self()->signature(comp->trMemory()), 'P');
+      }
 
    if (traceIt && comp->getOutFile() != NULL && comp->getOption(TR_TraceBC))
       {

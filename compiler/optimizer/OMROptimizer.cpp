@@ -194,6 +194,8 @@ std::unordered_set<std::string> getAllPossibleCHA_TargetNames(const std::string 
 // rec test
 static std::unordered_set<std::string> analysedMethodNames;
 static unordered_set<std::string> threadExtendingClasses;
+// SmartAOT: every putfield seen by the analysis, as (base node, "DeclaringOrRefClass.field").
+static std::set<std::pair<PAGNode *, std::string>> smartAOT_putfieldSites;
 static unordered_set<std::string> all_loaded_classes;
 // rec test end
 
@@ -215,7 +217,99 @@ TR::ResolvedMethodSymbol *getCachedResolvedMethodSymbol(TR::Compilation *comp, T
 bool exhaustive = false;
 static std::unordered_map<TR_OpaqueClassBlock *, int> classPtrToIndex;
 std::unordered_map<int, std::unordered_set<int>> mx_to_inlined_methods;
-std::unordered_map<std::string, std::unordered_set<std::string>> mx_to_inlined_methods_str;
+// SmartAOT dependency list: caller signature -> (dependency signature -> kind).
+// kind 'I' = inlined into the caller, 'P' = peeked into while compiling the caller.
+// An inlined record overrides a peeked record for the same dependency.
+static std::unordered_map<std::string, std::unordered_map<std::string, char>> mx_to_dependencies;
+static std::mutex mx_to_dependencies_mutex;
+static bool mx_to_dependencies_dirty = false;
+// Callers whose dependency list changed since it was last written to dependencies.txt.gz
+static std::unordered_set<std::string> mx_to_dependencies_dirty_callers;
+// The first write of this process truncates a dependencies file left over from an earlier run.
+static bool mx_to_dependencies_file_started = false;
+// Compilation that last recorded dependencies for a caller: a new (AOT) compilation of the same method replaces
+// the list, so that it describes the body that ends up in the SCC rather than a union over all compilations.
+static std::unordered_map<std::string, const void *> mx_to_recording_compilation;
+
+// Dependency recording is enabled by -Xjit:enableSmarterAOTCompile. AOT compilations run with the -Xaot option set,
+// which normally does not carry the flag, so the global JIT command-line options are checked as well.
+bool smartAOTDependencyRecordingEnabled(TR::Compilation *comp)
+{
+   if (!comp->compileRelocatableCode())
+      return false;
+   if (comp->getOption(TR_RunMyAnalysis))
+      return true;
+   TR::Options *jitOptions = TR::Options::getCmdLineOptions();
+   return jitOptions && jitOptions->getOption(TR_RunMyAnalysis);
+}
+
+void smartAOTRecordDependency(const void *compilation, const char *caller, const char *callee, char kind)
+{
+   if (!caller || !callee)
+      return;
+   std::string callerStr(caller);
+   std::string calleeStr(callee);
+   if (callerStr == calleeStr)
+      return;
+   std::lock_guard<std::mutex> lock(mx_to_dependencies_mutex);
+   const void *&recorder = mx_to_recording_compilation[callerStr];
+   if (recorder != compilation)
+      {
+      recorder = compilation;
+      mx_to_dependencies[callerStr].clear();
+      mx_to_dependencies_dirty = true;
+      mx_to_dependencies_dirty_callers.insert(callerStr);
+      }
+   char &k = mx_to_dependencies[callerStr][calleeStr];
+   if (k != 'I' && k != kind)
+      {
+      k = kind;
+      mx_to_dependencies_dirty = true;
+      mx_to_dependencies_dirty_callers.insert(callerStr);
+      }
+}
+
+static void smartAOTWriteDependencyLine(gzFile depFile, const std::string &caller, const std::unordered_map<std::string, char> &deps)
+{
+   gzprintf(depFile, "%s", caller.c_str());
+   for (const auto &dep : deps)
+      gzprintf(depFile, "\t%c %s", dep.second, dep.first.c_str());
+   gzprintf(depFile, "\n");
+}
+
+// Appends the lists of the callers recorded since the last write (cheap enough to call after every compilation).
+// A caller may appear on several lines; the loader keeps the last one.
+void smartAOTAppendDependencies()
+{
+   std::lock_guard<std::mutex> lock(mx_to_dependencies_mutex);
+   if (mx_to_dependencies_dirty_callers.empty())
+      return;
+   gzFile depFile = gzopen("dependencies.txt.gz", mx_to_dependencies_file_started ? "a" : "w");
+   if (!depFile)
+      return;
+   mx_to_dependencies_file_started = true;
+   for (const std::string &caller : mx_to_dependencies_dirty_callers)
+      smartAOTWriteDependencyLine(depFile, caller, mx_to_dependencies[caller]);
+   gzclose(depFile);
+   mx_to_dependencies_dirty_callers.clear();
+}
+
+// Rewrites the whole file, one line per caller: callerSig<TAB>K depSig<TAB>K depSig ...
+void smartAOTDumpDependencies(bool onlyIfDirty = false)
+{
+   std::lock_guard<std::mutex> lock(mx_to_dependencies_mutex);
+   if (onlyIfDirty && !mx_to_dependencies_dirty)
+      return;
+   mx_to_dependencies_dirty = false;
+   gzFile depFile = gzopen("dependencies.txt.gz", "w");
+   if (!depFile)
+      return;
+   mx_to_dependencies_file_started = true;
+   for (const auto &entry : mx_to_dependencies)
+      smartAOTWriteDependencyLine(depFile, entry.first, entry.second);
+   gzclose(depFile);
+   mx_to_dependencies_dirty_callers.clear();
+}
 
 
 
@@ -259,13 +353,16 @@ void printExhaustive();
 void getAlreadyAnalyzedMethodNames();
 // --- ADD THESE HELPERS FOR INDEX MAPPING ---
 static std::unordered_map<std::string, int> class_to_index;
+// SmartAOT: class indices used in the dumped PAG files. They are kept in a file that only the JIT writes
+// (line n = class index n). They used to be appended to ci.txt, which the cold-run agent (ForNameAgent) also
+// writes: when the agent rewrote ci.txt after the JIT had started appending, every index the warm run decoded
+// mapped to the wrong class name.
+#define SMARTAOT_CLASS_INDEX_FILE "smartaot_class_index.txt"
 static int getClassIndex(const std::string &className)
 {
    if (class_to_index.empty())
    {
-      gzFile file = gzopen("ci.txt", "r");
-      if (!file)
-         file = gzopen("ci.txt", "r");
+      gzFile file = gzopen(SMARTAOT_CLASS_INDEX_FILE, "r");
       if (file)
       {
          char buffer[1024];
@@ -287,7 +384,7 @@ static int getClassIndex(const std::string &className)
       int newIdx = class_to_index.size() + 1;
       class_to_index[className] = newIdx;
       //   gzFile file = gzopen("ci.txt", "a");
-      std::ofstream outFile("ci.txt", std::ios::out | std::ios::app);
+      std::ofstream outFile(SMARTAOT_CLASS_INDEX_FILE, std::ios::out | std::ios::app);
       if (outFile.is_open())
       {
          outFile << className << "\n";
@@ -490,6 +587,38 @@ static std::unordered_map<int, std::unordered_set<PAGNode *>> callsite_to_Actual
 static std::unordered_map<TR::Node *, std::unordered_set<TR_OpaqueMethodBlock *>> callsite_to_targets;
 static std::unordered_map<PAGNode *, PAGNode *> abstractNode_to_assignedVar; // o1 --new--> b then (o1,b)
 static std::unordered_map<string, PAGNode *> class_to_staticPAGNode;
+
+// SmartAOT (warm run): reuse the loaded PAG's static-field nodes, so that stores/loads in re-analysed (changed)
+// methods connect to the same node as the unchanged methods instead of to a fresh one.
+void smartAOTSeedStaticNodes(PointerAssignmentGraph *p)
+{
+   for (const auto &entry : p->staticTypeToNode)
+   {
+      if (class_to_staticPAGNode.find(entry.first) == class_to_staticPAGNode.end())
+         class_to_staticPAGNode[entry.first] = entry.second;
+   }
+}
+
+// SmartAOT (warm run): load the thread-related classes computed in the cold run into the set used by the analysis
+// (Thread.start() -> run() modelling), so that re-analysed methods use the same model as the cold run.
+// Returns false if the cold run did not write the file; the set then stays empty, exactly as in the cold run.
+bool smartAOTLoadThreadRelatedClasses()
+{
+   gzFile file = gzopen("threadRelatedClasses.txt.gz", "r");
+   if (!file)
+      return false;
+   char buffer[4096];
+   while (gzgets(file, buffer, sizeof(buffer)) != NULL)
+   {
+      std::string line(buffer);
+      line.erase(std::remove(line.begin(), line.end(), '\n'), line.end());
+      line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
+      if (!line.empty())
+         threadExtendingClasses.insert(line);
+   }
+   gzclose(file);
+   return true;
+}
 static std::unordered_map<int, PAGNode *> callsite_to_storeNode;
 
 #define STATIC_FIELD_READ -10866 // unique negative code for static field read.
@@ -1656,6 +1785,10 @@ void OMR::Optimizer::optimize()
    //    // }
    // }
 
+   // SmartAOT: persist the dependency list recorded (by the inliner and peeking) during this compilation
+   if (smartAOTDependencyRecordingEnabled(comp()) && !isIlGenOpt() && !_stackedOptimizer && comp()->isOutermostMethod())
+      smartAOTAppendDependencies();
+
    optimize_count--;
 }
 std::vector<pair<int, vector<PAGNode *>>> sortMethodsByIndex(const unordered_map<int, vector<PAGNode *>> &methodIndex_to_formalNodes, TR::Compilation *comp)
@@ -1677,13 +1810,110 @@ int getNodeIndex(PAGNode *node, std::unordered_map<string, int> nodeIndices)
 {
    return nodeIndices[std::to_string(node->bci) + "," + std::to_string(node->methodIndex) + "," + std::to_string(node->type) + "," + std::to_string(node->name)];
 }
-// Callgraph data structures
-static std::unordered_map<int, std::unordered_set<int>> callsiteBCI_to_targets;   // BCI -> target method indices
-static std::unordered_map<int, std::set<PAGNode *>> callsiteBCI_to_actual_params; // BCI -> actual parameter PAG nodes
-static std::unordered_map<int, PAGNode *> callsiteBCI_to_return_node;             // BCI -> return receiver node (or nullptr for void)
+// Callgraph data structures.
+// SmartAOT: call sites are keyed by (caller method index, bytecode index). A bytecode index is only unique within
+// one method; keying by it alone merged the call sites of every method at the same offset. The receiver of an
+// instance call is kept apart from the other actual parameters so that the reader knows which node is 'this'.
+struct SmartAOTCallsite
+{
+   bool isInstance = false;
+   std::set<PAGNode *> receivers;   // receiver ('this') nodes of an instance call
+   std::set<PAGNode *> args;        // the other actual parameter nodes
+   std::unordered_set<int> targets; // resolved target method indices
+   PAGNode *returnNode = nullptr;   // node receiving the return value (nullptr for void)
+};
+static std::map<std::pair<int, int>, SmartAOTCallsite> smartAOT_callsites;
+
+// SmartAOT: objects stored into a field of a thread object (a Thread subclass or a Runnable implementer) escape to
+// another thread. constructCHA() looks for thread classes only once, at the first analysis, which runs before the
+// application has loaded them, so the set of thread-accessible fields stayed empty. This runs before every dump:
+// it picks up the thread classes loaded since the previous dump, adds their reference fields (including inherited
+// ones, qualified with the thread class name as a field reference would be), and marks the base node of every
+// recorded store into such a field as leaky.
+static bool smartAOTClassNameIs(J9Class *clazz, const char *name)
+{
+   J9UTF8 *utf = J9ROMCLASS_CLASSNAME(clazz->romClass);
+   size_t len = strlen(name);
+   return J9UTF8_LENGTH(utf) == len && memcmp(J9UTF8_DATA(utf), name, len) == 0;
+}
+
+static bool smartAOTIsThreadRelated(J9Class *clazz)
+{
+   if (smartAOTClassNameIs(clazz, "java/lang/Thread"))
+      return true;
+   UDATA depth = J9CLASS_DEPTH(clazz);
+   for (UDATA i = 0; i < depth; i++)
+   {
+      if (clazz->superclasses[i] && smartAOTClassNameIs(clazz->superclasses[i], "java/lang/Thread"))
+         return true;
+   }
+   for (J9ITable *iTable = (J9ITable *)clazz->iTable; iTable; iTable = iTable->next)
+   {
+      if (iTable->interfaceClass && smartAOTClassNameIs(iTable->interfaceClass, "java/lang/Runnable"))
+         return true;
+   }
+   return false;
+}
+
+static void smartAOTRefreshThreadAccessibleFields(TR::Compilation *comp, PointerAssignmentGraph *pag)
+{
+   static std::unordered_set<J9Class *> seenClasses;
+   {
+      J9VMThread *vmThread = ((TR_J9VMBase *)comp->fe())->getCurrentVMThread();
+      J9JavaVM *javaVM = vmThread->javaVM;
+      TR::VMAccessCriticalSection criticalSection(comp);
+      J9ClassLoader *classLoader = NULL;
+      GC_PoolIterator classLoaderIterator(javaVM->classLoaderBlocks);
+      while (NULL != (classLoader = (J9ClassLoader *)classLoaderIterator.nextSlot()))
+      {
+         J9HashTableState walkState;
+         J9Class *clazz = javaVM->internalVMFunctions->hashClassTableStartDo(classLoader, &walkState, 0);
+         while (clazz)
+         {
+            if (!J9ROMCLASS_IS_ARRAY(clazz->romClass) && seenClasses.insert(clazz).second && smartAOTIsThreadRelated(clazz))
+            {
+               J9UTF8 *nameUTF8 = J9ROMCLASS_CLASSNAME(clazz->romClass);
+               std::string className((char *)J9UTF8_DATA(nameUTF8), J9UTF8_LENGTH(nameUTF8));
+               threadExtendingClasses.insert(className);
+
+               UDATA depth = J9CLASS_DEPTH(clazz);
+               for (UDATA i = 0; i <= depth; i++)
+               {
+                  J9Class *declaring = (i < depth) ? clazz->superclasses[i] : clazz;
+                  if (!declaring)
+                     continue;
+                  J9ROMFieldWalkState fieldWalkState;
+                  for (J9ROMFieldShape *field = romFieldsStartDo(declaring->romClass, &fieldWalkState); field; field = romFieldsNextDo(&fieldWalkState))
+                  {
+                     J9UTF8 *fieldSignature = J9ROMFIELDSHAPE_SIGNATURE(field);
+                     if (!fieldSignature || J9UTF8_LENGTH(fieldSignature) == 0)
+                        continue;
+                     char sigChar = *J9UTF8_DATA(fieldSignature);
+                     if (sigChar != 'L' && sigChar != '[')
+                        continue;
+                     J9UTF8 *fieldName = J9ROMFIELDSHAPE_NAME(field);
+                     pag->threadAccessibleFields.insert(className + "." + std::string((char *)J9UTF8_DATA(fieldName), J9UTF8_LENGTH(fieldName)));
+                  }
+               }
+            }
+            clazz = javaVM->internalVMFunctions->hashClassTableNextDo(&walkState);
+         }
+      }
+   }
+
+   if (pag->threadAccessibleFields.empty())
+      return;
+   for (const auto &site : smartAOT_putfieldSites)
+   {
+      if (pag->threadAccessibleFields.count(site.second))
+         pag->LeakyNodes.insert(site.first);
+   }
+}
 
 void writeNodesToFile(TR::Compilation *comp, PointerAssignmentGraph *pag)
 {
+   smartAOTRefreshThreadAccessibleFields(comp, pag);
+
    // Open compressed files
    gzFile outfile = gzopen("nodes.txt.gz", "w");
    gzFile edgesfile = gzopen("PAGEdges.txt.gz", "w");
@@ -1783,33 +2013,28 @@ void writeNodesToFile(TR::Compilation *comp, PointerAssignmentGraph *pag)
       gzclose(mToNodesfile);
    }
    //  DUMP CALL GRAPH
-   // Format: callsiteBCI returnNodeIndex targetIndex numParams p1 p2 targetIndex2 numParams2 ... \n
+   // Format (v2, first line "#v2"):
+   //   callerIndex bci isInstance returnNodeIndex numTargets t1 .. numReceivers r1 .. numArgs a1 .. \n
+   // A node index of 0 means the node is not part of the dumped PAG.
    gzFile callgraphfile = gzopen("callgraph.txt.gz", "w");
    if (callgraphfile)
    {
-      for (auto &entry : callsiteBCI_to_targets)
+      gzprintf(callgraphfile, "#v2\n");
+      for (const auto &entry : smartAOT_callsites)
       {
-         int callsite_bci = entry.first;
-         int returnNodeIndex = RETURN_NODE_NAME;
+         const SmartAOTCallsite &cs = entry.second;
+         int returnNodeIndex = cs.returnNode ? getNodeID(cs.returnNode) : RETURN_NODE_NAME;
 
-         if (callsiteBCI_to_return_node.find(callsite_bci) != callsiteBCI_to_return_node.end() && callsiteBCI_to_return_node[callsite_bci] != nullptr)
-         {
-            returnNodeIndex = getNodeID(callsiteBCI_to_return_node[callsite_bci]);
-         }
-
-         gzprintf(callgraphfile, "%d %d", callsite_bci, returnNodeIndex);
-
-         for (int targetIndex : entry.second)
-         {
-            // Write the number of params so the reader knows exactly how many to extract
-            size_t numParams = callsiteBCI_to_actual_params[callsite_bci].size();
-            gzprintf(callgraphfile, " %d %zu", targetIndex, numParams);
-
-            for (PAGNode *actualParam : callsiteBCI_to_actual_params[callsite_bci])
-            {
-               gzprintf(callgraphfile, " %d", getNodeID(actualParam));
-            }
-         }
+         gzprintf(callgraphfile, "%d %d %d %d", entry.first.first, entry.first.second, cs.isInstance ? 1 : 0, returnNodeIndex);
+         gzprintf(callgraphfile, " %zu", cs.targets.size());
+         for (int targetIndex : cs.targets)
+            gzprintf(callgraphfile, " %d", targetIndex);
+         gzprintf(callgraphfile, " %zu", cs.receivers.size());
+         for (PAGNode *receiver : cs.receivers)
+            gzprintf(callgraphfile, " %d", getNodeID(receiver));
+         gzprintf(callgraphfile, " %zu", cs.args.size());
+         for (PAGNode *arg : cs.args)
+            gzprintf(callgraphfile, " %d", getNodeID(arg));
          gzprintf(callgraphfile, "\n");
       }
       gzclose(callgraphfile);
@@ -1829,22 +2054,21 @@ void writeNodesToFile(TR::Compilation *comp, PointerAssignmentGraph *pag)
       gzclose(syncSitesFile);
    }
 
-   gzFile inlinedFile = gzopen("inlinedMethods.txt.gz", "w");
-   if (inlinedFile)
+   gzFile staticNodesFile = gzopen("staticNodes.txt.gz", "w");
+   if (staticNodesFile)
    {
-      for (const auto &entry : mx_to_inlined_methods_str)
+      for (const auto &entry : class_to_staticPAGNode)
       {
-         int callerIndex = getOrInsertMethodIndexByName(entry.first, pag);
-         gzprintf(inlinedFile, "%d %zu", callerIndex, entry.second.size());
-         for (const std::string& calleeStr : entry.second)
-         {
-            int calleeIndex = getOrInsertMethodIndexByName(calleeStr, pag);
-            gzprintf(inlinedFile, " %d", calleeIndex);
-         }
-         gzprintf(inlinedFile, "\n");
+         int id = getNodeID(entry.second);
+         if (id != 0)
+            gzprintf(staticNodesFile, "%d %s\n", id, entry.first.c_str());
       }
-      gzclose(inlinedFile);
+      gzclose(staticNodesFile);
    }
+
+   // dependencies.txt.gz is kept up to date by smartAOTAppendDependencies() after each compilation. It is not
+   // rewritten here: truncating it on every PAG dump loses it if the JVM exits in the middle of a dump.
+   smartAOTAppendDependencies();
 
    gzFile tf = gzopen("threadAccesible.txt.gz", "w");
    if (tf)
@@ -8331,6 +8555,9 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
                {
                   pag->LeakyNodes.insert(obj_ref);
                }
+               // SmartAOT: remember the store so that it can be re-checked once more thread classes are known
+               // (see smartAOTRefreshThreadAccessibleFields).
+               smartAOT_putfieldSites.insert(std::make_pair(obj_ref, fullName));
 
                for (std::string classN : obj_ref->pointee_class_names)
                {
@@ -8801,6 +9028,8 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
       // methodName along with signature;
       string methodName = name + signature;
 
+      SmartAOTCallsite &smartAOTCallsite = smartAOT_callsites[std::make_pair(methodIndex, bci)];
+
       vector<set<PAGNode *>> actual_params;
       // get number of parameters
       int parameter_count = count_parameters(sigChars);
@@ -8811,7 +9040,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
          set<PAGNode *> param = stack->popRef(currentMethodFullName);
          actual_params.push_back(param);
          for (auto *p : param)
-            callsiteBCI_to_actual_params[bci].insert(p);
+            smartAOTCallsite.args.insert(p);
          // }
       }
 
@@ -8857,6 +9086,13 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
          {
             rNode->comp_type = "COMP_TYPE_2";
          }
+         // SmartAOT: the node receiving the return value must be part of the PAG; otherwise it and the edges into it
+         // are dropped when the PAG is dumped, and every use of the returned value is lost in the warm run.
+         pag->PAG_nodes.insert(rNode);
+         pag->methodIndex_to_allMethodNodes[methodIndex].push_back(rNode);
+         smartAOTCallsite.isInstance = false;
+         if (calleeReturnsReference)
+            smartAOTCallsite.returnNode = rNode;
          bool found = searchForOveridingMethodsInClass(className, name, signature, pag, ((TR_J9VMBase *)comp->fe()), resolvedMethod, actual_params, bci, comp, stack, primitive_node, rNode, className);
          if (found)
          {
@@ -8874,6 +9110,11 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
          {
             rNode->comp_type = "COMP_TYPE_2";
          }
+         // SmartAOT: keep the return-value node in the PAG (see the static-call case) and record the receiver.
+         pag->PAG_nodes.insert(rNode);
+         pag->methodIndex_to_allMethodNodes[methodIndex].push_back(rNode);
+         smartAOTCallsite.isInstance = true;
+         smartAOTCallsite.receivers.insert(receiver_obj_ptr_set.begin(), receiver_obj_ptr_set.end());
 
          actual_params.insert(actual_params.begin(), receiver_obj_ptr_set); // (this,arg1,arg2,...)
 
@@ -8886,6 +9127,7 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
          char *classNameChars = (char *)J9UTF8_DATA(classNameWrapper);
          std::string staticClassName(classNameChars, classNameLength);
          unordered_set<std::string> classNames;
+         bool anyTargetSearched = false;
 
          for (PAGNode *receiver_obj_ptr : receiver_obj_ptr_set)
          {
@@ -9021,33 +9263,33 @@ void executeBytecode(TR_J9ByteCode bytecode, uint8_t *pc, PointerAssignmentGraph
                }
             }
 
-            if (search && (calleeReturnsReference || calleeReturnsPrimitive))
+            anyTargetSearched = anyTargetSearched || search;
+         }
+
+         // SmartAOT: the invoke pushes exactly one return value. (This was done inside the loop over the receiver
+         // nodes, which pushed one value per receiver node, or none for an empty receiver set, and so corrupted the
+         // simulated operand stack for the rest of the method.)
+         if (anyTargetSearched && (calleeReturnsReference || calleeReturnsPrimitive))
+         {
+            stack->pushRef(rNode);
+            smartAOTCallsite.returnNode = calleeReturnsReference ? rNode : nullptr;
+         }
+         else if (!anyTargetSearched)
+         {
+            // To balance the stack operations if we are not able to find the method
+            if (calleeReturnsReference)
             {
-               stack->pushRef(rNode);
-               callsiteBCI_to_return_node[bci] = rNode;
+               pag->bottom_node->pointee_class_names.insert(rst);
+               stack->pushRef(pag->bottom_node);
+               smartAOTCallsite.returnNode = pag->bottom_node;
             }
-            if (!search)
+            else if (calleeReturnsPrimitive)
             {
-               // To balance the stack operations if we are not able to find the method
-               if (calleeReturnsReference)
-               {
-                  pag->bottom_node->pointee_class_names.insert(rst);
-                  stack->pushRef(pag->bottom_node);
-                  callsiteBCI_to_return_node[bci] = pag->bottom_node;
-                  // else
-                  //    stack->pushRef(pag->getReturnNode(getOrInsertMethodIndexByName(full_method_name, pag)));
-               }
-               else if (calleeReturnsPrimitive)
-               {
-                  stack->pushRef(primitive_node);
-                  callsiteBCI_to_return_node[bci] = primitive_node;
-               }
-               else
-                  callsiteBCI_to_return_node[bci] = nullptr;
+               stack->pushRef(primitive_node);
             }
          }
       }
-      callsiteBCI_to_targets[bci] = targets;
+      smartAOTCallsite.targets.insert(targets.begin(), targets.end());
       break;
    }
 
@@ -10701,6 +10943,23 @@ bool isUnconditionalBranch(TR_J9ByteCode bc)
            bc == J9BCathrow || isReturnOrThrow(bc));
 }
 
+// SmartAOT: entry points of the method's exception handlers. Handler code is reachable only through exception edges,
+// which the CFG does not model, so handler blocks (catch / finally code, and the monitorexit path of synchronized
+// blocks) were never analysed: their stores, allocations and locks were missing from the PAG.
+std::vector<int32_t> smartAOTExceptionHandlerPCs(J9Method *method)
+{
+   std::vector<int32_t> handlerPCs;
+   J9ROMMethod *romMethod = J9_ROM_METHOD_FROM_RAM_METHOD(method);
+   if (J9ROMMETHOD_HAS_EXCEPTION_INFO(romMethod))
+   {
+      J9ExceptionInfo *info = J9_EXCEPTION_DATA_FROM_ROM_METHOD(romMethod);
+      J9ExceptionHandler *handlers = J9EXCEPTIONINFO_HANDLERS(info);
+      for (U_16 i = 0; i < info->catchCount; i++)
+         handlerPCs.push_back((int32_t)handlers[i].handlerPC);
+   }
+   return handlerPCs;
+}
+
 TR::CFG *buildCFG(TR_OpaqueMethodBlock *method_block, TR::Compilation *comp, std::map<int32_t, TR::Block *> &blocks, TR::Block *&entryBlock)
 {
    int32_t methodSize = TR::Compiler->mtd.bytecodeSize(method_block);
@@ -10747,13 +11006,11 @@ TR::CFG *buildCFG(TR_OpaqueMethodBlock *method_block, TR::Compilation *comp, std
    }
 
    // Add exception handler entries
-   // TR_ResolvedMethod *resolvedMethod = getCachedResolvedMethodFromPtr(comp, method_block);
-   // int numHandlers = resolvedMethod->exceptionTableLength();
-   // for (int i = 0; i < numHandlers; i++)
-   // {
-   //    TR_ExceptionTableEntry *h = resolvedMethod->exceptionTableEntry(i);
-   //    leaders.insert(h->getHandlerBCI());
-   // }
+   for (int32_t handlerPC : smartAOTExceptionHandlerPCs((J9Method *)method_block))
+   {
+      if (handlerPC >= 0 && handlerPC < methodSize)
+         leaders.insert(handlerPC);
+   }
 
    // Create TR::Block nodes
    for (int32_t leader : leaders)
@@ -11038,6 +11295,11 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
       else
          variableMap[formal_param_nodes[i]->name] = formal_param_nodes[i]; // non-static methods, slot 0 -> this
    }
+
+   // SmartAOT: a synchronized instance method locks 'this' on entry; record it as sync site "<methodIndex>_-1".
+   // (Static synchronized methods lock the Class object, which always escapes, so the lock is never elided.)
+   if ((romMethod->modifiers & J9AccSynchronized) && !(romMethod->modifiers & J9AccStatic) && variableMap.count(0))
+      pag->CG.syncSites[std::to_string(methodIndex) + "_-1"] = std::vector<PAGNode *>{variableMap[0]};
    if (hasReturnType)
    {
       // pag->methodIndex_to_returnNode[methodIndex] = new PAGNode(RETURN, RETURN_NODE_NAME, NULL, method_block, -1, methodIndex);
@@ -11063,7 +11325,27 @@ void traverse_cfg(J9Method *method, PointerAssignmentGraph *pag, int methodIndex
    unordered_set<int> worklist_bb_bci;
    worklist_bb_bci.insert(entryBlock->getEntry()->getNode()->getByteCodeIndex());
 
-   while (!worklist.empty())
+   // SmartAOT: once the normal control flow is done, analyse the exception handlers. A handler starts with the caught
+   // exception (unknown here, so the bottom node) as the only operand stack entry.
+   bool handlersSeeded = false;
+   auto seedExceptionHandlers = [&]() -> bool
+   {
+      handlersSeeded = true;
+      for (int32_t handlerPC : smartAOTExceptionHandlerPCs(method))
+      {
+         auto handlerIt = blocks.find(handlerPC);
+         if (handlerIt == blocks.end() || inStacks.count(handlerIt->second))
+            continue;
+         operandStack *handlerStack = new operandStack();
+         handlerStack->pushRef(pag->bottom_node);
+         inStacks[handlerIt->second] = handlerStack;
+         worklist.push(handlerIt->second);
+         worklist_bb_bci.insert(handlerPC);
+      }
+      return !worklist.empty();
+   };
+
+   while (!worklist.empty() || (!handlersSeeded && seedExceptionHandlers()))
    {
       TR::Block *bb = worklist.front();
       worklist.pop();

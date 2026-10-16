@@ -41,7 +41,8 @@ class LoadPAG {
         void addMatchEdges(); 
         void loadCG(const std::string& filename);
         void loadSyncSites(const std::string& filename);
-        void loadInlinedMethods(const std::string& filename);
+        void loadStaticNodes(const std::string& filename);
+        void loadDependencies(const std::string& filename);
         void getImportantFieldNames(const std::string& file,int static_or_thread);
     
         NodeType parseNodeType(int typeVal);
