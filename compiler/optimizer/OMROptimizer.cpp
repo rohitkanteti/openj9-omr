@@ -6759,6 +6759,9 @@ bool isLibraryMethod(std::string methodName)
    }
    if (methodName.find("openj9") != std::string::npos)
       return true;
+   // DayTrader lives under com/ibm/, which the rule below treats as library code
+   if (methodName.rfind("com/ibm/websphere/samples/daytrader", 0) == 0)
+      return false;
    if (methodName.rfind("org/apache/lucene", 0) == 0 || methodName.rfind("org/apache/xalan", 0) == 0)
    {
       return false;
